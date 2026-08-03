@@ -135,7 +135,6 @@ export default function Home(){
 
   return <div className="suite-frame"><SuiteChrome active="foodotron" eventId={activeEvent?.id||tabletronEventId} /><main className="foodotron-applet app-shell">
     <header className="topbar">
-      <div className="brand"><span>F</span>FOODOTRON</div>
       <label className="location"><small>{activeEvent?"ACTIVE EVENT":"BUYING AREA"}</small><input readOnly={Boolean(activeEvent)} value={activeEvent?.title??plan.location} onChange={e=>setPlan(p=>({...p,location:e.target.value}))}/></label>
       <div className="maker"><b>S<sup>3</sup></b><span><small>BUILT BY:</small>SHEPPARD SEMICONDUCTOR SYSTEMS</span></div>
       <button onClick={save}>▣ SAVE</button><button onClick={exportBackup}>⇩ EXPORT</button><button onClick={()=>importInput.current?.click()}>⇧ IMPORT</button><input ref={importInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Import Foodotron backup" onChange={e=>importBackup(e.target.files?.[0])}/><button onClick={()=>meal?setMealOpen(true):addMeal()}>▦ MEAL PLANNER</button><button className="primary" onClick={()=>window.print()}>PRINT SHOPPING PLAN</button>

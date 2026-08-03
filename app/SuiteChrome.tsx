@@ -35,6 +35,12 @@ export function SuiteChrome({ active, eventId }: { active: SuiteArea; eventId?: 
           </Link>
         ))}
       </nav>
+      <Link
+        className="master-report-link"
+        href={`/master-report${eventId ? `?event=${encodeURIComponent(eventId)}` : ""}`}
+      >
+        MASTER REPORT
+      </Link>
     </header>
   );
 }

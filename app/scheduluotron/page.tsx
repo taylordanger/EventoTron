@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { SuiteChrome } from "../SuiteChrome";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { useEffect, useMemo, useState } from "react";
@@ -275,9 +274,6 @@ export default function Scheduluotron() {
   return (
     <div className="suite-frame"><SuiteChrome active="scheduluotron" eventId={activeEvent?.id} /><main className="scheduluotron-app">
       <header className="sched-topbar">
-        <Link className="suite-mark" href="/">
-          <span>S</span> SCHEDULUOTRON
-        </Link>
         <div className="sched-title">
           <small>SCHEDULUOTRON EVENT CLOCK</small>
           <input
