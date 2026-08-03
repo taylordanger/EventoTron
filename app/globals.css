@@ -184,14 +184,19 @@
 .eventotron-workbench {
   min-height: 0;
   display: grid;
-  grid-template-columns: 218px minmax(520px, 1fr) 420px;
+  grid-template-columns: minmax(360px, 420px) minmax(520px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .event-stack {
+  grid-column: 1;
+  grid-row: 1;
   min-height: 0;
   overflow-y: auto;
+  max-height: 310px;
   padding: 10px 8px;
   border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   background: #020503;
 }
 
@@ -301,6 +306,8 @@
 .legend-dot.note { border-color: #d5ff36; color: #d5ff36; }
 
 .calendar-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -436,12 +443,17 @@
 }
 
 .event-info-sheet {
+  grid-column: 1;
+  grid-row: 2;
   min-height: 0;
   overflow: auto;
-  border-left: 1px solid var(--line);
+  border-left: 0;
+  border-right: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   background: #040906;
   color: #d6f4cf;
   padding: 12px;
+  box-shadow: inset 4px 0 0 #75ff4740;
   font-family: Arial, Helvetica, sans-serif;
   letter-spacing: 0;
 }
@@ -538,14 +550,27 @@
 
 @media(max-width:1250px) {
   .eventotron-workbench {
-    grid-template-columns: 190px minmax(520px, 1fr);
+    grid-template-columns: minmax(320px, 360px) minmax(520px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .event-stack {
+    grid-column: 1;
+    grid-row: 1;
+    max-height: 280px;
+  }
+
+  .calendar-panel {
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 
   .event-info-sheet {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 2;
     border-left: 0;
     border-top: 1px solid var(--line);
-    max-height: 54vh;
+    max-height: none;
   }
 }
 
@@ -590,12 +615,17 @@
 
   .eventotron-workbench {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
   }
 
   .event-stack {
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
     gap: 6px;
+    max-height: none;
     overflow-x: auto;
+    overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
@@ -617,7 +647,15 @@
   }
 
   .calendar-panel {
+    grid-column: 1;
+    grid-row: 2;
     min-height: 720px;
+  }
+
+  .event-info-sheet {
+    grid-column: 1;
+    grid-row: 3;
+    border-right: 0;
   }
 
   .calendar-title {
