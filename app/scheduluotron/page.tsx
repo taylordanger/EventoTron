@@ -54,6 +54,16 @@ const toClock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const duration = (block: ScheduleBlock) =>
   Math.max(0, toMinutes(block.end) - toMinutes(block.start));
+const reportDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value || "Date not set";
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+};
 
 function initialPlan(): SchedulePlan {
   const date = new Date().toISOString().slice(0, 10);
@@ -521,6 +531,38 @@ export default function Scheduluotron() {
           <b>{conflicts.size ? "CONFLICT" : "CLEAR"}</b>
         </div>
       </footer>
+      <article className="sched-print-report">
+        <header className="sched-print-header">
+          <div>
+            <small>EVENTOTRON // SCHEDULUOTRON DAY SHEET</small>
+            <h1>{plan.eventName}</h1>
+            <p>{reportDate(plan.date)} · {plan.venue || "Venue not assigned"}</p>
+          </div>
+          <div className="sched-print-brand"><b>S</b><span>SCHEDULUOTRON<br /><small>OPERATIONS SUITE</small></span></div>
+        </header>
+        <section className="sched-print-section">
+          <div className="sched-print-heading"><span>01</span><h2>Day Brief</h2></div>
+          <div className="sched-print-fields">
+            <div><small>DATE</small><b>{plan.date || "Not set"}</b></div>
+            <div><small>VENUE</small><b>{plan.venue || "Not assigned"}</b></div>
+            <div><small>DAY WINDOW</small><b>{plan.dayStart} - {plan.dayEnd}</b></div>
+            <div><small>OPEN CHECKPOINTS</small><b>{checkpoints}</b></div>
+            <div><small>COMPLETED</small><b>{complete}</b></div>
+            <div><small>STATUS</small><b>{conflicts.size ? "CONFLICTS" : "CLEAR"}</b></div>
+          </div>
+        </section>
+        <section className="sched-print-section sched-print-timeline">
+          <div className="sched-print-heading"><span>02</span><h2>Run of Show</h2></div>
+          {blocks.map((block) => (
+            <div className={`sched-print-row ${block.done ? "done" : ""} ${conflicts.has(block.id) ? "conflict" : ""}`} key={block.id}>
+              <strong>{block.start}<br />{block.end}</strong>
+              <div><h3>{block.title}</h3><p>{kinds.find((kind) => kind.id === block.kind)?.label || "Block"} · {block.owner || "Unassigned"} · {block.location || "Location not set"}</p>{block.notes && <small>{block.notes}</small>}</div>
+              <span>{block.done ? "DONE" : conflicts.has(block.id) ? "CONFLICT" : "OPEN"}</span>
+            </div>
+          ))}
+        </section>
+        <footer className="sched-print-footer">Prepared for setup, staffing, and event-day coordination. Confirm final times, access details, and crew assignments before use.</footer>
+      </article>
       {notice && <div className="sched-toast">{notice}</div>}
     </main></div>
   );

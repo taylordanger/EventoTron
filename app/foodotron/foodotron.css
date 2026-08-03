@@ -71,3 +71,24 @@
 @media screen and (max-width:700px){.meal-settings{grid-template-columns:1fr}.meal-recipe-pick{grid-template-columns:1fr 120px}.meal-summary{grid-template-columns:1fr 1fr}.meal-summary>div:nth-child(2){border-right:0}.meal-report{padding:18px}.meal-report header{flex-direction:column}.report-brand{text-align:left}.report-totals{grid-template-columns:1fr 1fr}.report-head,.report-row{min-width:700px}.report-store{overflow-x:auto}}
 
 @media print{.app-shell:has(.meal-report)>.topbar,.app-shell:has(.meal-report)>.workspace,.app-shell:has(.meal-report)>.statusbar,.app-shell:has(.meal-report)>.toast{display:none!important}.meal-report-overlay{position:static;display:block;background:white;padding:0;overflow:visible}.meal-report{width:100%;max-width:none;margin:0;padding:16px;border:0;box-shadow:none}.report-actions{display:none}.report-store{break-inside:avoid}.meal-report header{break-after:avoid}.meal-report>footer{break-before:avoid}}
+/* Master-report styling for the printable Foodotron view. */
+.foodotron-applet .meal-report-overlay{background:#000e;padding:24px}
+.foodotron-applet .meal-report{width:min(1050px,97vw);padding:0;border:0;background:#e8efe8;color:#172218;box-shadow:0 0 45px #54ff3838}
+.foodotron-applet .meal-report>header{padding:28px 30px;border-bottom:4px solid #172218;background:#fff}
+.foodotron-applet .meal-report h1{color:#172218;font-size:30px}
+.foodotron-applet .meal-report header p{color:#526454}
+.foodotron-applet .food-report-section{margin:24px 30px;padding-bottom:24px;border-bottom:1px solid #bdcabc}
+.foodotron-applet .food-report-heading{display:flex;align-items:baseline;gap:14px;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #172218}
+.foodotron-applet .food-report-heading>span{color:#2e7c39;font-size:9px;font-weight:900}
+.foodotron-applet .food-report-heading h2{margin:0;color:#172218;font-size:20px;letter-spacing:0}
+.foodotron-applet .report-recipes{padding:0 0 15px;border-bottom:1px solid #bdcabc}
+.foodotron-applet .report-recipes h2{color:#526454;letter-spacing:.12em}
+.foodotron-applet .report-totals{margin:18px 0 0;background:#172218}
+.foodotron-applet .report-store{margin:18px 0;border:1px solid #bdcabc;background:#f5f9f5}
+.foodotron-applet .report-store h2{background:#dbe5d9;color:#172218;border-bottom:1px solid #bdcabc}
+.foodotron-applet .report-head{color:#526454;background:#f5f9f5}
+.foodotron-applet .report-row{min-height:50px;color:#172218;background:#f5f9f5}
+.foodotron-applet .report-row small{color:#687568}
+.foodotron-applet .meal-report>footer{margin:0 30px;padding:12px 0 28px;color:#526454}
+.foodotron-applet .report-actions{padding:18px 30px;background:linear-gradient(transparent,#e8efe8 35%)}
+@media print{.suite-frame:has(.meal-report)>.suite-chrome{display:none!important}.foodotron-applet .meal-report-overlay{background:#e8efe8;padding:0}.foodotron-applet .meal-report{width:min(8.5in,100%);min-height:10in;margin:0 auto;background:#e8efe8;print-color-adjust:exact;-webkit-print-color-adjust:exact}.foodotron-applet .food-report-section,.foodotron-applet .report-store,.foodotron-applet .report-row{break-inside:avoid}}

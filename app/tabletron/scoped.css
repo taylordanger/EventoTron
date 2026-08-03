@@ -762,3 +762,185 @@
   border-left: 0;
   padding-left: 0;
 }
+
+/* Master-report styling for the printable Tabletron view. */
+.tabletron-applet .operations-report {
+  counter-reset: ops-section;
+  width: min(1050px, 97vw);
+  padding: 0;
+  border: 0;
+  background: #e8efe8;
+  color: #172218;
+  box-shadow: 0 0 45px #54ff3838;
+}
+
+.tabletron-applet .operations-report > header {
+  padding: 28px 30px;
+  border-bottom: 4px solid #172218;
+  background: #fff;
+}
+
+.tabletron-applet .operations-report h1 {
+  color: #172218;
+  font-size: 30px;
+}
+
+.tabletron-applet .operations-report header p {
+  color: #526454;
+}
+
+.tabletron-applet .client-block {
+  margin: 24px 30px;
+  background: #172218;
+}
+
+.tabletron-applet .ops-section {
+  margin: 24px 30px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #bdcabc;
+}
+
+.tabletron-applet .ops-section > h2,
+.tabletron-applet .ops-notes-print h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #172218;
+  color: #172218;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.tabletron-applet .ops-section > h2::before {
+  counter-increment: ops-section;
+  content: counter(ops-section, decimal-leading-zero);
+  color: #2e7c39;
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+
+.tabletron-applet .timeline {
+  border: 1px solid #bdcabc;
+  background: #f5f9f5;
+}
+
+.tabletron-applet .timeline > div {
+  min-height: 92px;
+  padding: 13px;
+  border-right: 1px solid #bdcabc;
+}
+
+.tabletron-applet .timeline b {
+  color: #2e7c39;
+  font-size: 16px;
+}
+
+.tabletron-applet .timeline span {
+  color: #172218;
+}
+
+.tabletron-applet .ops-room-grid {
+  gap: 14px;
+}
+
+.tabletron-applet .ops-room-card {
+  border: 1px solid #bdcabc;
+  background: #f5f9f5;
+}
+
+.tabletron-applet .ops-room-card > header {
+  background: #dbe5d9;
+  border-bottom: 1px solid #bdcabc;
+}
+
+.tabletron-applet .ops-room-card h3 {
+  color: #172218;
+}
+
+.tabletron-applet .ops-room-card dl > div {
+  border-color: #bdcabc;
+}
+
+.tabletron-applet .ops-notes-print {
+  margin: 24px 30px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #bdcabc;
+}
+
+.tabletron-applet .ops-notes-print > div {
+  border: 1px solid #bdcabc;
+  background: #f5f9f5;
+}
+
+.tabletron-applet .ops-notes-print h2 {
+  display: block;
+  margin: 0 0 10px;
+  border-bottom: 1px solid #bdcabc;
+  color: #526454;
+  font-size: 10px;
+  letter-spacing: .12em;
+}
+
+.tabletron-applet .food-ops > h2::before {
+  counter-increment: ops-section;
+  content: counter(ops-section, decimal-leading-zero);
+  color: #2e7c39;
+  margin-right: 14px;
+  font-size: 9px;
+}
+
+.tabletron-applet .food-summary {
+  background: #172218;
+}
+
+.tabletron-applet .ops-store {
+  border: 1px solid #bdcabc;
+  background: #f5f9f5;
+}
+
+.tabletron-applet .ops-store h3 {
+  background: #dbe5d9;
+  color: #172218;
+  border-bottom: 1px solid #bdcabc;
+}
+
+.tabletron-applet .ops-food-row {
+  min-height: 50px;
+  color: #172218;
+  background: #f5f9f5;
+}
+
+.tabletron-applet .operations-report > footer {
+  margin: 0 30px;
+  padding: 12px 0 28px;
+  color: #526454;
+}
+
+.tabletron-applet .ops-report-actions {
+  padding: 18px 30px;
+  background: linear-gradient(transparent, #e8efe8 35%);
+}
+
+@media print {
+  .suite-frame:has(.operations-report) > .suite-chrome {
+    display: none !important;
+  }
+
+  .tabletron-applet .operations-report {
+    width: min(8.5in, 100%);
+    min-height: 10in;
+    margin: 0 auto;
+    background: #e8efe8;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .tabletron-applet .ops-section,
+  .tabletron-applet .ops-room-card,
+  .tabletron-applet .ops-notes-print > div,
+  .tabletron-applet .ops-store {
+    break-inside: avoid;
+  }
+}

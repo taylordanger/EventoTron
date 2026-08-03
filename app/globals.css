@@ -2471,3 +2471,257 @@
 .report-hide-costs .report-shopping-row {
   grid-template-columns: 34px 1.4fr .8fr 1.3fr .85fr;
 }
+
+.sched-print-report {
+  display: none;
+}
+
+.sched-print-header,
+.sched-print-section,
+.sched-print-footer {
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+}
+
+.sched-print-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 28px 30px;
+  border-bottom: 4px solid #172218;
+  background: #fff;
+}
+
+.sched-print-header small,
+.sched-print-heading span,
+.sched-print-fields small,
+.sched-print-brand small {
+  color: #526454;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.sched-print-header h1 {
+  margin: 6px 0;
+  color: #172218;
+  font-size: 30px;
+}
+
+.sched-print-header p {
+  margin: 0;
+  color: #526454;
+  font-size: 13px;
+}
+
+.sched-print-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #172218;
+  text-align: right;
+}
+
+.sched-print-brand > b {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  background: #172218;
+  color: #75ff47;
+  font-size: 26px;
+}
+
+.sched-print-brand > span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sched-print-section {
+  margin: 24px 0;
+  padding: 0 30px 24px;
+  border-bottom: 1px solid #bdcabc;
+}
+
+.sched-print-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #172218;
+}
+
+.sched-print-heading span {
+  color: #2e7c39;
+}
+
+.sched-print-heading h2 {
+  margin: 0;
+  color: #172218;
+  font-size: 20px;
+}
+
+.sched-print-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid #bdcabc;
+  background: #f5f9f5;
+}
+
+.sched-print-fields > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px;
+  border-right: 1px solid #bdcabc;
+  border-bottom: 1px solid #bdcabc;
+}
+
+.sched-print-fields > div:nth-child(3n) {
+  border-right: 0;
+}
+
+.sched-print-fields b {
+  color: #172218;
+  font-size: 14px;
+}
+
+.sched-print-timeline {
+  padding-bottom: 0;
+}
+
+.sched-print-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 80px;
+  gap: 16px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid #bdcabc;
+  border-left: 4px solid #75b479;
+  padding-left: 12px;
+}
+
+.sched-print-row > strong {
+  color: #2e7c39;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.sched-print-row h3 {
+  margin: 0;
+  color: #172218;
+  font-size: 15px;
+}
+
+.sched-print-row p,
+.sched-print-row small {
+  display: block;
+  margin: 5px 0 0;
+  color: #526454;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sched-print-row > span {
+  padding: 5px 6px;
+  background: #dcebdc;
+  color: #2e7c39;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.sched-print-row.done {
+  opacity: .6;
+}
+
+.sched-print-row.conflict {
+  border-left-color: #cf4d4d;
+}
+
+.sched-print-row.conflict > span {
+  background: #f7dada;
+  color: #9a2e2e;
+}
+
+.sched-print-footer {
+  margin: 0 30px 28px;
+  padding-top: 12px;
+  border-top: 2px solid #172218;
+  color: #526454;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media print {
+  .suite-frame:has(.sched-print-report) > .suite-chrome,
+  .scheduluotron-app:has(.sched-print-report) > .sched-topbar,
+  .scheduluotron-app:has(.sched-print-report) > .sched-workspace,
+  .scheduluotron-app:has(.sched-print-report) > .sched-status,
+  .scheduluotron-app:has(.sched-print-report) > .sched-toast {
+    display: none !important;
+  }
+
+  .suite-frame:has(.sched-print-report) {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #e8efe8 !important;
+  }
+
+  .scheduluotron-app:has(.sched-print-report) {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #e8efe8 !important;
+  }
+
+  .sched-print-report {
+    display: block !important;
+    width: min(8.5in, 100%);
+    min-height: 10in;
+    margin: 0 auto;
+    padding: 0;
+    background: #e8efe8;
+    color: #172218;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .sched-print-section,
+  .sched-print-row,
+  .sched-print-fields {
+    break-inside: avoid;
+  }
+}
+
+@media screen and (max-width:700px) {
+  .sched-print-header {
+    flex-direction: column;
+  }
+
+  .sched-print-brand {
+    text-align: left;
+  }
+
+  .sched-print-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sched-print-fields > div:nth-child(3n) {
+    border-right: 1px solid #bdcabc;
+  }
+
+  .sched-print-row {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .sched-print-row > span {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
