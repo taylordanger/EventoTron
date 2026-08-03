@@ -93,7 +93,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, masterReport, foodotron, tabletron, scheduluotron, styles] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -105,6 +105,11 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/master-report/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/foodotron/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/scheduluotron/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
@@ -143,4 +148,13 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   }
   assert.match(backupRoute, /BACKUP_VERSION = 2/);
   assert.match(backupRoute, /validateBackup/);
+  for (const reportSource of [masterReport, foodotron, tabletron, scheduluotron]) {
+    assert.match(reportSource, /SHEPPARD SEMICONDUCTOR SYSTEMS/);
+  }
+  assert.match(foodotron, /onClick=\{printMeal\}>PRINT SHOPPING PLAN/);
+  assert.doesNotMatch(foodotron, /PRINT SHOPPING PLAN<\/button>[\s\S]{0,80}window\.print/);
+  assert.match(styles, /Final printable report system/);
+  assert.match(styles, /suite-frame:has\(\.meal-report\)/);
+  assert.match(styles, /suite-frame:has\(\.operations-report\)/);
+  assert.match(styles, /suite-frame:has\(\.sched-print-report\)/);
 });

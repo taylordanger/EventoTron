@@ -584,7 +584,7 @@ export default function Scheduluotron() {
             <h1>{plan.eventName}</h1>
             <p>{reportDate(plan.date)} · {plan.venue || "Venue not assigned"}</p>
           </div>
-          <div className="sched-print-brand"><b>S</b><span>SCHEDULUOTRON<br /><small>OPERATIONS SUITE</small></span></div>
+          <div className="sched-print-brand"><b>S<sup>3</sup></b><span>SCHEDULUOTRON<br /><small>SHEPPARD SEMICONDUCTOR SYSTEMS</small></span></div>
         </header>
         <section className="sched-print-section">
           <div className="sched-print-heading"><span>01</span><h2>Day Brief</h2></div>
@@ -607,7 +607,7 @@ export default function Scheduluotron() {
             </div>
           ))}
         </section>
-        <footer className="sched-print-footer">Prepared for setup, staffing, and event-day coordination. Confirm final times, access details, and crew assignments before use.</footer>
+        <footer className="sched-print-footer">Prepared by Sheppard Semiconductor Systems for setup, staffing, and event-day coordination. Confirm final times, access details, and crew assignments before use.</footer>
       </article>
       {notice && <div className="sched-toast">{notice}</div>}
     </main></div>

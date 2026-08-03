@@ -3037,3 +3037,238 @@
     justify-self: start;
   }
 }
+
+/* Final printable report system: keep every applet report aligned with the master report. */
+.master-report-brand > b,
+.foodotron-applet .report-brand > b,
+.tabletron-applet .ops-brand > b,
+.sched-print-brand > b {
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1;
+}
+
+.master-report-brand sup,
+.foodotron-applet .report-brand sup,
+.tabletron-applet .ops-brand sup,
+.sched-print-brand sup {
+  font-size: .42em;
+  line-height: 0;
+}
+
+.master-report-brand > span,
+.foodotron-applet .report-brand > span,
+.tabletron-applet .ops-brand > span,
+.sched-print-brand > span {
+  max-width: 180px;
+  line-height: 1.1;
+}
+
+.master-report-header > div:first-child,
+.foodotron-applet .meal-report > header > div:first-child,
+.tabletron-applet .operations-report > header > div:first-child,
+.sched-print-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.master-report-header h1,
+.foodotron-applet .meal-report h1,
+.tabletron-applet .operations-report h1,
+.sched-print-header h1 {
+  max-width: 760px;
+}
+
+.master-report-brand small,
+.foodotron-applet .report-brand small,
+.tabletron-applet .ops-brand small,
+.sched-print-brand small {
+  display: inline-block;
+  max-width: 180px;
+  white-space: normal;
+}
+
+.foodotron-applet .report-brand,
+.tabletron-applet .ops-brand,
+.sched-print-brand,
+.master-report-brand {
+  flex: 0 0 auto;
+}
+
+.foodotron-applet .meal-report,
+.tabletron-applet .operations-report {
+  width: min(1050px, calc(100vw - 52px)) !important;
+}
+
+.foodotron-applet .meal-report,
+.tabletron-applet .operations-report,
+.sched-print-report,
+.master-report-page {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.foodotron-applet .meal-report > header,
+.tabletron-applet .operations-report > header,
+.sched-print-header,
+.master-report-header {
+  border-top: 7px solid #172218;
+}
+
+.foodotron-applet .report-actions,
+.tabletron-applet .ops-report-actions,
+.master-report-actions {
+  border-top: 1px solid #bdcabc;
+}
+
+.foodotron-applet .report-actions button,
+.tabletron-applet .ops-report-actions button,
+.master-report-actions button,
+.master-report-actions a {
+  min-height: 38px;
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: .42in;
+  }
+
+  html,
+  body {
+    background: #e8efe8 !important;
+  }
+
+  .suite-frame:has(.meal-report),
+  .suite-frame:has(.operations-report),
+  .suite-frame:has(.sched-print-report) {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #e8efe8 !important;
+  }
+
+  .suite-frame:has(.meal-report) > .suite-chrome,
+  .suite-frame:has(.operations-report) > .suite-chrome,
+  .suite-frame:has(.sched-print-report) > .suite-chrome,
+  .master-report-actions,
+  .foodotron-applet .report-actions,
+  .tabletron-applet .ops-report-actions {
+    display: none !important;
+  }
+
+  .master-report-page,
+  .foodotron-applet.app-shell:has(.meal-report),
+  .tabletron-applet.app-shell:has(.operations-report),
+  .scheduluotron-app:has(.sched-print-report) {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #e8efe8 !important;
+    color: #172218 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .foodotron-applet.app-shell:has(.meal-report) > .topbar,
+  .foodotron-applet.app-shell:has(.meal-report) > .workspace,
+  .foodotron-applet.app-shell:has(.meal-report) > .statusbar,
+  .foodotron-applet.app-shell:has(.meal-report) > .toast,
+  .tabletron-applet.app-shell:has(.operations-report) > .topbar,
+  .tabletron-applet.app-shell:has(.operations-report) > .workspace,
+  .tabletron-applet.app-shell:has(.operations-report) > .statusbar,
+  .tabletron-applet.app-shell:has(.operations-report) > .modal-backdrop,
+  .tabletron-applet.app-shell:has(.operations-report) > .toast,
+  .scheduluotron-app:has(.sched-print-report) > .sched-topbar,
+  .scheduluotron-app:has(.sched-print-report) > .sched-workspace,
+  .scheduluotron-app:has(.sched-print-report) > .sched-status,
+  .scheduluotron-app:has(.sched-print-report) > .sched-toast {
+    display: none !important;
+  }
+
+  .foodotron-applet .meal-report-overlay,
+  .tabletron-applet .operations-overlay {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #e8efe8 !important;
+  }
+
+  .master-report-header,
+  .master-report-page > section,
+  .master-report-footer,
+  .foodotron-applet .meal-report,
+  .tabletron-applet .operations-report,
+  .sched-print-report {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    background: #e8efe8 !important;
+    color: #172218 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  .foodotron-applet .meal-report,
+  .tabletron-applet .operations-report,
+  .sched-print-report {
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+
+  .master-report-header,
+  .foodotron-applet .meal-report > header,
+  .tabletron-applet .operations-report > header,
+  .sched-print-header {
+    padding: 18px 20px 16px !important;
+    background: #fff !important;
+    border-top: 7px solid #172218 !important;
+    border-bottom: 4px solid #172218 !important;
+    break-after: avoid;
+  }
+
+  .master-report-section,
+  .foodotron-applet .food-report-section,
+  .tabletron-applet .ops-section,
+  .tabletron-applet .ops-notes-print,
+  .sched-print-section {
+    margin: 18px 0 0 !important;
+    padding: 16px 20px 18px !important;
+    background: #fff !important;
+    border: 0 !important;
+    border-bottom: 1px solid #bdcabc !important;
+    box-shadow: none !important;
+  }
+
+  .foodotron-applet .report-store,
+  .tabletron-applet .ops-store,
+  .tabletron-applet .ops-room-card,
+  .report-room,
+  .sched-print-row,
+  .report-shopping-row,
+  .foodotron-applet .report-row,
+  .tabletron-applet .ops-food-row {
+    break-inside: avoid;
+  }
+
+  .report-layout-figure,
+  .report-layout-canvas {
+    break-inside: avoid;
+  }
+
+  .master-report-footer,
+  .foodotron-applet .meal-report > footer,
+  .tabletron-applet .operations-report > footer,
+  .sched-print-footer {
+    margin: 18px 20px 0 !important;
+    padding: 12px 0 0 !important;
+    border-top: 2px solid #172218 !important;
+    color: #526454 !important;
+    font-size: 9px !important;
+  }
+}

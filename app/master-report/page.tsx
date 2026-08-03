@@ -278,7 +278,7 @@ export default function MasterReportPage() {
           <h1>{event.title}</h1>
           <p>{formatDate(event.date)} · {event.space || "Space not assigned"}</p>
         </div>
-        <div className="master-report-brand"><b>E</b><span>EVENTOTRON<br /><small>OPERATIONS SUITE</small></span></div>
+        <div className="master-report-brand"><b>S<sup>3</sup></b><span>EVENTOTRON<br /><small>SHEPPARD SEMICONDUCTOR SYSTEMS</small></span></div>
       </header>
       <div className="master-report-actions">
         <button className="report-print-button" onClick={() => window.print()}>PRINT MASTER REPORT</button>
@@ -385,7 +385,7 @@ export default function MasterReportPage() {
         ) : null}
       </section>
 
-      <footer className="master-report-footer">Prepared from EventoTron event, Tabletron, Foodotron, and Scheduluotron records. Verify final counts, prices, access details, and client changes before setup.</footer>
+      <footer className="master-report-footer">Prepared by Sheppard Semiconductor Systems from EventoTron event, Tabletron, Foodotron, and Scheduluotron records. Verify final counts, prices, access details, and client changes before setup.</footer>
     </main>
   );
 }

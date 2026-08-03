@@ -2220,11 +2220,11 @@ export default function Home() {
                 </p>
               </div>
               <div className="ops-brand">
-                <b>T</b>
+                <b>S<sup>3</sup></b>
                 <span>
                   TABLETRON
                   <br />
-                  <small>S³ SHEPPARD SEMICONDUCTOR SYSTEMS</small>
+                  <small>SHEPPARD SEMICONDUCTOR SYSTEMS</small>
                 </span>
               </div>
             </header>
@@ -2408,7 +2408,7 @@ export default function Home() {
             )}
             <footer>
               <span>
-                Planning aid only. Confirm timing, staffing, purchasing,
+                Sheppard Semiconductor Systems planning aid. Confirm timing, staffing, purchasing,
                 layouts, and applicable safety requirements before the event.
               </span>
               <b>{new Date().toLocaleDateString()}</b>
