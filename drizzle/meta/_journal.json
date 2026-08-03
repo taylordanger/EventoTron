@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785715200000,
+      "tag": "0000_suite_meal_transfers",
+      "breakpoints": true
+    }
+  ]
+}

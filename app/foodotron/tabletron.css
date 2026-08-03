@@ -1,0 +1,3 @@
+.tabletron-send,.suite-link{display:inline-flex;align-items:center;border:1px solid var(--p);background:#071408;color:var(--p);padding:9px 12px;text-decoration:none;font-size:9px;font-weight:bold;box-shadow:inset 0 0 14px #58ff3817}.tabletron-send:hover,.suite-link:hover{background:var(--p);color:#041004}.tabletron-send:disabled{opacity:.45;cursor:wait}.suite-link{width:max-content;margin:0 0 12px auto}
+@media(max-width:700px){.meal-actions{flex-wrap:wrap}.tabletron-send{order:2;width:100%;justify-content:center}.suite-link{width:100%;justify-content:center}}
+@media print{.tabletron-send{display:none}}

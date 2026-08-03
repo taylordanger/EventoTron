@@ -1,0 +1,1223 @@
+@import "tailwindcss";
+@import "./foodotron/scoped.css";
+@import "./tabletron/scoped.css";
+
+.eventotron-desktop {
+  --p:#75ff47;
+  --pb:#b6ff9d;
+  --pd:#2b6c25;
+  --black:#020503;
+  --panel:#050b07;
+  --line:#234729;
+  --amber:#d5ff36;
+  --red:#ff4d65;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 70px minmax(0, 1fr);
+  background: radial-gradient(circle at 50% 30%, #0b1b0e, #020503 66%);
+  color: #d6f4cf;
+  font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
+  letter-spacing: .04em;
+  overflow: hidden;
+}
+
+.eventotron-desktop * {
+  box-sizing: border-box;
+}
+
+.eventotron-desktop button,
+.eventotron-desktop input,
+.eventotron-desktop select,
+.eventotron-desktop textarea {
+  font: inherit;
+}
+
+.eventotron-ribbon {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--pd);
+  background: #010302;
+  box-shadow: 0 0 18px #43ff2920;
+}
+
+.suite-frame {
+  --p:#75ff47;
+  --pb:#b6ff9d;
+  --pd:#2b6c25;
+  --black:#020503;
+  --panel:#050b07;
+  --line:#234729;
+  --amber:#d5ff36;
+  --red:#ff4d65;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 70px minmax(0, 1fr);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #0b1b0e, #020503 66%);
+  color: #d6f4cf;
+  font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
+  letter-spacing: .04em;
+}
+
+.suite-frame > .foodotron-applet.app-shell,
+.suite-frame > .tabletron-applet.app-shell,
+.suite-frame > .scheduluotron-app {
+  height: auto;
+  min-height: 0;
+}
+
+.suite-chrome.eventotron-ribbon {
+  min-width: 0;
+}
+
+.eventotron-ribbon-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  gap: 8px;
+  padding-right: 16px;
+  border-bottom: 1px solid var(--pd);
+  background: #010302;
+  box-shadow: 0 0 18px #43ff2920;
+}
+
+.eventotron-ribbon-row .eventotron-ribbon {
+  border-bottom: 0;
+  box-shadow: none;
+}
+
+.eventotron-ribbon-row > button {
+  align-self: center;
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  border-radius: 2px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.eventotron-ribbon-row > button.primary {
+  background: var(--p);
+  color: #041004;
+  border-color: var(--p);
+}
+
+.eventotron-logo {
+  align-self: center;
+  margin-right: 8px;
+  color: var(--p);
+  text-decoration: none;
+  font-size: 24px;
+  font-weight: 900;
+  text-shadow: 0 0 12px #66ff4a88;
+  white-space: nowrap;
+}
+
+.eventotron-logo span {
+  display: inline-grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border: 2px solid var(--p);
+  margin-right: 9px;
+  clip-path: polygon(0 0,100% 0,84% 100%,16% 100%);
+}
+
+.folder-tabs {
+  align-self: end;
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding-top: 12px;
+}
+
+.folder-tab {
+  position: relative;
+  min-width: 128px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #305b34;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: linear-gradient(#0f2612, #061008);
+  color: #9abf95;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 900;
+  clip-path: polygon(0 12px, 13px 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.folder-tab.active {
+  height: 48px;
+  color: var(--p);
+  background: #0a180c;
+  border-color: var(--p);
+  box-shadow: inset 0 0 15px #58ff3824;
+}
+
+.eventotron-ribbon button {
+  align-self: center;
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  border-radius: 2px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.eventotron-ribbon button.primary {
+  background: var(--p);
+  color: #041004;
+  border-color: var(--p);
+  font-weight: 900;
+}
+
+.eventotron-workbench {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 218px minmax(520px, 1fr) 420px;
+}
+
+.event-stack {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 8px;
+  border-right: 1px solid var(--line);
+  background: #020503;
+}
+
+.stack-title {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 4px 2px 9px;
+  border-bottom: 1px solid var(--line);
+  color: #82a77d;
+  font-size: 8px;
+}
+
+.stack-title b {
+  color: var(--p);
+}
+
+.vertical-file {
+  width: 100%;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: flex-start;
+  margin-bottom: 6px;
+  padding: 10px 8px;
+  border: 1px solid #305b34;
+  border-left-width: 5px;
+  background: #061008;
+  color: #d6f4cf;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vertical-file small {
+  color: #71936c;
+  font-size: 8px;
+}
+
+.vertical-file b {
+  font-size: 11px;
+  line-height: 1.25;
+  writing-mode: initial;
+  text-orientation: initial;
+  max-height: none;
+}
+
+.active-event-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 11px 9px 12px;
+  border: 1px solid var(--p);
+  border-left: 5px solid var(--p);
+  background: #0a180c;
+  box-shadow: inset 0 0 18px #58ff3820;
+}
+
+.active-event-tab small {
+  color: var(--p);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.active-event-tab strong {
+  color: #e1ffd9;
+  font-size: 16px;
+  line-height: 1.05;
+}
+
+.active-event-tab span {
+  color: #9fc499;
+  font-size: 9px;
+}
+
+.active-event-tab em {
+  color: #668d61;
+  font-size: 7px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.vertical-file.active {
+  border-color: var(--p);
+  background: #0a180c;
+  box-shadow: inset 0 0 14px #58ff3820;
+}
+
+.vertical-file.meeting,
+.calendar-event.meeting,
+.legend-dot.meeting { border-color: #3f8cff; color: #72a8ff; }
+.vertical-file.rental,
+.calendar-event.rental,
+.legend-dot.rental { border-color: #a00000; color: #ff7b6d; }
+.vertical-file.concert,
+.calendar-event.concert,
+.legend-dot.concert { border-color: #a00000; color: #ff4d65; }
+.vertical-file.camp,
+.calendar-event.camp,
+.legend-dot.camp { border-color: #35c7c9; color: #57e5df; }
+.vertical-file.prep,
+.calendar-event.prep,
+.legend-dot.prep { border-color: #ff9800; color: #ffb84f; }
+.vertical-file.note,
+.calendar-event.note,
+.legend-dot.note { border-color: #d5ff36; color: #d5ff36; }
+
+.calendar-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 88px minmax(0, 1fr);
+  background: #020503;
+  color: #d6f4cf;
+  overflow: hidden;
+}
+
+.calendar-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #040906;
+}
+
+.calendar-title small {
+  font-size: 9px;
+  color: #49614a;
+  font-weight: bold;
+}
+
+.calendar-title h1 {
+  margin: 2px 0 0;
+  font-size: 24px;
+  color: var(--pb);
+  letter-spacing: 0;
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 12px;
+}
+
+.legend-dot {
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.month-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(112px, 1fr));
+  grid-auto-rows: minmax(112px, 1fr);
+  overflow: auto;
+  border-left: 1px solid #1f3f23;
+}
+
+.weekday {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 30px;
+  padding: 6px 8px;
+  border-right: 1px solid #244929;
+  border-bottom: 1px solid #75ff4780;
+  background: #0c1a0e;
+  color: var(--p);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.day-cell {
+  min-width: 0;
+  padding: 7px;
+  border-right: 1px solid #18371d;
+  border-bottom: 1px solid #18371d;
+  background: #050b07;
+  overflow: hidden;
+}
+
+.day-cell.blank {
+  background: #030704;
+}
+
+.day-number {
+  float: right;
+  width: 28px;
+  height: 25px;
+  border: 1px solid #315b34;
+  background: #071009;
+  color: var(--p);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.day-events {
+  clear: both;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 5px;
+}
+
+.calendar-event {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid #254a2a;
+  border-left-width: 4px;
+  background: #081109;
+  text-align: left;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.calendar-event b {
+  color: currentColor;
+  font-size: 10px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-event small {
+  color: #7fa07a;
+  font-size: 8px;
+}
+
+.calendar-event.active {
+  outline: 1px solid var(--p);
+  background: #0c1d0e;
+  box-shadow: inset 0 0 12px #58ff3824;
+}
+
+.event-info-sheet {
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+  background: #040906;
+  color: #d6f4cf;
+  padding: 12px;
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+}
+
+.sheet-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+}
+
+.sheet-header small {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--p);
+}
+
+.sheet-header b {
+  font-size: 20px;
+}
+
+.sheet-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.sheet-grid label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sheet-grid label.wide,
+.price-box.wide {
+  grid-column: 1 / -1;
+}
+
+.sheet-grid span {
+  font-size: 9px;
+  font-weight: 900;
+  color: #82a77d;
+}
+
+.sheet-grid input,
+.sheet-grid select,
+.sheet-grid textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #315b34;
+  background: #071009;
+  color: #e0f6db;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sheet-grid textarea {
+  min-height: 62px;
+  resize: vertical;
+  font-weight: 500;
+}
+
+.sheet-grid .description textarea {
+  min-height: 92px;
+}
+
+.price-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 8px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #071009;
+  padding: 10px;
+}
+
+.price-box div {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  align-items: center;
+  gap: 5px;
+}
+
+.price-box strong {
+  grid-column: 1 / -1;
+  text-align: right;
+  font-size: 16px;
+  color: var(--p);
+}
+
+@media(max-width:1250px) {
+  .eventotron-workbench {
+    grid-template-columns: 190px minmax(520px, 1fr);
+  }
+
+  .event-info-sheet {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    max-height: 54vh;
+  }
+}
+
+@media(max-width:780px) {
+  .eventotron-desktop {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+    grid-template-rows: auto auto;
+  }
+
+  .eventotron-ribbon {
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px;
+  }
+
+  .suite-frame {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .eventotron-ribbon-row {
+    grid-template-columns: 1fr;
+    padding: 0 10px 10px;
+  }
+
+  .eventotron-ribbon-row > button {
+    width: 100%;
+  }
+
+  .folder-tabs {
+    order: 3;
+    width: 100%;
+  }
+
+  .folder-tab {
+    min-width: 116px;
+  }
+
+  .eventotron-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .event-stack {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .stack-title {
+    min-width: 90px;
+    border-bottom: 0;
+    margin: 0;
+  }
+
+  .vertical-file {
+    min-width: 135px;
+    min-height: 64px;
+  }
+
+  .vertical-file b {
+    writing-mode: initial;
+    max-height: none;
+  }
+
+  .calendar-panel {
+    min-height: 720px;
+  }
+
+  .calendar-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .month-grid {
+    grid-template-columns: repeat(7, minmax(126px, 1fr));
+  }
+
+  .sheet-grid,
+  .price-box {
+    grid-template-columns: 1fr;
+  }
+
+  .price-box div {
+    grid-template-columns: 1fr 110px;
+  }
+}
+
+.eventotron-home {
+  min-height: 100vh;
+  background: radial-gradient(circle at 30% 20%, #163315, #020503 62%);
+  color: #d6f4cf;
+  font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
+  letter-spacing: .04em;
+}
+
+.eventotron-top {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  border-bottom: 1px solid #2b6c25;
+  background: #010302;
+  box-shadow: 0 0 18px #43ff2920;
+}
+
+.eventotron-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  font-weight: 900;
+  color: #75ff47;
+  text-shadow: 0 0 12px #66ff4a88;
+}
+
+.eventotron-brand i {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #75ff47;
+  font-style: normal;
+  clip-path: polygon(0 0,100% 0,84% 100%,16% 100%);
+}
+
+.eventotron-top span {
+  color: #71936c;
+  font-size: 9px;
+  font-weight: bold;
+}
+
+.eventotron-grid {
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 34px 0 48px;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 22px;
+}
+
+.eventotron-panel {
+  border: 1px solid #234729;
+  background: #040906;
+  padding: 16px;
+}
+
+.eventotron-panel h1,
+.eventotron-panel h2 {
+  margin: 0;
+  color: #75ff47;
+}
+
+.eventotron-panel h1 {
+  font-size: 30px;
+}
+
+.eventotron-panel h2 {
+  font-size: 12px;
+  border-bottom: 1px solid #234729;
+  padding-bottom: 10px;
+}
+
+.eventotron-panel p {
+  color: #8da489;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.eventotron-apps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.eventotron-app {
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #305b34;
+  background: #061008;
+  padding: 16px;
+  color: #d6f4cf;
+  text-decoration: none;
+}
+
+.eventotron-app:hover {
+  border-color: #75ff47;
+  box-shadow: inset 0 0 18px #58ff3820, 0 0 10px #58ff3820;
+}
+
+.eventotron-app b {
+  color: #75ff47;
+  font-size: 18px;
+}
+
+.eventotron-app small {
+  color: #71936c;
+  font-size: 8px;
+  font-weight: bold;
+}
+
+.eventotron-app span {
+  color: #8da489;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.scheduluotron-app {
+  --p:#75ff47;
+  --pb:#b6ff9d;
+  --pd:#2b6c25;
+  --black:#020503;
+  --panel:#050b07;
+  --line:#234729;
+  --amber:#d5ff36;
+  --red:#ff4d65;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 66px minmax(0, 1fr) 76px;
+  background: radial-gradient(circle at 50% 30%, #0b1b0e, #020503 65%);
+  color: #d6f4cf;
+  font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
+  letter-spacing: .04em;
+  overflow: hidden;
+}
+
+.scheduluotron-app * {
+  box-sizing: border-box;
+}
+
+.scheduluotron-app button,
+.scheduluotron-app input,
+.scheduluotron-app select,
+.scheduluotron-app textarea {
+  font: inherit;
+}
+
+.sched-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--pd);
+  background: #010302;
+  box-shadow: 0 0 18px #43ff2920;
+}
+
+.suite-mark {
+  color: var(--p);
+  text-decoration: none;
+  font-size: 22px;
+  font-weight: 900;
+  text-shadow: 0 0 12px #66ff4a88;
+  white-space: nowrap;
+}
+
+.suite-mark span {
+  display: inline-grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border: 2px solid var(--p);
+  margin-right: 9px;
+  clip-path: polygon(0 0,100% 0,84% 100%,16% 100%);
+}
+
+.sched-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  border-left: 1px solid var(--line);
+  padding-left: 15px;
+}
+
+.sched-title small,
+.sched-panel label span,
+.sched-toolbar small,
+.sched-status small {
+  color: #71936c;
+  font-size: 7px;
+}
+
+.sched-title input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e0f7db;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.scheduluotron-app button {
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  border-radius: 2px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: .15s;
+}
+
+.scheduluotron-app button:hover,
+.scheduluotron-app button.active {
+  border-color: var(--p);
+  color: var(--pb);
+  box-shadow: inset 0 0 14px #58ff3820, 0 0 8px #58ff3820;
+}
+
+.scheduluotron-app button.primary {
+  background: var(--p);
+  color: #041004;
+  border-color: var(--p);
+  font-weight: 900;
+}
+
+.sched-workspace {
+  display: grid;
+  grid-template-columns: 245px minmax(680px, 1fr) 310px;
+  min-height: 0;
+}
+
+.sched-panel {
+  overflow: auto;
+  background: #040906;
+  border-right: 1px solid var(--line);
+  padding: 13px 11px;
+}
+
+.sched-panel.inspector {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.sched-heading {
+  display: flex;
+  justify-content: space-between;
+  color: #82a77d;
+  font-size: 10px;
+  border-bottom: 1px solid var(--line);
+  padding: 3px 2px 11px;
+  margin-bottom: 10px;
+}
+
+.sched-heading b {
+  color: var(--p);
+}
+
+.sched-heading.subsection {
+  margin-top: 20px;
+}
+
+.sched-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 11px;
+}
+
+.sched-panel input,
+.sched-panel select,
+.sched-panel textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #315b34;
+  background: #071009;
+  color: #e0f6db;
+  padding: 8px;
+  outline: 0;
+}
+
+.sched-panel textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.sched-time-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.kind-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.kind-grid button {
+  font-size: 8px;
+  color: var(--p);
+  border-style: dashed;
+}
+
+.sched-note {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid #466d28;
+  background: #151f0b;
+  padding: 10px;
+}
+
+.sched-note b {
+  color: var(--amber);
+  font-size: 9px;
+}
+
+.sched-note span {
+  color: #879984;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.sched-board {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 58px minmax(230px, .72fr) minmax(260px, 1fr);
+  background-image: linear-gradient(#10201455 1px, transparent 1px), linear-gradient(90deg, #10201455 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.sched-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 15px;
+  border-bottom: 1px solid var(--line);
+  background: #040906;
+}
+
+.sched-toolbar > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sched-toolbar > div:first-child {
+  flex: 1;
+}
+
+.sched-toolbar b {
+  color: #e0f8db;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline {
+  min-height: 0;
+  padding: 18px;
+  overflow: auto;
+}
+
+.time-ruler {
+  position: relative;
+  height: 24px;
+  border-bottom: 1px solid var(--line);
+  min-width: 760px;
+}
+
+.time-ruler span {
+  position: absolute;
+  transform: translateX(-50%);
+  color: #668363;
+  font-size: 8px;
+}
+
+.timeline-lanes {
+  min-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 14px;
+}
+
+.schedule-block {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  border-color: #315b34;
+  border-left-width: 4px;
+  overflow: hidden;
+}
+
+.schedule-block small,
+.schedule-block span {
+  font-size: 7px;
+  color: #8da489;
+}
+
+.schedule-block b {
+  max-width: 100%;
+  color: #e0f8db;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schedule-block.setup { border-left-color: var(--p); }
+.schedule-block.delivery { border-left-color: #55d7ff; }
+.schedule-block.staff { border-left-color: #d5ff36; }
+.schedule-block.service { border-left-color: #ffb84f; }
+.schedule-block.guest { border-left-color: #d8a1ff; }
+.schedule-block.teardown { border-left-color: #ff4d65; }
+.schedule-block.note { border-left-color: #8da489; }
+
+.schedule-block.conflict {
+  border-color: var(--red);
+  box-shadow: inset 0 0 12px #ff4d6524;
+}
+
+.schedule-block.done {
+  opacity: .55;
+}
+
+.run-list {
+  overflow: auto;
+  padding: 0 18px 18px;
+}
+
+.run-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 80px;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #17331c;
+  border-radius: 0;
+  background: #040a06;
+  padding: 12px 11px;
+}
+
+.run-list i {
+  color: var(--p);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: bold;
+}
+
+.run-list span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.run-list b {
+  color: #e0f8db;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-list small {
+  color: #658061;
+  font-size: 7px;
+}
+
+.run-list em {
+  color: var(--p);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: bold;
+  text-align: right;
+}
+
+.run-list button.done {
+  opacity: .55;
+}
+
+.run-list button.done b {
+  text-decoration: line-through;
+}
+
+.run-list button:not(.done) em {
+  color: var(--amber);
+}
+
+.run-list button.active {
+  background: #0a180c;
+  box-shadow: inset 3px 0 var(--p);
+}
+
+.done-toggle {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 9px !important;
+}
+
+.done-toggle input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--p);
+}
+
+.delete {
+  color: #ff7888 !important;
+  border-color: #782a34 !important;
+}
+
+.sched-empty {
+  padding: 34px;
+  text-align: center;
+  color: #587455;
+  font-size: 9px;
+}
+
+.sched-status {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--pd);
+  background: #010302;
+}
+
+.sched-status > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 18px;
+  border-right: 1px solid var(--line);
+}
+
+.sched-status b {
+  color: #e0f8db;
+  font-size: 18px;
+}
+
+.sched-status .good b {
+  color: var(--p);
+}
+
+.sched-status .bad b {
+  color: var(--red);
+}
+
+.sched-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 92px;
+  z-index: 80;
+  background: var(--p);
+  color: #041004;
+  padding: 12px 17px;
+  font-size: 10px;
+  font-weight: bold;
+  box-shadow: 0 0 20px #55ff4466;
+}
+
+@media(max-width:820px) {
+  .eventotron-grid,
+  .eventotron-apps {
+    grid-template-columns: 1fr;
+  }
+}
