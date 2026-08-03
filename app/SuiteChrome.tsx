@@ -17,7 +17,7 @@ const names: Record<SuiteArea, { mark: string; title: string }> = {
   tabletron: { mark: "T", title: "TABLETRON" },
   foodotron: { mark: "F", title: "FOODOTRON" },
   scheduluotron: { mark: "S", title: "SCHEDULUOTRON" },
-  settings: { mark: "C", title: "SETTINGS" },
+  settings: { mark: "S", title: "SETTINGS" },
 };
 
 export function SuiteChrome({ active, eventId }: { active: SuiteArea; eventId?: string }) {
