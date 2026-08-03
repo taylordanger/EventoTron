@@ -232,6 +232,15 @@
   font-weight: 900;
 }
 
+.save-state {
+  border-color: rgba(117, 255, 71, 0.45) !important;
+  color: #c9f5c4 !important;
+  background: rgba(10, 40, 16, 0.72) !important;
+  box-shadow: inset 0 0 18px rgba(117, 255, 71, 0.08);
+  cursor: default !important;
+  opacity: 1 !important;
+}
+
 .eventotron-workbench {
   position: relative;
   min-height: 0;
@@ -2024,6 +2033,107 @@
   .master-report-footer {
     border-top: 1px solid #bdcabc;
   }
+}
+
+.settings-applet {
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+  background:
+    linear-gradient(rgba(117, 255, 71, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(117, 255, 71, 0.025) 1px, transparent 1px),
+    #020503;
+  background-size: 34px 34px;
+}
+
+.settings-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 10px;
+  align-items: end;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--pd);
+  margin-bottom: 20px;
+}
+
+.settings-page-header small {
+  color: var(--p);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.settings-page-header h1 {
+  margin: 5px 0 0;
+  color: #dfffd9;
+  font-size: 42px;
+  line-height: .9;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(117, 255, 71, 0.35);
+}
+
+.settings-page-header button {
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  border-radius: 2px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.settings-page-header button.primary {
+  background: var(--p);
+  color: #041004;
+  border-color: var(--p);
+}
+
+.settings-applet .settings-layout {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  align-items: start;
+}
+
+.settings-applet .settings-card {
+  min-height: 100%;
+}
+
+.settings-field textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.settings-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-room-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 84px 84px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(117, 255, 71, 0.22);
+  background: rgba(3, 14, 7, 0.9);
+}
+
+.settings-room-row input {
+  width: 100%;
+  color: #dfffd9;
+  border: 1px solid #2d7538;
+  background: #020804;
+  padding: 10px;
+  font-weight: 800;
+}
+
+.settings-room-row button {
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  padding: 10px;
+  font-size: 9px;
+  font-weight: 900;
 }
 
 .settings-backdrop {

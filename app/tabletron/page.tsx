@@ -459,6 +459,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [appletSaveStatus, setAppletSaveStatus] = useState("LOCAL READY");
   const canvasRef = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -596,7 +597,10 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       try {
         localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
-        void saveSuiteAppletState(project.activeEventId, "tabletron", project);
+        setAppletSaveStatus("SAVING");
+        void saveSuiteAppletState(project.activeEventId, "tabletron", project)
+          .then(() => setAppletSaveStatus("SAVED"))
+          .catch(() => setAppletSaveStatus("LOCAL ONLY"));
         setSavedAt(new Date());
       } catch {
         setNotice("AUTO-SAVE FAILED · DOWNLOAD A BACKUP");
@@ -626,7 +630,10 @@ export default function Home() {
   function save() {
     try {
       localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
-      void saveSuiteAppletState(project.activeEventId, "tabletron", project);
+      setAppletSaveStatus("SAVING");
+      void saveSuiteAppletState(project.activeEventId, "tabletron", project)
+        .then(() => setAppletSaveStatus("SAVED"))
+        .catch(() => setAppletSaveStatus("LOCAL ONLY"));
       setSavedAt(new Date());
       setNotice("PROJECT SAVED ON THIS DEVICE");
     } catch {
@@ -1203,6 +1210,7 @@ export default function Home() {
           <button onClick={save} title={savedAt ? `Last saved ${savedAt.toLocaleTimeString()}` : "Save project"}>
             {savedAt ? "✓ SAVED" : "▣ SAVE"}
           </button>
+          <button className="save-state" disabled>{appletSaveStatus}</button>
           <button onClick={exportBackup}>⇩ BACKUP</button>
           <button onClick={() => importRef.current?.click()}>⇧ RESTORE</button>
           <input

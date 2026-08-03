@@ -2,13 +2,14 @@ import Link from "next/link";
 import { eventTabHref } from "./event-context";
 import { ClockDisplay } from "./ClockDisplay";
 
-type SuiteArea = "calendar" | "tabletron" | "foodotron" | "scheduluotron";
+type SuiteArea = "calendar" | "tabletron" | "foodotron" | "scheduluotron" | "settings";
 
 const tabs: { id: SuiteArea; href: string; label: string }[] = [
   { id: "calendar", href: "/", label: "Calendar" },
   { id: "tabletron", href: "/tabletron", label: "Tabletron" },
   { id: "foodotron", href: "/foodotron", label: "Foodotron" },
   { id: "scheduluotron", href: "/scheduluotron", label: "Scheduluotron" },
+  { id: "settings", href: "/settings", label: "Settings" },
 ];
 
 const names: Record<SuiteArea, { mark: string; title: string }> = {
@@ -16,6 +17,7 @@ const names: Record<SuiteArea, { mark: string; title: string }> = {
   tabletron: { mark: "T", title: "TABLETRON" },
   foodotron: { mark: "F", title: "FOODOTRON" },
   scheduluotron: { mark: "S", title: "SCHEDULUOTRON" },
+  settings: { mark: "C", title: "SETTINGS" },
 };
 
 export function SuiteChrome({ active, eventId }: { active: SuiteArea; eventId?: string }) {

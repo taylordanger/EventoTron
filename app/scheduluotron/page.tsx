@@ -151,6 +151,7 @@ export default function Scheduluotron() {
   const [plan, setPlan] = useState<SchedulePlan>(() => initialPlan());
   const [notice, setNotice] = useState("");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
+  const [appletSaveStatus, setAppletSaveStatus] = useState("LOCAL READY");
   const active =
     plan.blocks.find((block) => block.id === plan.activeId) ?? plan.blocks[0];
   const dayStart = toMinutes(plan.dayStart);
@@ -205,7 +206,10 @@ export default function Scheduluotron() {
     if (!activeEvent) return;
     const timer = window.setTimeout(() => {
       localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
-      void saveSuiteAppletState(activeEvent.id, "scheduluotron", plan);
+      setAppletSaveStatus("SAVING");
+      void saveSuiteAppletState(activeEvent.id, "scheduluotron", plan)
+        .then(() => setAppletSaveStatus("SAVED"))
+        .catch(() => setAppletSaveStatus("LOCAL ONLY"));
     }, 500);
     return () => window.clearTimeout(timer);
   }, [activeEvent, plan]);
@@ -279,7 +283,10 @@ export default function Scheduluotron() {
 
   function save() {
     localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
-    void saveSuiteAppletState(activeEvent?.id, "scheduluotron", plan);
+    setAppletSaveStatus("SAVING");
+    void saveSuiteAppletState(activeEvent?.id, "scheduluotron", plan)
+      .then(() => setAppletSaveStatus("SAVED"))
+      .catch(() => setAppletSaveStatus("LOCAL ONLY"));
     setNotice("SCHEDULUOTRON SAVED");
   }
 
@@ -307,6 +314,7 @@ export default function Scheduluotron() {
           />
         </div>
         <button onClick={save}>SAVE</button>
+        <button className="save-state" disabled>{appletSaveStatus}</button>
         <button onClick={exportSchedule}>EXPORT</button>
         <button className="primary" onClick={() => window.print()}>
           PRINT DAY SHEET
