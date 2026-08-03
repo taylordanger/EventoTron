@@ -3,8 +3,15 @@ import {
   foodotronMeals,
   mealTransfers,
   suiteAppletStates,
+  suiteCalendarSources,
   suiteEvents,
+  suiteLayoutItems,
+  suiteRecipes,
+  suiteRoomLayouts,
+  suiteRooms,
+  suiteScheduleItems,
   suiteSettings,
+  suiteShoppingItems,
   tabletronEvents,
 } from "@/db/schema";
 import { readAllLocalAppletStates, writeLocalAppletState } from "../event-app-state/local-store";
@@ -12,33 +19,89 @@ import { projectAppletState } from "../event-app-state/projections";
 import { readLocalEvents, writeLocalEvents } from "../events/local-store";
 import { readLocalSettings, writeLocalSettings } from "../settings/local-store";
 
+const BACKUP_VERSION = 2 as const;
+
+type BackupData = {
+  settings?: Array<typeof suiteSettings.$inferSelect>;
+  events?: Array<typeof suiteEvents.$inferSelect>;
+  appletStates?: Array<typeof suiteAppletStates.$inferSelect>;
+  rooms?: Array<typeof suiteRooms.$inferSelect>;
+  roomLayouts?: Array<typeof suiteRoomLayouts.$inferSelect>;
+  layoutItems?: Array<typeof suiteLayoutItems.$inferSelect>;
+  foodotronMeals?: Array<typeof foodotronMeals.$inferSelect>;
+  recipes?: Array<typeof suiteRecipes.$inferSelect>;
+  shoppingItems?: Array<typeof suiteShoppingItems.$inferSelect>;
+  tabletronEvents?: Array<typeof tabletronEvents.$inferSelect>;
+  scheduleItems?: Array<typeof suiteScheduleItems.$inferSelect>;
+  calendarSources?: Array<typeof suiteCalendarSources.$inferSelect>;
+  mealTransfers?: Array<typeof mealTransfers.$inferSelect>;
+};
+
 type WorkspaceBackup = {
   format: "eventotron-workspace-backup";
-  version: 1;
+  version: 1 | typeof BACKUP_VERSION;
   exportedAt: string;
-  data: {
-    settings: Array<typeof suiteSettings.$inferSelect>;
-    events: Array<typeof suiteEvents.$inferSelect>;
-    appletStates: Array<typeof suiteAppletStates.$inferSelect>;
-    foodotronMeals: Array<typeof foodotronMeals.$inferSelect>;
-    tabletronEvents: Array<typeof tabletronEvents.$inferSelect>;
-    mealTransfers: Array<typeof mealTransfers.$inferSelect>;
-  };
+  source?: string;
+  counts?: Record<string, number>;
+  data: BackupData;
 };
+
+const backupKeys = [
+  "settings",
+  "events",
+  "appletStates",
+  "rooms",
+  "roomLayouts",
+  "layoutItems",
+  "foodotronMeals",
+  "recipes",
+  "shoppingItems",
+  "tabletronEvents",
+  "scheduleItems",
+  "calendarSources",
+  "mealTransfers",
+] as const satisfies ReadonlyArray<keyof BackupData>;
 
 function dbUnavailable(error: unknown) {
   const detail = error instanceof Error ? error.message : String(error);
   return detail.includes("cloudflare:");
 }
 
-function backupResponse(data: WorkspaceBackup["data"], source: string) {
+function backupCounts(data: BackupData) {
+  return Object.fromEntries(backupKeys.map((key) => [key, data[key]?.length ?? 0]));
+}
+
+function backupResponse(data: BackupData, source: string) {
   return Response.json({
     format: "eventotron-workspace-backup",
-    version: 1,
+    version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     source,
+    counts: backupCounts(data),
     data,
   });
+}
+
+function validateBackup(value: unknown): WorkspaceBackup | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const backup = value as Partial<WorkspaceBackup>;
+  if (
+    backup.format !== "eventotron-workspace-backup" ||
+    (backup.version !== 1 && backup.version !== BACKUP_VERSION) ||
+    !backup.data ||
+    typeof backup.data !== "object" ||
+    Array.isArray(backup.data)
+  ) return null;
+
+  for (const key of backupKeys) {
+    const rows = backup.data[key];
+    if (rows === undefined) continue;
+    if (!Array.isArray(rows)) return null;
+    if (rows.some((row) => !row || typeof row !== "object" || Array.isArray(row) || !("id" in row) || typeof row.id !== "string" || !row.id.trim())) {
+      return null;
+    }
+  }
+  return backup as WorkspaceBackup;
 }
 
 export async function GET() {
@@ -48,15 +111,29 @@ export async function GET() {
       settings,
       events,
       appletStates,
+      rooms,
+      roomLayouts,
+      layoutItems,
       meals,
+      recipes,
+      shoppingItems,
       tableEvents,
+      scheduleItems,
+      calendarSources,
       transfers,
     ] = await Promise.all([
       db.select().from(suiteSettings),
       db.select().from(suiteEvents),
       db.select().from(suiteAppletStates),
+      db.select().from(suiteRooms),
+      db.select().from(suiteRoomLayouts),
+      db.select().from(suiteLayoutItems),
       db.select().from(foodotronMeals),
+      db.select().from(suiteRecipes),
+      db.select().from(suiteShoppingItems),
       db.select().from(tabletronEvents),
+      db.select().from(suiteScheduleItems),
+      db.select().from(suiteCalendarSources),
       db.select().from(mealTransfers),
     ]);
     return backupResponse(
@@ -64,8 +141,15 @@ export async function GET() {
         settings,
         events,
         appletStates,
+        rooms,
+        roomLayouts,
+        layoutItems,
         foodotronMeals: meals,
+        recipes,
+        shoppingItems,
         tabletronEvents: tableEvents,
+        scheduleItems,
+        calendarSources,
         mealTransfers: transfers,
       },
       "database",
@@ -92,8 +176,15 @@ export async function GET() {
           updatedAt: localEvents.updatedAt ?? new Date().toISOString(),
         })),
         appletStates: readAllLocalAppletStates() as Array<typeof suiteAppletStates.$inferSelect>,
+        rooms: [],
+        roomLayouts: [],
+        layoutItems: [],
         foodotronMeals: [],
+        recipes: [],
+        shoppingItems: [],
         tabletronEvents: [],
+        scheduleItems: [],
+        calendarSources: [],
         mealTransfers: [],
       },
       "local-dev",
@@ -106,63 +197,50 @@ async function restoreDatabase(backup: WorkspaceBackup) {
   const upserts: Array<Promise<unknown>> = [];
 
   for (const row of backup.data.settings ?? []) {
-    upserts.push(
-      db.insert(suiteSettings).values(row).onConflictDoUpdate({
-        target: suiteSettings.id,
-        set: row,
-      }),
-    );
+    upserts.push(db.insert(suiteSettings).values(row).onConflictDoUpdate({ target: suiteSettings.id, set: row }));
   }
   for (const row of backup.data.events ?? []) {
-    upserts.push(
-      db.insert(suiteEvents).values(row).onConflictDoUpdate({
-        target: suiteEvents.id,
-        set: row,
-      }),
-    );
+    upserts.push(db.insert(suiteEvents).values(row).onConflictDoUpdate({ target: suiteEvents.id, set: row }));
   }
-  for (const row of backup.data.appletStates ?? []) {
-    upserts.push(
-      db.insert(suiteAppletStates).values(row).onConflictDoUpdate({
-        target: suiteAppletStates.id,
-        set: row,
-      }),
-    );
+  for (const row of backup.data.rooms ?? []) {
+    upserts.push(db.insert(suiteRooms).values(row).onConflictDoUpdate({ target: suiteRooms.id, set: row }));
+  }
+  for (const row of backup.data.roomLayouts ?? []) {
+    upserts.push(db.insert(suiteRoomLayouts).values(row).onConflictDoUpdate({ target: suiteRoomLayouts.id, set: row }));
+  }
+  for (const row of backup.data.layoutItems ?? []) {
+    upserts.push(db.insert(suiteLayoutItems).values(row).onConflictDoUpdate({ target: suiteLayoutItems.id, set: row }));
   }
   for (const row of backup.data.foodotronMeals ?? []) {
-    upserts.push(
-      db.insert(foodotronMeals).values(row).onConflictDoUpdate({
-        target: foodotronMeals.id,
-        set: row,
-      }),
-    );
+    upserts.push(db.insert(foodotronMeals).values(row).onConflictDoUpdate({ target: foodotronMeals.id, set: row }));
+  }
+  for (const row of backup.data.recipes ?? []) {
+    upserts.push(db.insert(suiteRecipes).values(row).onConflictDoUpdate({ target: suiteRecipes.id, set: row }));
+  }
+  for (const row of backup.data.shoppingItems ?? []) {
+    upserts.push(db.insert(suiteShoppingItems).values(row).onConflictDoUpdate({ target: suiteShoppingItems.id, set: row }));
   }
   for (const row of backup.data.tabletronEvents ?? []) {
-    upserts.push(
-      db.insert(tabletronEvents).values(row).onConflictDoUpdate({
-        target: tabletronEvents.id,
-        set: row,
-      }),
-    );
+    upserts.push(db.insert(tabletronEvents).values(row).onConflictDoUpdate({ target: tabletronEvents.id, set: row }));
+  }
+  for (const row of backup.data.scheduleItems ?? []) {
+    upserts.push(db.insert(suiteScheduleItems).values(row).onConflictDoUpdate({ target: suiteScheduleItems.id, set: row }));
+  }
+  for (const row of backup.data.calendarSources ?? []) {
+    upserts.push(db.insert(suiteCalendarSources).values(row).onConflictDoUpdate({ target: suiteCalendarSources.id, set: row }));
+  }
+  for (const row of backup.data.appletStates ?? []) {
+    upserts.push(db.insert(suiteAppletStates).values(row).onConflictDoUpdate({ target: suiteAppletStates.id, set: row }));
   }
   for (const row of backup.data.mealTransfers ?? []) {
-    upserts.push(
-      db.insert(mealTransfers).values(row).onConflictDoUpdate({
-        target: mealTransfers.id,
-        set: row,
-      }),
-    );
+    upserts.push(db.insert(mealTransfers).values(row).onConflictDoUpdate({ target: mealTransfers.id, set: row }));
   }
 
   await Promise.all(upserts);
-  for (const state of backup.data.appletStates ?? []) {
-    await projectAppletState(
-      db,
-      state.eventId,
-      state.appName,
-      state.payload,
-      state.updatedAt,
-    );
+  if (backup.version === 1) {
+    for (const state of backup.data.appletStates ?? []) {
+      await projectAppletState(db, state.eventId, state.appName, state.payload, state.updatedAt);
+    }
   }
 }
 
@@ -209,13 +287,8 @@ function restoreLocal(backup: WorkspaceBackup) {
 }
 
 export async function POST(request: Request) {
-  const backup = (await request.json().catch(() => null)) as WorkspaceBackup | null;
-  if (
-    !backup ||
-    backup.format !== "eventotron-workspace-backup" ||
-    backup.version !== 1 ||
-    !backup.data
-  ) {
+  const backup = validateBackup(await request.json().catch(() => null));
+  if (!backup) {
     return Response.json({ error: "Workspace backup file is not recognized." }, { status: 400 });
   }
 
@@ -224,14 +297,8 @@ export async function POST(request: Request) {
     return Response.json({
       restored: true,
       source: "database",
-      counts: {
-        settings: backup.data.settings?.length ?? 0,
-        events: backup.data.events?.length ?? 0,
-        appletStates: backup.data.appletStates?.length ?? 0,
-        foodotronMeals: backup.data.foodotronMeals?.length ?? 0,
-        tabletronEvents: backup.data.tabletronEvents?.length ?? 0,
-        mealTransfers: backup.data.mealTransfers?.length ?? 0,
-      },
+      backupVersion: backup.version,
+      counts: backupCounts(backup.data),
     });
   } catch (error) {
     if (!dbUnavailable(error)) {
@@ -244,6 +311,11 @@ export async function POST(request: Request) {
       );
     }
     restoreLocal(backup);
-    return Response.json({ restored: true, source: "local-dev" });
+    return Response.json({
+      restored: true,
+      source: "local-dev",
+      backupVersion: backup.version,
+      counts: backupCounts(backup.data),
+    });
   }
 }

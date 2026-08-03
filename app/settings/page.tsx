@@ -143,7 +143,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch("/api/workspace-backup");
       if (!response.ok) throw new Error("Workspace backup failed");
-      const backup = await response.json();
+      const backup = await response.json() as { version?: number; counts?: { events?: number } };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -151,7 +151,7 @@ export default function SettingsPage() {
       link.download = `eventotron-workspace-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      setStatus("BACKUP EXPORTED");
+      setStatus(`BACKUP V${backup.version ?? 1} / ${backup.counts?.events ?? 0} EVENTS`);
     } catch {
       const fallback = {
         format: "eventotron-local-browser-backup",
@@ -203,7 +203,8 @@ export default function SettingsPage() {
         body: JSON.stringify(backup),
       });
       if (!response.ok) throw new Error("Workspace restore failed");
-      setStatus("RESTORED");
+      const result = await response.json() as { counts?: { events?: number } };
+      setStatus(`RESTORED ${result.counts?.events ?? 0} EVENTS`);
     } catch {
       setStatus("RESTORE FAILED");
     } finally {

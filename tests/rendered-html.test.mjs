@@ -77,6 +77,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
     ["/api/event-records", "GET", undefined, 400, /require an event ID/i],
     ["/api/meal-transfers", "POST", {}, 400, /requires a meal/i],
     ["/api/workspace-backup", "POST", {}, 400, /not recognized/i],
+    ["/api/workspace-backup", "POST", { format: "eventotron-workspace-backup", version: 2, exportedAt: new Date().toISOString(), data: { events: [{ title: "Missing ID" }] } }, 400, /not recognized/i],
     ["/api/calendar-sources", "POST", { url: "calendar.example.test" }, 400, /must begin with http/i],
   ];
 
@@ -90,8 +91,8 @@ test("API routes reject incomplete writes before touching storage", async () => 
   }
 });
 
-test("production data contracts keep IDs, migrations, and event ownership explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration] = await Promise.all([
+test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration, backupRoute] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -99,6 +100,7 @@ test("production data contracts keep IDs, migrations, and event ownership explic
     readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
@@ -121,4 +123,9 @@ test("production data contracts keep IDs, migrations, and event ownership explic
   assert.match(migration, /CREATE TABLE `suite_schema_migrations`/);
   assert.match(migration, /CREATE UNIQUE INDEX `idx_suite_applet_states_event_app`/);
   assert.match(migration, /'0003_suite_integrity_indexes'/);
+  for (const table of ["rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources"]) {
+    assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
+  }
+  assert.match(backupRoute, /BACKUP_VERSION = 2/);
+  assert.match(backupRoute, /validateBackup/);
 });
