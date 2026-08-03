@@ -3,6 +3,7 @@
 import { SuiteChrome } from "../SuiteChrome";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
+import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TableItem = { id: string; x: number; y: number };
@@ -171,17 +172,48 @@ const makeEvent = (name = "New Client Event"): EventPlan => ({
   operationsNotes: "",
   clientNotes: "",
 });
-const defaultProject = (): Project => {
-  const room = makeRoom("Community Room");
+const defaultProject = (settings?: SuiteSettings): Project => {
+  const rooms = settings?.rooms?.length
+    ? settings.rooms.map((setting) => ({
+        ...makeRoom(setting.name, setting.width, setting.height),
+        id: setting.id,
+      }))
+    : [makeRoom("Community Room")];
   return {
-    name: "LCCC Event Plan",
-    rooms: [room],
-    activeRoomId: room.id,
-    templates: [],
+    name: settings?.venueName ? `${settings.venueName} Event Plan` : "LCCC Event Plan",
+    rooms,
+    activeRoomId: rooms[0].id,
+    templates: (settings?.equipment ?? []).map((name, index) => makeFurnitureTemplate(name, index)),
     events: [],
     activeEventId: "",
   };
 };
+
+function applySettingsToProject(project: Project, settings: SuiteSettings): Project {
+  const rooms = [...project.rooms];
+  settings.rooms.forEach((setting) => {
+    if (rooms.some((room) => room.name.toLowerCase() === setting.name.toLowerCase())) return;
+    rooms.push({
+      ...makeRoom(setting.name, setting.width, setting.height),
+      id: setting.id,
+    });
+  });
+  const templates = [...project.templates];
+  settings.equipment.forEach((name, index) => {
+    if (!templates.some((template) => template.name.toLowerCase() === name.toLowerCase())) {
+      templates.push(makeFurnitureTemplate(name, index));
+    }
+  });
+  return {
+    ...project,
+    name: project.name || `${settings.venueName} Event Plan`,
+    rooms,
+    activeRoomId: rooms.some((room) => room.id === project.activeRoomId)
+      ? project.activeRoomId
+      : rooms[0].id,
+    templates,
+  };
+}
 
 function eventRoomNames(space: string) {
   return space
@@ -191,14 +223,20 @@ function eventRoomNames(space: string) {
     .filter((name, index, names) => names.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index);
 }
 
-function hydrateForEvent(project: Project, source: EventoEventContext): Project {
+function hydrateForEvent(project: Project, source: EventoEventContext, settings?: SuiteSettings): Project {
   const names = eventRoomNames(source.space || "Community Room");
   const rooms = [...project.rooms];
   const roomByName = (name: string) => rooms.find((room) => room.name.toLowerCase() === name.toLowerCase());
+  const configuredRoom = (name: string) =>
+    settings?.rooms.find((room) => room.name.toLowerCase() === name.toLowerCase());
   const activeRooms = names.map((name) => {
     const existing = roomByName(name);
     if (existing) return existing;
-    const created = makeRoom(name);
+    const configured = configuredRoom(name);
+    const created = {
+      ...makeRoom(name, configured?.width ?? 26, configured?.height ?? 26),
+      id: configured?.id ?? uid(),
+    };
     rooms.push(created);
     return created;
   });
@@ -475,8 +513,11 @@ export default function Home() {
   useEffect(() => {
     const raw = localStorage.getItem("tabletron-project-v2");
     const timer = window.setTimeout(async () => {
+      const suiteSettings = await loadSuiteSettings();
       try {
-        const stored = raw ? normalizeProject(JSON.parse(raw)) : defaultProject();
+        const stored = raw
+          ? applySettingsToProject(normalizeProject(JSON.parse(raw)), suiteSettings)
+          : defaultProject(suiteSettings);
         let next: Project = stored;
         const params = new URLSearchParams(window.location.search);
         const transferId =
@@ -493,7 +534,7 @@ export default function Home() {
         if (linkedEventId) {
           try {
             const saved = await readSuiteAppletState<Project>(linkedEventId, "tabletron");
-            if (saved) next = normalizeProject(saved);
+            if (saved) next = applySettingsToProject(normalizeProject(saved), suiteSettings);
           } catch {}
         }
         if (transferId) {
@@ -579,11 +620,11 @@ export default function Home() {
           window.history.replaceState({}, "", window.location.pathname);
         }
         const linkedContext = readEventContext(linkedEventId);
-        if (linkedContext) next = hydrateForEvent(next, linkedContext);
+        if (linkedContext) next = hydrateForEvent(next, linkedContext, suiteSettings);
         setProject(next);
         setSavedAt(raw ? new Date() : null);
       } catch {
-        setProject(defaultProject());
+        setProject(defaultProject(suiteSettings));
         setNotice("SAVED PROJECT COULD NOT BE READ · A NEW PROJECT WAS OPENED");
       } finally {
         setLoaded(true);

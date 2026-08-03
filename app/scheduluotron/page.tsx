@@ -3,6 +3,7 @@
 import { SuiteChrome } from "../SuiteChrome";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
+import { loadSuiteSettings } from "../suite-settings";
 import { useEffect, useMemo, useState } from "react";
 
 type BlockKind =
@@ -166,6 +167,28 @@ export default function Scheduluotron() {
         const parsed = JSON.parse(raw) as SchedulePlan;
         if (Array.isArray(parsed.blocks)) setPlan(parsed);
       } catch {}
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(async () => {
+      const eventId = new URLSearchParams(window.location.search).get("event");
+      const settings = await loadSuiteSettings();
+      const owners = settings.staff.length ? settings.staff : ["Ops lead"];
+      setPlan((current) => ({
+        ...current,
+        venue: !eventId && (!current.venue || current.venue === "Lincoln City Cultural Center")
+          ? settings.venueName || current.venue
+          : current.venue,
+        blocks: current.blocks.map((block, index) => ({
+          ...block,
+          owner:
+            ["Ops lead", "Room crew", "Foodotron runner", "Front desk", "Service crew", "Close crew", ""].includes(block.owner)
+              ? owners[index % owners.length]
+              : block.owner,
+        })),
+      }));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);

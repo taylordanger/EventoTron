@@ -2,72 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SuiteChrome } from "../SuiteChrome";
+import {
+  SETTINGS_STORE_KEY,
+  calendarProviderLabels,
+  defaultSuiteSettings,
+  mergeSuiteSettings,
+  type CalendarProvider,
+  type SuiteSettings,
+} from "../suite-settings";
 
-type CalendarProvider = "google" | "outlook" | "ical" | "work";
-type CalendarSource = {
-  id: string;
-  name: string;
-  provider: CalendarProvider;
-  url: string;
-  enabled: boolean;
-  color: string;
-  syncMinutes: number;
-};
-type SuiteSettings = {
-  workspaceName: string;
-  venueName: string;
-  timezone: string;
-  weekStartsOn: "sunday" | "monday";
-  autoSave: boolean;
-  reportPaper: "letter" | "a4";
-  reportIncludeCosts: boolean;
-  reportIncludeLayout: boolean;
-  staff: string[];
-  rooms: Array<{ id: string; name: string; width: number; height: number }>;
-  equipment: string[];
-  calendarSources: CalendarSource[];
-};
-
-const SETTINGS_STORE_KEY = "eventotron-settings-v1";
 const uid = () => Math.random().toString(36).slice(2, 9);
-const defaultSettings: SuiteSettings = {
-  workspaceName: "EventoTron Operations Suite",
-  venueName: "Lincoln City Cultural Center",
-  timezone: "America/Los_Angeles",
-  weekStartsOn: "sunday",
-  autoSave: true,
-  reportPaper: "letter",
-  reportIncludeCosts: true,
-  reportIncludeLayout: true,
-  staff: ["Jason", "Nara", "Heather", "Taylor", "Serena"],
-  rooms: [
-    { id: "room_margarets", name: "Margaret's Room", width: 26, height: 26 },
-    { id: "room_auditorium", name: "Auditorium", width: 60, height: 42 },
-    { id: "room_conference", name: "Conference", width: 26, height: 26 },
-  ],
-  equipment: ["6 FT ROUND TABLES", "CHAIRS", "PODIUM", "PROJECTOR", "LINENS"],
-  calendarSources: [],
-};
-const providers: Record<CalendarProvider, string> = {
-  google: "Google Calendar",
-  outlook: "Outlook / Microsoft 365",
-  ical: "iCal / ICS feed",
-  work: "Other work calendar",
-};
-
-function mergeSettings(value: Partial<SuiteSettings> | null): SuiteSettings {
-  return {
-    ...defaultSettings,
-    ...(value ?? {}),
-    staff: Array.isArray(value?.staff) ? value.staff : defaultSettings.staff,
-    rooms: Array.isArray(value?.rooms) ? value.rooms : defaultSettings.rooms,
-    equipment: Array.isArray(value?.equipment) ? value.equipment : defaultSettings.equipment,
-    calendarSources: Array.isArray(value?.calendarSources) ? value.calendarSources : [],
-  };
-}
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<SuiteSettings>(defaultSettings);
+  const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
   const [loaded, setLoaded] = useState(false);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
@@ -75,12 +22,12 @@ export default function SettingsPage() {
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       const raw = localStorage.getItem(SETTINGS_STORE_KEY);
-      let restored = raw ? mergeSettings(JSON.parse(raw) as Partial<SuiteSettings>) : defaultSettings;
+      let restored = raw ? mergeSuiteSettings(JSON.parse(raw) as Partial<SuiteSettings>) : defaultSuiteSettings;
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
           const data = (await response.json()) as { payload?: Partial<SuiteSettings> };
-          restored = mergeSettings(data.payload ?? restored);
+          restored = mergeSuiteSettings(data.payload ?? restored);
           setStatus("DATABASE READY");
         }
       } catch {}
@@ -157,7 +104,7 @@ export default function SettingsPage() {
           </div>
           <button className="save-state" disabled>{status}</button>
           <button onClick={exportSettings}>EXPORT</button>
-          <button className="primary" onClick={() => update(defaultSettings)}>RESET DEFAULTS</button>
+          <button className="primary" onClick={() => update(defaultSuiteSettings)}>RESET DEFAULTS</button>
         </header>
 
         <section className="settings-layout">
@@ -204,7 +151,7 @@ export default function SettingsPage() {
                   <button onClick={() => update({ calendarSources: settings.calendarSources.filter((item) => item.id !== source.id) })}>REMOVE</button>
                 </div>
                 <div className="settings-two-up">
-                  <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, provider: event.target.value as CalendarProvider } : item) })}>{Object.entries(providers).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                  <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, provider: event.target.value as CalendarProvider } : item) })}>{Object.entries(calendarProviderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
                   <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, color: event.target.value } : item) })} /></label>
                 </div>
                 <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, url: event.target.value } : item) })} /></label>

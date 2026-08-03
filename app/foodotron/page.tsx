@@ -3,6 +3,7 @@
 import { SuiteChrome } from "../SuiteChrome";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
+import { loadSuiteSettings } from "../suite-settings";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Offer={id:string;store:string;packageQty:number;packageUnit?:string;packageYield?:number;price:number;note:string;url?:string};
@@ -54,6 +55,7 @@ export default function Home(){
   const meal=plan.meals.find(m=>m.id===plan.activeMealId)??plan.meals[0];
 
   useEffect(()=>{const raw=localStorage.getItem("foodotron-plan-v1");if(!raw)return;const timer=window.setTimeout(()=>{try{const parsed=JSON.parse(raw);setPlan({...parsed,budgetPerPlate:parsed.budgetPerPlate??6.5,meals:parsed.meals??[],activeMealId:parsed.activeMealId??""});setSelectedIngredient(parsed.recipes[0]?.ingredients[0]?.id??"")}catch{}},0);return()=>clearTimeout(timer)},[]);
+  useEffect(()=>{const timer=window.setTimeout(async()=>{const settings=await loadSuiteSettings();setPlan(current=>({...current,location:!current.location||current.location==="Lincoln City, OR"?settings.venueName||current.location:current.location}))},0);return()=>clearTimeout(timer)},[]);
   useEffect(()=>{const timer=window.setTimeout(async()=>{const params=new URLSearchParams(window.location.search);const eventId=params.get("event")??params.get("tabletronEvent")??"";setTabletronEventId(eventId);const context=readEventContext(eventId);if(!context)return;setActiveEvent(context);let saved:Plan|null=null;try{saved=await readSuiteAppletState<Plan>(context.id,"foodotron")}catch{}setPlan(current=>{const base=saved?{...saved,budgetPerPlate:saved.budgetPerPlate??6.5,meals:saved.meals??[],activeMealId:saved.activeMealId??""}:current;const existing=base.meals.find(item=>item.tabletronEventId===context.id)||base.meals.find(item=>item.name===context.title);const mealForEvent:Meal=existing?{...existing,name:context.title,date:context.date,guests:context.attendees,tabletronEventId:context.id}:{id:uid(),name:context.title,date:context.date,guests:context.attendees,recipes:base.recipes[0]?[{recipeId:base.recipes[0].id,servings:context.attendees}]:[],tabletronEventId:context.id};const meals=existing?base.meals.map(item=>item.id===mealForEvent.id?mealForEvent:item):[...base.meals,mealForEvent];const next={...base,meals,activeMealId:mealForEvent.id,targetServings:context.attendees};localStorage.setItem("foodotron-plan-v1",JSON.stringify(next));return next})},0);return()=>clearTimeout(timer)},[]);
   useEffect(()=>{if(!activeEvent)return;const timer=window.setTimeout(()=>{localStorage.setItem("foodotron-plan-v1",JSON.stringify(plan));setAppletSaveStatus("SAVING");void saveSuiteAppletState(activeEvent.id,"foodotron",plan).then(()=>setAppletSaveStatus("SAVED")).catch(()=>setAppletSaveStatus("LOCAL ONLY"))},500);return()=>clearTimeout(timer)},[activeEvent,plan]);
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(""),2200);return()=>clearTimeout(timer)},[notice]);
