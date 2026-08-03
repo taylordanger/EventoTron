@@ -172,6 +172,22 @@ export const suiteSettings = sqliteTable("suite_settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const suiteAppletStates = sqliteTable(
+  "suite_applet_states",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull(),
+    appName: text("app_name").notNull(),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_applet_states_event_id").on(table.eventId),
+    index("idx_suite_applet_states_app_name").on(table.appName),
+  ],
+);
+
 export const mealTransfers = sqliteTable(
   "meal_transfers",
   {

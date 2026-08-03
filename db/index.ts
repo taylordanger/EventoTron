@@ -74,6 +74,15 @@ export async function ensureSuiteSchema() {
         "CREATE TABLE IF NOT EXISTS suite_settings (id text PRIMARY KEY NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
       ),
       db.prepare(
+        "CREATE TABLE IF NOT EXISTS suite_applet_states (id text PRIMARY KEY NOT NULL, event_id text NOT NULL, app_name text NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_applet_states_event_id ON suite_applet_states (event_id)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_applet_states_app_name ON suite_applet_states (app_name)",
+      ),
+      db.prepare(
         "CREATE TABLE IF NOT EXISTS meal_transfers (id text PRIMARY KEY NOT NULL, foodotron_meal_id text NOT NULL, tabletron_event_id text, status text DEFAULT 'pending' NOT NULL, created_at text NOT NULL, claimed_at text)",
       ),
       db.prepare(

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 
 type RoomAssignment = {
@@ -205,7 +206,7 @@ export default function MasterReportPage() {
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
       const params = new URLSearchParams(window.location.search);
       const stored = readJson<{ events?: EventoEventContext[]; selectedId?: string }>("eventotron-events-v1");
       const eventId = params.get("event") ?? stored?.selectedId ?? "";
@@ -214,6 +215,16 @@ export default function MasterReportPage() {
         setMissing(true);
         return;
       }
+      try {
+        const [table, food, schedule] = await Promise.all([
+          readSuiteAppletState<TableProject>(event.id, "tabletron"),
+          readSuiteAppletState<FoodPlan>(event.id, "foodotron"),
+          readSuiteAppletState<SchedulePlan>(event.id, "scheduluotron"),
+        ]);
+        if (table) localStorage.setItem("tabletron-project-v2", JSON.stringify(table));
+        if (food) localStorage.setItem("foodotron-plan-v1", JSON.stringify(food));
+        if (schedule) localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(schedule));
+      } catch {}
       setReport(buildReport(event));
     }, 0);
     return () => window.clearTimeout(timer);

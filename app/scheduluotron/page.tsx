@@ -1,6 +1,7 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { useEffect, useMemo, useState } from "react";
 
@@ -169,17 +170,21 @@ export default function Scheduluotron() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
       const eventId = new URLSearchParams(window.location.search).get("event");
       const context = readEventContext(eventId);
       if (!context) return;
       setActiveEvent(context);
+      let saved: SchedulePlan | null = null;
+      try {
+        saved = await readSuiteAppletState<SchedulePlan>(context.id, "scheduluotron");
+      } catch {}
       setPlan((current) => ({
-        ...current,
+        ...(saved && Array.isArray(saved.blocks) ? saved : current),
         eventName: context.title,
         date: context.date,
         venue: context.space,
-        blocks: current.blocks.map((block, index) =>
+        blocks: (saved && Array.isArray(saved.blocks) ? saved.blocks : current.blocks).map((block, index) =>
           index === 0
             ? {
                 ...block,
@@ -195,6 +200,15 @@ export default function Scheduluotron() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!activeEvent) return;
+    const timer = window.setTimeout(() => {
+      localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
+      void saveSuiteAppletState(activeEvent.id, "scheduluotron", plan);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [activeEvent, plan]);
 
   useEffect(() => {
     if (!notice) return;
@@ -265,6 +279,7 @@ export default function Scheduluotron() {
 
   function save() {
     localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
+    void saveSuiteAppletState(activeEvent?.id, "scheduluotron", plan);
     setNotice("SCHEDULUOTRON SAVED");
   }
 

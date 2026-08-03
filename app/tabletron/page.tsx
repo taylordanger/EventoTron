@@ -1,6 +1,7 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -488,6 +489,12 @@ export default function Home() {
             ? source
             : "";
         const linkedEventId = params.get("event");
+        if (linkedEventId) {
+          try {
+            const saved = await readSuiteAppletState<Project>(linkedEventId, "tabletron");
+            if (saved) next = normalizeProject(saved);
+          } catch {}
+        }
         if (transferId) {
           const response = await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}`);
           const transfer = await response.json();
@@ -589,6 +596,7 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       try {
         localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
+        void saveSuiteAppletState(project.activeEventId, "tabletron", project);
         setSavedAt(new Date());
       } catch {
         setNotice("AUTO-SAVE FAILED · DOWNLOAD A BACKUP");
@@ -618,6 +626,7 @@ export default function Home() {
   function save() {
     try {
       localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
+      void saveSuiteAppletState(project.activeEventId, "tabletron", project);
       setSavedAt(new Date());
       setNotice("PROJECT SAVED ON THIS DEVICE");
     } catch {
