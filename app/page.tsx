@@ -48,6 +48,21 @@ const labels: Record<EventKind, string> = {
   prep: "Prep",
   note: "Note",
 };
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const monthShortNames = monthNames.map((month) => month.slice(0, 3).toUpperCase());
 
 const seedEvents: EventoEvent[] = [
   eventSeed("staff-meeting", "Staff Meeting", "2026-08-04", "meeting", "10:00-11:30", "Conference", "Planning notes", "NA", "", 18),
@@ -121,6 +136,8 @@ export default function Home() {
     seedEvents[15].id,
   ]);
   const [loaded, setLoaded] = useState(false);
+  const [calendarYear, setCalendarYear] = useState(2026);
+  const [calendarMonth, setCalendarMonth] = useState(7);
   const selected = events.find((event) => event.id === selectedId) ?? events[0];
 
   useEffect(() => {
@@ -131,6 +148,8 @@ export default function Home() {
           events?: EventoEvent[];
           selectedId?: string;
           openIds?: string[];
+          calendarYear?: number;
+          calendarMonth?: number;
         } : null;
         if (restored && Array.isArray(restored.events) && restored.events.length) {
           const restoredEvents = restored.events.map((event) => ({
@@ -140,6 +159,10 @@ export default function Home() {
           setEvents(restoredEvents);
           setSelectedId(restored.selectedId ?? restoredEvents[0].id);
           setOpenIds(restored.openIds?.length ? restored.openIds : [restoredEvents[0].id]);
+          const restoredSelected = restoredEvents.find((event) => event.id === (restored.selectedId ?? restoredEvents[0].id));
+          const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
+          setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
+          setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
         }
         setLoaded(true);
       } catch {}
@@ -151,27 +174,28 @@ export default function Home() {
     if (!loaded) return;
     localStorage.setItem(
       EVENT_STORE_KEY,
-      JSON.stringify({ events, selectedId, openIds }),
+      JSON.stringify({ events, selectedId, openIds, calendarYear, calendarMonth }),
     );
-  }, [events, selectedId, openIds, loaded]);
+  }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded]);
 
   const days = useMemo(() => {
-    const start = new Date("2026-08-01T00:00:00");
-    const firstDay = start.getDay();
+    const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+    const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
     const cells: (number | null)[] = Array.from({ length: firstDay }, () => null);
-    for (let day = 1; day <= 31; day++) cells.push(day);
+    for (let day = 1; day <= monthLength; day++) cells.push(day);
     while (cells.length % 7) cells.push(null);
     return cells;
-  }, []);
+  }, [calendarYear, calendarMonth]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<number, EventoEvent[]>();
-    events.forEach((event) => {
+    const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
+    events.filter((event) => event.date.startsWith(prefix)).forEach((event) => {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
     return map;
-  }, [events]);
+  }, [events, calendarYear, calendarMonth]);
 
   function save() {
     localStorage.setItem(
@@ -182,6 +206,11 @@ export default function Home() {
 
   function openEvent(event: EventoEvent) {
     setSelectedId(event.id);
+    const [year, month] = event.date.split("-").map(Number);
+    if (year && month) {
+      setCalendarYear(year);
+      setCalendarMonth(month - 1);
+    }
     setOpenIds((ids) => [event.id, ...ids.filter((id) => id !== event.id)].slice(0, 8));
   }
 
@@ -192,10 +221,11 @@ export default function Home() {
   }
 
   function addEvent(day?: number) {
+    const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
     const created = eventSeed(
       `event_${uid()}`,
       "New Event",
-      `2026-08-${String(day ?? 1).padStart(2, "0")}`,
+      `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(Math.min(day ?? 1, monthLength)).padStart(2, "0")}`,
       "rental",
       "9:00 AM-12:00 PM",
       "Margaret's Room",
@@ -212,6 +242,9 @@ export default function Home() {
     selected.rentalTotal +
     selected.cateringTotal -
     Math.round(selected.rentalTotal * (selected.discountRate / 100));
+  const currentMonthLabel = monthNames[calendarMonth];
+  const setMonth = (month: number) => setCalendarMonth(Math.max(0, Math.min(11, month)));
+  const shiftYear = (amount: number) => setCalendarYear((year) => Math.max(1900, Math.min(2200, year + amount)));
 
   return (
     <main className="eventotron-desktop">
@@ -256,13 +289,41 @@ export default function Home() {
           <div className="calendar-title">
             <div>
               <small>EVENTOTRON MAIN CALENDAR</small>
-              <h1>August 2026 All Staff Schedule</h1>
+              <h1>{currentMonthLabel} {calendarYear} All Staff Schedule</h1>
             </div>
             <div className="calendar-legend">
               {Object.entries(labels).map(([kind, label]) => (
                 <span className={`legend-dot ${kind}`} key={kind}>
                   {label}
                 </span>
+              ))}
+            </div>
+          </div>
+          <div className="calendar-month-tabs" role="tablist" aria-label="Calendar months">
+            <button className="year-step" aria-label="Previous year" onClick={() => shiftYear(-1)}>‹</button>
+            <label className="calendar-year-input">
+              <small>YEAR</small>
+              <input
+                type="number"
+                min="1900"
+                max="2200"
+                value={calendarYear}
+                aria-label="Calendar year"
+                onChange={(e) => setCalendarYear(Math.max(1900, Math.min(2200, Number(e.target.value) || 2026)))}
+              />
+            </label>
+            <button className="year-step" aria-label="Next year" onClick={() => shiftYear(1)}>›</button>
+            <div className="month-tab-strip">
+              {monthShortNames.map((month, index) => (
+                <button
+                  className={`month-tab ${index === calendarMonth ? "active" : ""}`}
+                  role="tab"
+                  aria-selected={index === calendarMonth}
+                  key={month}
+                  onClick={() => setMonth(index)}
+                >
+                  {month}
+                </button>
               ))}
             </div>
           </div>
