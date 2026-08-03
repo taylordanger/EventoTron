@@ -182,6 +182,38 @@
   box-shadow: inset 0 0 12px #58ff3824;
 }
 
+.suite-clock {
+  align-self: center;
+  min-width: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  color: #a9cba3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.suite-clock-label {
+  color: #668d61;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.suite-clock strong {
+  color: var(--p);
+  font-family: "Geist Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.suite-clock small {
+  color: #a9cba3;
+  font-size: 8px;
+}
+
 .eventotron-ribbon button {
   align-self: center;
   color: #b9ddb3;
@@ -844,6 +876,19 @@
 
   .master-report-link {
     padding: 6px 7px;
+    font-size: 7px;
+  }
+
+  .suite-clock {
+    min-width: 96px;
+    padding-left: 6px;
+  }
+
+  .suite-clock strong {
+    font-size: 11px;
+  }
+
+  .suite-clock small {
     font-size: 7px;
   }
 
