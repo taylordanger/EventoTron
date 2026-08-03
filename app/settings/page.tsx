@@ -13,10 +13,29 @@ import {
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+type SystemHealth = {
+  status: "ready" | "migration-required" | "unavailable";
+  checkedAt: string;
+  latencyMs: number;
+  database: "connected" | "unavailable";
+  schema: { expected: string; current: string | null; applied: string[] };
+  records: {
+    events: number;
+    appletStates: number;
+    foodotronMeals: number;
+    tabletronEvents: number;
+    scheduleItems: number;
+    transfers: number;
+    settings: number;
+  } | null;
+};
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
   const [loaded, setLoaded] = useState(false);
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [healthChecking, setHealthChecking] = useState(true);
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
 
@@ -35,6 +54,11 @@ export default function SettingsPage() {
       setSettings(restored);
       setLoaded(true);
     }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void checkHealth(), 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -59,6 +83,26 @@ export default function SettingsPage() {
 
   function update(patch: Partial<SuiteSettings>) {
     setSettings((current) => ({ ...current, ...patch }));
+  }
+
+  async function checkHealth() {
+    setHealthChecking(true);
+    try {
+      const response = await fetch("/api/health", { cache: "no-store" });
+      const data = (await response.json()) as SystemHealth;
+      setHealth(data);
+    } catch {
+      setHealth({
+        status: "unavailable",
+        checkedAt: new Date().toISOString(),
+        latencyMs: 0,
+        database: "unavailable",
+        schema: { expected: "0003_suite_integrity_indexes", current: null, applied: [] },
+        records: null,
+      });
+    } finally {
+      setHealthChecking(false);
+    }
   }
 
   function addRoom() {
@@ -241,6 +285,23 @@ export default function SettingsPage() {
             <label className="settings-field"><span>Paper size</span><select value={settings.reportPaper} onChange={(event) => update({ reportPaper: event.target.value as SuiteSettings["reportPaper"] })}><option value="letter">Letter</option><option value="a4">A4</option></select></label>
             <label className="settings-check"><input type="checkbox" checked={settings.reportIncludeCosts} onChange={(event) => update({ reportIncludeCosts: event.target.checked })} /><span>Include costs on reports</span></label>
             <label className="settings-check"><input type="checkbox" checked={settings.reportIncludeLayout} onChange={(event) => update({ reportIncludeLayout: event.target.checked })} /><span>Include Tabletron layout picture</span></label>
+          </section>
+
+          <section className="settings-card settings-health-card">
+            <div className="settings-card-heading"><span>06</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
+            <div className={`health-banner health-${health?.status ?? "checking"}`}>
+              <small>EVENTOTRON READINESS</small>
+              <b>{healthChecking ? "CHECKING" : health?.status === "ready" ? "READY" : "ATTENTION REQUIRED"}</b>
+            </div>
+            <div className="health-grid">
+              <div><small>DATABASE</small><b>{health?.database?.toUpperCase() ?? "CHECKING"}</b></div>
+              <div><small>SCHEMA</small><b>{health?.schema.current ?? "CHECKING"}</b></div>
+              <div><small>EVENTS</small><b>{health?.records?.events ?? "—"}</b></div>
+              <div><small>APPLET RECORDS</small><b>{health?.records ? health.records.appletStates + health.records.foodotronMeals + health.records.tabletronEvents + health.records.scheduleItems : "—"}</b></div>
+              <div><small>TRANSFERS</small><b>{health?.records?.transfers ?? "—"}</b></div>
+              <div><small>RESPONSE</small><b>{health ? `${health.latencyMs} MS` : "—"}</b></div>
+            </div>
+            <p className="health-checked">LAST CHECK {health ? new Date(health.checkedAt).toLocaleString() : "PENDING"}</p>
           </section>
         </section>
       </main>
