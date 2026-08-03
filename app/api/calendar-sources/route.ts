@@ -27,6 +27,8 @@ type ParsedCalendarEvent = {
 };
 
 const providers = new Set<CalendarProvider>(["google", "outlook", "ical", "work"]);
+const maxRecurringOccurrences = 730;
+const defaultRecurringHorizonDays = 730;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -80,13 +82,34 @@ function getField(lines: string[], name: string) {
   return unescapeCalendar(line.slice(line.indexOf(":") + 1));
 }
 
+function formatDateParts(date: Date) {
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    day: date.getDate(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+  };
+}
+
+function calendarDateKey(parts: { year: number; month: number; day: number }) {
+  return `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
 function parseCalendarDate(value: string) {
   const clean = value.trim();
   if (/^\d{8}$/.test(clean)) {
-    return { date: `${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)}`, time: "All day" };
+    const parts = {
+      year: Number(clean.slice(0, 4)),
+      month: Number(clean.slice(4, 6)) - 1,
+      day: Number(clean.slice(6, 8)),
+      hour: 0,
+      minute: 0,
+    };
+    return { date: calendarDateKey(parts), time: "All day", parts, allDay: true };
   }
   const digits = clean.replace(/\D/g, "");
-  if (digits.length < 8) return { date: "", time: "" };
+  if (digits.length < 8) return { date: "", time: "", parts: null, allDay: false };
   const year = Number(digits.slice(0, 4));
   const month = Number(digits.slice(4, 6)) - 1;
   const day = Number(digits.slice(6, 8));
@@ -95,11 +118,99 @@ function parseCalendarDate(value: string) {
   const parsed = clean.endsWith("Z")
     ? new Date(Date.UTC(year, month, day, hour, minute))
     : new Date(year, month, day, hour, minute);
-  if (Number.isNaN(parsed.getTime())) return { date: "", time: "" };
+  if (Number.isNaN(parsed.getTime())) return { date: "", time: "", parts: null, allDay: false };
+  const parts = formatDateParts(parsed);
   return {
-    date: parsed.toISOString().slice(0, 10),
+    date: calendarDateKey(parts),
     time: parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    parts,
+    allDay: false,
   };
+}
+
+function parseRrule(value: string) {
+  return Object.fromEntries(value.split(";").flatMap((part) => {
+    const [key, raw] = part.split("=");
+    return key && raw ? [[key.toUpperCase(), raw]] : [];
+  }));
+}
+
+function addRecurrenceStep(date: Date, frequency: string, interval: number) {
+  const next = new Date(date);
+  if (frequency === "DAILY") next.setDate(next.getDate() + interval);
+  else if (frequency === "WEEKLY") next.setDate(next.getDate() + interval * 7);
+  else if (frequency === "MONTHLY") next.setMonth(next.getMonth() + interval);
+  else if (frequency === "YEARLY") next.setFullYear(next.getFullYear() + interval);
+  else return null;
+  return next;
+}
+
+const weekDayIndexes: Record<string, number> = {
+  SU: 0,
+  MO: 1,
+  TU: 2,
+  WE: 3,
+  TH: 4,
+  FR: 5,
+  SA: 6,
+};
+
+function weekNumberSince(start: Date, current: Date) {
+  const startWeek = new Date(start);
+  startWeek.setDate(startWeek.getDate() - startWeek.getDay());
+  startWeek.setHours(0, 0, 0, 0);
+  const currentWeek = new Date(current);
+  currentWeek.setDate(currentWeek.getDate() - currentWeek.getDay());
+  currentWeek.setHours(0, 0, 0, 0);
+  return Math.floor((currentWeek.getTime() - startWeek.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
+function recurringEventForDate(base: ParsedCalendarEvent, date: Date, index: number) {
+  const parts = formatDateParts(date);
+  const dateKey = calendarDateKey(parts);
+  return {
+    ...base,
+    externalId: `${base.externalId}#${dateKey}-${index}`,
+    date: dateKey,
+  };
+}
+
+function expandRecurringEvent(
+  base: ParsedCalendarEvent,
+  start: ReturnType<typeof parseCalendarDate>,
+  rruleValue: string,
+) {
+  if (!start.parts) return [base];
+  const rule = parseRrule(rruleValue);
+  const frequency = String(rule.FREQ ?? "").toUpperCase();
+  const interval = Math.max(1, Number(rule.INTERVAL) || 1);
+  const count = Math.min(maxRecurringOccurrences, Math.max(1, Number(rule.COUNT) || maxRecurringOccurrences));
+  const until = rule.UNTIL ? parseCalendarDate(rule.UNTIL) : null;
+  const horizon = new Date(start.parts.year, start.parts.month, start.parts.day);
+  horizon.setDate(horizon.getDate() + defaultRecurringHorizonDays);
+  const untilDate = until?.parts
+    ? new Date(until.parts.year, until.parts.month, until.parts.day, until.parts.hour, until.parts.minute)
+    : horizon;
+  const occurrences: ParsedCalendarEvent[] = [];
+  const startDate = new Date(start.parts.year, start.parts.month, start.parts.day, start.parts.hour, start.parts.minute);
+  if (frequency === "WEEKLY" && rule.BYDAY) {
+    const includedDays = new Set(String(rule.BYDAY).split(",").map((day) => weekDayIndexes[day]).filter((day) => day !== undefined));
+    const cursor = new Date(startDate);
+    for (let guard = 0; occurrences.length < count && cursor <= untilDate && guard < maxRecurringOccurrences * 7; guard += 1) {
+      const weeksSinceStart = weekNumberSince(startDate, cursor);
+      if (cursor >= startDate && weeksSinceStart % interval === 0 && includedDays.has(cursor.getDay())) {
+        occurrences.push(recurringEventForDate(base, cursor, occurrences.length));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return occurrences.length ? occurrences : [base];
+  }
+  let cursor: Date | null = startDate;
+  for (let index = 0; cursor && index < count && cursor <= untilDate && index < maxRecurringOccurrences; index += 1) {
+    occurrences.push(recurringEventForDate(base, cursor, index));
+    cursor = addRecurrenceStep(cursor, frequency, interval);
+  }
+  return occurrences.length ? occurrences : [base];
 }
 
 function parseIcs(value: string): ParsedCalendarEvent[] {
@@ -112,14 +223,16 @@ function parseIcs(value: string): ParsedCalendarEvent[] {
       const start = parseCalendarDate(getField(current, "DTSTART"));
       const title = getField(current, "SUMMARY");
       if (start.date && title) {
-        events.push({
+        const base = {
           externalId: getField(current, "UID") || `feed-${events.length}-${start.date}-${title}`,
           title,
           date: start.date,
           eventTime: start.time,
           description: getField(current, "DESCRIPTION"),
           location: getField(current, "LOCATION"),
-        });
+        };
+        const rrule = getField(current, "RRULE");
+        events.push(...(rrule ? expandRecurringEvent(base, start, rrule) : [base]));
       }
       current = null;
     } else if (current) current.push(line);

@@ -131,6 +131,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarMigration, /CREATE TABLE `suite_calendar_events`/);
   assert.match(calendarMigration, /CREATE UNIQUE INDEX `idx_suite_calendar_events_source_external`/);
   assert.match(calendarRoute, /permanentCalendarEventId/);
+  assert.match(calendarRoute, /expandRecurringEvent/);
+  assert.match(calendarRoute, /maxRecurringOccurrences/);
+  assert.match(calendarRoute, /#\$\{dateKey\}-\$\{index\}/);
   assert.match(calendarRoute, /export async function GET/);
   assert.match(calendarRoute, /export async function PUT/);
   assert.match(calendarRoute, /export async function DELETE/);
