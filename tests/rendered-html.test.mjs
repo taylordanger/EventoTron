@@ -1,91 +1,115 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
-const templateRoot = new URL("../", import.meta.url);
-const previewRoot = new URL("../app/_sites-preview/", import.meta.url);
+const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+const { default: worker } = await import(workerUrl.href);
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+const environment = {
+  ASSETS: {
+    fetch: async () => new Response("Not found", { status: 404 }),
+  },
+};
 
+const executionContext = {
+  waitUntil() {},
+  passThroughOnException() {},
+};
+
+function request(path, init) {
   return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
+    new Request(`http://localhost${path}`, init),
+    environment,
+    executionContext,
   );
 }
 
-test("server-renders the starter loading skeleton", async () => {
-  const response = await render();
+async function jsonRequest(path, method, body) {
+  return request(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+test("server-renders the EventoTron calendar and permanent suite navigation", async () => {
+  const response = await request("/");
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
-  assert.match(html, /<title>Your site is taking shape<\/title>/i);
-  assert.match(html, /Building your site/);
-  assert.match(html, /Your site is taking shape/);
-  assert.match(
-    html,
-    /Your first version will appear here automatically when it’s ready\./,
-  );
-  assert.doesNotMatch(html, /Codex/);
-  assert.match(html, /react-loading-skeleton/);
-  assert.match(html, /role="status"/);
+  assert.match(html, /<title>EventoTron — Operations Suite<\/title>/);
+  assert.match(html, /EVENTOTRON MAIN CALENDAR/);
+  assert.match(html, /OPEN EVENT FILES/);
+  assert.match(html, /Calendar/);
+  assert.match(html, /Tabletron/);
+  assert.match(html, /Foodotron/);
+  assert.match(html, /Scheduluotron/);
+  assert.match(html, /Settings/);
+  assert.match(html, /MASTER REPORT/);
+  assert.doesNotMatch(html, /Your site is taking shape|Starter Project/);
 });
 
-test("keeps the loading skeleton scoped and disposable", async () => {
-  const [preview, css, page, layout, packageJson, files] = await Promise.all([
-    readFile(new URL("SkeletonPreview.tsx", previewRoot), "utf8"),
-    readFile(new URL("preview.css", previewRoot), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readdir(previewRoot),
+test("server-renders every applet beneath the shared suite origin", async () => {
+  const routes = [
+    ["/tabletron?event=rotary-aug-5", /TABLETRON/],
+    ["/foodotron?event=rotary-aug-5", /FOODOTRON/],
+    ["/scheduluotron?event=rotary-aug-5", /SCHEDULUOTRON/],
+    ["/settings?event=rotary-aug-5", /SETTINGS/],
+    ["/master-report?event=rotary-aug-5", /Preparing master report/],
+  ];
+
+  for (const [path, expected] of routes) {
+    const response = await request(path);
+    assert.equal(response.status, 200, `${path} should render`);
+    assert.match(await response.text(), expected);
+  }
+});
+
+test("API routes reject incomplete writes before touching storage", async () => {
+  const checks = [
+    ["/api/events", "PUT", {}, 400, /at least one event/i],
+    ["/api/settings", "PUT", {}, 400, /requires a payload/i],
+    ["/api/event-app-state", "PUT", { payload: {} }, 400, /requires an event ID/i],
+    ["/api/event-app-state?eventId=test&app=unknown", "PUT", { payload: {} }, 400, /known app name/i],
+    ["/api/event-bundle", "GET", undefined, 400, /requires an event ID/i],
+    ["/api/event-records", "GET", undefined, 400, /require an event ID/i],
+    ["/api/meal-transfers", "POST", {}, 400, /requires a meal/i],
+    ["/api/workspace-backup", "POST", {}, 400, /not recognized/i],
+    ["/api/calendar-sources", "POST", { url: "calendar.example.test" }, 400, /must begin with http/i],
+  ];
+
+  for (const [path, method, body, status, message] of checks) {
+    const response = body === undefined
+      ? await request(path, { method })
+      : await jsonRequest(path, method, body);
+    assert.equal(response.status, status, `${method} ${path}`);
+    const payload = await response.json();
+    assert.match(String(payload.error), message);
+  }
+});
+
+test("production data contracts keep IDs and cross-applet links out of URLs", async () => {
+  const [schema, transfers, chrome, projections, records] = await Promise.all([
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/event-app-state/projections.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.deepEqual(files.sort(), ["SkeletonPreview.tsx", "preview.css"]);
-  assert.match(preview, /from "react-loading-skeleton"/);
-  assert.match(preview, /baseColor="#eceae7"/);
-  assert.match(preview, /highlightColor="#f9f8f6"/);
-  assert.match(preview, /duration=\{2\.8\}/);
-  assert.match(preview, /sites-skeleton-search-placeholder/);
-  assert.match(packageJson, /"react-loading-skeleton": "3\.5\.0"/);
-
-  const shellIndex = preview.indexOf('className="sites-skeleton-shell"');
-  const statusIndex = preview.indexOf('className="sites-skeleton-status"');
-  assert.ok(shellIndex >= 0 && statusIndex > shellIndex);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /inset:\s*0/);
-  assert.match(css, /opacity:\s*0\.52/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#020617|canvas|pets|progress/i);
-  assert.doesNotMatch(
-    preview,
-    /loading-spinner|status-mark|status-progress|canvas|cookie|random/i,
-  );
-
-  assert.match(page, /export const metadata:\s*Metadata/);
-  assert.match(page, /"codex-preview": "development"/);
-  assert.match(page, /<SkeletonPreview \/>/);
-  assert.match(layout, /title:\s*"Starter Project"/);
-  assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);
-  assert.doesNotMatch(css, /(^|\s)(html|body)\s*\{/m);
-
-  await assert.rejects(
-    access(new URL("public/_sites-preview", templateRoot)),
-  );
+  assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
+  assert.match(schema, /tabletronEvents[\s\S]*id: text\("id"\)\.primaryKey/);
+  assert.match(schema, /mealTransfers[\s\S]*foodotronMealId/);
+  assert.match(transfers, /shortId\("xfer"\)/);
+  assert.match(transfers, /\/tabletron\/import\/\$\{transferId\}/);
+  assert.doesNotMatch(transfers, /encodeURIComponent\(JSON\.stringify/);
+  assert.match(chrome, /eventTabHref\(tab\.href, eventId\)/);
+  assert.match(projections, /projectTabletron/);
+  assert.match(projections, /projectFoodotron/);
+  assert.match(projections, /projectScheduluotron/);
+  assert.match(records, /suiteShoppingItems/);
+  assert.match(records, /suiteScheduleItems/);
+  assert.match(records, /suiteLayoutItems/);
 });
