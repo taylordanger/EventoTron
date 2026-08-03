@@ -3139,7 +3139,8 @@
 
   .suite-frame:has(.meal-report),
   .suite-frame:has(.operations-report),
-  .suite-frame:has(.sched-print-report) {
+  .suite-frame:has(.sched-print-report),
+  html.eventotron-printing .suite-frame {
     display: block !important;
     height: auto !important;
     min-height: 0 !important;
@@ -3150,6 +3151,7 @@
   .suite-frame:has(.meal-report) > .suite-chrome,
   .suite-frame:has(.operations-report) > .suite-chrome,
   .suite-frame:has(.sched-print-report) > .suite-chrome,
+  html.eventotron-printing .suite-frame > .suite-chrome,
   .master-report-actions,
   .foodotron-applet .report-actions,
   .tabletron-applet .ops-report-actions {
@@ -3159,7 +3161,11 @@
   .master-report-page,
   .foodotron-applet.app-shell:has(.meal-report),
   .tabletron-applet.app-shell:has(.operations-report),
-  .scheduluotron-app:has(.sched-print-report) {
+  .scheduluotron-app:has(.sched-print-report),
+  html.eventotron-printing .master-report-page,
+  html.eventotron-printing .foodotron-applet.app-shell,
+  html.eventotron-printing .tabletron-applet.app-shell,
+  html.eventotron-printing .scheduluotron-app {
     display: block !important;
     height: auto !important;
     min-height: 0 !important;
@@ -3183,12 +3189,27 @@
   .scheduluotron-app:has(.sched-print-report) > .sched-topbar,
   .scheduluotron-app:has(.sched-print-report) > .sched-workspace,
   .scheduluotron-app:has(.sched-print-report) > .sched-status,
-  .scheduluotron-app:has(.sched-print-report) > .sched-toast {
+  .scheduluotron-app:has(.sched-print-report) > .sched-toast,
+  html.eventotron-printing .foodotron-applet.app-shell > .topbar,
+  html.eventotron-printing .foodotron-applet.app-shell > .workspace,
+  html.eventotron-printing .foodotron-applet.app-shell > .statusbar,
+  html.eventotron-printing .foodotron-applet.app-shell > .toast,
+  html.eventotron-printing .tabletron-applet.printing-report.app-shell > .topbar,
+  html.eventotron-printing .tabletron-applet.printing-report.app-shell > .workspace,
+  html.eventotron-printing .tabletron-applet.printing-report.app-shell > .statusbar,
+  html.eventotron-printing .tabletron-applet.printing-report.app-shell > .modal-backdrop,
+  html.eventotron-printing .tabletron-applet.printing-report.app-shell > .toast,
+  html.eventotron-printing .scheduluotron-app > .sched-topbar,
+  html.eventotron-printing .scheduluotron-app > .sched-workspace,
+  html.eventotron-printing .scheduluotron-app > .sched-status,
+  html.eventotron-printing .scheduluotron-app > .sched-toast {
     display: none !important;
   }
 
   .foodotron-applet .meal-report-overlay,
-  .tabletron-applet .operations-overlay {
+  .tabletron-applet .operations-overlay,
+  html.eventotron-printing .foodotron-applet .meal-report-overlay,
+  html.eventotron-printing .tabletron-applet .operations-overlay {
     position: static !important;
     inset: auto !important;
     display: block !important;

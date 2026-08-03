@@ -3,6 +3,7 @@
 import { SuiteChrome } from "../SuiteChrome";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
+import { printReport } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -1145,7 +1146,7 @@ export default function Home() {
   function printOperations() {
     if (!event) return;
     setOpsReport(true);
-    window.setTimeout(() => window.print(), 120);
+    printReport();
   }
 
   const eventTimeline = useMemo(() => {
@@ -1190,7 +1191,7 @@ export default function Home() {
       : undefined;
 
   return (
-    <div className="suite-frame"><SuiteChrome active="tabletron" eventId={event?.id} /><main className="tabletron-applet app-shell">
+    <div className="suite-frame"><SuiteChrome active="tabletron" eventId={event?.id} /><main className={`tabletron-applet app-shell ${opsReport ? "printing-report" : ""}`}>
       <header className="topbar">
         <label className="project-name">
           <small>PROJECT</small>
@@ -2415,7 +2416,7 @@ export default function Home() {
             </footer>
             <div className="ops-report-actions">
               <button onClick={() => setOpsReport(false)}>CLOSE</button>
-              <button className="primary" onClick={() => window.print()}>
+              <button className="primary" onClick={printReport}>
                 PRINT REPORT
               </button>
             </div>

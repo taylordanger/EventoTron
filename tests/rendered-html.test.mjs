@@ -93,7 +93,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, masterReport, foodotron, tabletron, scheduluotron, styles] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, masterReport, foodotron, tabletron, scheduluotron, styles, printMode] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -110,6 +110,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/scheduluotron/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/print-mode.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
@@ -157,4 +158,11 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(styles, /suite-frame:has\(\.meal-report\)/);
   assert.match(styles, /suite-frame:has\(\.operations-report\)/);
   assert.match(styles, /suite-frame:has\(\.sched-print-report\)/);
+  assert.match(styles, /eventotron-printing/);
+  assert.match(printMode, /classList\.add\("eventotron-printing"\)/);
+  assert.match(printMode, /window\.print\(\)/);
+  assert.match(masterReport, /onClick=\{printReport\}/);
+  assert.match(foodotron, /onClick=\{printReport\}/);
+  assert.match(tabletron, /printing-report/);
+  assert.match(scheduluotron, /onClick=\{printReport\}/);
 });
