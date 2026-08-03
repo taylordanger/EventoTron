@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SuiteChrome } from "../SuiteChrome";
 import {
   SETTINGS_STORE_KEY,
@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
   const [loaded, setLoaded] = useState(false);
+  const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
 
   useEffect(() => {
@@ -93,6 +94,79 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function exportWorkspaceBackup() {
+    setStatus("EXPORTING");
+    try {
+      const response = await fetch("/api/workspace-backup");
+      if (!response.ok) throw new Error("Workspace backup failed");
+      const backup = await response.json();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `eventotron-workspace-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus("BACKUP EXPORTED");
+    } catch {
+      const fallback = {
+        format: "eventotron-local-browser-backup",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        localStorage: {
+          settings,
+          events: localStorage.getItem("eventotron-events-v1"),
+          tabletron: localStorage.getItem("tabletron-project-v2"),
+          foodotron: localStorage.getItem("foodotron-plan-v1"),
+          scheduluotron: localStorage.getItem("eventotron-scheduluotron-v1"),
+        },
+      };
+      const blob = new Blob([JSON.stringify(fallback, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `eventotron-local-browser-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus("LOCAL BACKUP");
+    }
+  }
+
+  async function importWorkspaceBackup(file?: File) {
+    if (!file) return;
+    setStatus("RESTORING");
+    try {
+      const backup = JSON.parse(await file.text()) as {
+        format?: string;
+        localStorage?: Record<string, string | SuiteSettings | null>;
+      };
+      if (backup.format === "eventotron-local-browser-backup" && backup.localStorage) {
+        if (backup.localStorage.settings) {
+          const restored = mergeSuiteSettings(backup.localStorage.settings as Partial<SuiteSettings>);
+          localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(restored));
+          setSettings(restored);
+        }
+        if (typeof backup.localStorage.events === "string") localStorage.setItem("eventotron-events-v1", backup.localStorage.events);
+        if (typeof backup.localStorage.tabletron === "string") localStorage.setItem("tabletron-project-v2", backup.localStorage.tabletron);
+        if (typeof backup.localStorage.foodotron === "string") localStorage.setItem("foodotron-plan-v1", backup.localStorage.foodotron);
+        if (typeof backup.localStorage.scheduluotron === "string") localStorage.setItem("eventotron-scheduluotron-v1", backup.localStorage.scheduluotron);
+        setStatus("LOCAL RESTORED");
+        return;
+      }
+      const response = await fetch("/api/workspace-backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(backup),
+      });
+      if (!response.ok) throw new Error("Workspace restore failed");
+      setStatus("RESTORED");
+    } catch {
+      setStatus("RESTORE FAILED");
+    } finally {
+      if (backupInput.current) backupInput.current.value = "";
+    }
+  }
+
   return (
     <div className="suite-frame">
       <SuiteChrome active="settings" />
@@ -103,6 +177,9 @@ export default function SettingsPage() {
             <h1>Settings</h1>
           </div>
           <button className="save-state" disabled>{status}</button>
+          <button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button>
+          <button onClick={() => backupInput.current?.click()}>RESTORE</button>
+          <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Restore EventoTron workspace backup" onChange={(event) => void importWorkspaceBackup(event.target.files?.[0])} />
           <button onClick={exportSettings}>EXPORT</button>
           <button className="primary" onClick={() => update(defaultSuiteSettings)}>RESET DEFAULTS</button>
         </header>

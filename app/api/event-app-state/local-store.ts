@@ -21,6 +21,10 @@ export function readLocalAppletState(eventId: string, appName: string) {
   return store().get(`${appName}:${eventId}`) ?? null;
 }
 
+export function readAllLocalAppletStates() {
+  return [...store().values()];
+}
+
 export function writeLocalAppletState(eventId: string, appName: string, payload: unknown) {
   const now = new Date().toISOString();
   const key = `${appName}:${eventId}`;
