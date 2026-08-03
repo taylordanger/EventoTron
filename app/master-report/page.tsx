@@ -14,13 +14,23 @@ type RoomAssignment = {
   teardownTime: string;
   notes: string;
 };
+type LayoutTable = { id: string; x: number; y: number };
+type LayoutObject = { id: string; templateId: string; x: number; y: number };
+type LayoutEntrance = { id: string; name: string; wall: "top" | "right" | "bottom" | "left"; offset: number; width: number };
+type TableLayout = {
+  id: string;
+  name: string;
+  tables?: LayoutTable[];
+  objects?: LayoutObject[];
+};
 type TableProject = {
   rooms?: Array<{
     id: string;
     name: string;
     width: number;
     height: number;
-    layouts: Array<{ id: string; name: string; tables?: unknown[]; objects?: Array<{ templateId: string }> }>;
+    entrances?: LayoutEntrance[];
+    layouts: Array<TableLayout & { entrances?: LayoutEntrance[] }>;
   }>;
   templates?: Array<{ id: string; name: string; width: number; height: number }>;
   events?: Array<{
@@ -49,15 +59,25 @@ type SchedulePlan = {
   blocks: Array<{ title: string; start: string; end: string; owner: string; location: string; notes: string; done: boolean }>;
 };
 type GroceryLine = { ingredient: string; needed: string; purchase: string; store: string; quantity: string; cost: number };
-type ReportRoom = { name: string; details: string; checklist: string[] };
+type ReportLayout = {
+  width: number;
+  height: number;
+  name: string;
+  tables: LayoutTable[];
+  objects: Array<LayoutObject & { name: string; width: number; height: number }>;
+  entrances: LayoutEntrance[];
+};
+type ReportRoom = { name: string; details: string; checklist: string[]; layout?: ReportLayout };
 type ReportData = {
   event: EventoEventContext;
-  tableEvent?: TableProject["events"] extends Array<infer T> ? T : never;
+  tableEvent?: NonNullable<TableProject["events"]>[number];
   rooms: ReportRoom[];
   furniture: string[];
   meal?: { name: string; guests: number; recipes: string[] };
   groceries: GroceryLine[];
   schedule: SchedulePlan["blocks"];
+  includeCosts: boolean;
+  includeLayout: boolean;
 };
 
 function readJson<T>(key: string): T | null {
@@ -126,10 +146,29 @@ function buildReport(event: EventoEventContext): ReportData {
   const table = readJson<TableProject>("tabletron-project-v2");
   const food = readJson<FoodPlan>("foodotron-plan-v1");
   const schedule = readJson<SchedulePlan>("eventotron-scheduluotron-v1");
+  const settings = readJson<{ reportIncludeCosts?: boolean; reportIncludeLayout?: boolean }>("eventotron-settings-v1");
   const tableEvent = table?.events?.find((item) => item.id === event.id);
   const roomRows: ReportRoom[] = (tableEvent?.rooms ?? []).map((assignment) => {
     const room = table?.rooms?.find((item) => item.id === assignment.roomId);
     const layout = room?.layouts?.find((item) => item.id === assignment.layoutId);
+    const layoutPicture = layout
+      ? {
+          width: room?.width ?? 26,
+          height: room?.height ?? 26,
+          name: layout.name,
+          tables: layout.tables ?? [],
+          objects: (layout.objects ?? []).map((object) => {
+            const template = table?.templates?.find((item) => item.id === object.templateId);
+            return {
+              ...object,
+              name: template?.name ?? "Furniture",
+              width: template?.width ?? 6,
+              height: template?.height ?? 3,
+            };
+          }),
+          entrances: room?.entrances ?? [],
+        }
+      : undefined;
     return {
       name: room?.name ?? "Unassigned room",
       details: `${assignment.purpose || "Event space"} · ${room?.width ?? "?"} x ${room?.height ?? "?"} FT · ${layout?.name ?? "Layout not selected"}`,
@@ -138,6 +177,7 @@ function buildReport(event: EventoEventContext): ReportData {
         `End ${assignment.endTime || "—"} · teardown ${assignment.teardownTime || "—"}`,
         assignment.notes || "No special room notes",
       ],
+      layout: layoutPicture,
     };
   });
   const rooms = roomRows.length
@@ -155,6 +195,8 @@ function buildReport(event: EventoEventContext): ReportData {
     meal: meal ? { name: meal.name, guests: meal.guests, recipes: recipeNames } : linkedFood ? { name: linkedFood.mealName, guests: linkedFood.guests, recipes: [] } : undefined,
     groceries: groceryLines(food, meal, linkedFood),
     schedule: schedule?.eventName === event.title ? schedule.blocks : [],
+    includeCosts: settings?.reportIncludeCosts ?? true,
+    includeLayout: settings?.reportIncludeLayout ?? true,
   };
 }
 
@@ -190,7 +232,7 @@ export default function MasterReportPage() {
   const { event } = report;
   const total = report.groceries.reduce((sum, line) => sum + line.cost, 0);
   return (
-    <main className="master-report-page">
+    <main className={`master-report-page ${report.includeCosts ? "" : "report-hide-costs"}`}>
       <header className="master-report-header">
         <div>
           <small>EVENTOTRON // MASTER REPORT</small>
@@ -231,6 +273,45 @@ export default function MasterReportPage() {
             <h3><span className="report-checkbox" />{room.name}</h3>
             <b>{room.details}</b>
             {room.checklist.map((item) => <p key={item}><span className="report-checkbox" />{item}</p>)}
+            {report.includeLayout && room.layout && (
+              <div className="report-layout-figure">
+                <div className="report-layout-figure-heading"><span>LAYOUT PICTURE</span><b>{room.layout.name}</b></div>
+                <div className="report-layout-canvas" style={{ aspectRatio: `${room.layout.width} / ${room.layout.height}` }}>
+                  <span className="report-layout-measure report-layout-measure-top">{room.layout.width} FT</span>
+                  <span className="report-layout-measure report-layout-measure-side">{room.layout.height} FT</span>
+                  {room.layout.tables.map((table) => (
+                    <span
+                      className="report-layout-table"
+                      key={table.id}
+                      style={{ left: `${(table.x / room.layout!.width) * 100}%`, top: `${(table.y / room.layout!.height) * 100}%` }}
+                      title="Table"
+                    />
+                  ))}
+                  {room.layout.objects.map((object) => (
+                    <span
+                      className="report-layout-object"
+                      key={object.id}
+                      style={{
+                        left: `${(object.x / room.layout!.width) * 100}%`,
+                        top: `${(object.y / room.layout!.height) * 100}%`,
+                        width: `${((object.width + 4) / room.layout!.width) * 100}%`,
+                        height: `${((object.height + 4) / room.layout!.height) * 100}%`,
+                      }}
+                    >{object.name}</span>
+                  ))}
+                  {room.layout.entrances.map((entrance) => (
+                    <span
+                      className={`report-layout-entrance ${entrance.wall}`}
+                      key={entrance.id}
+                      style={entrance.wall === "top" || entrance.wall === "bottom"
+                        ? { left: `${entrance.offset * 100}%`, width: `${Math.max(5, (entrance.width / room.layout!.width) * 100)}%` }
+                        : { top: `${entrance.offset * 100}%`, height: `${Math.max(5, (entrance.width / room.layout!.height) * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <small className="report-layout-caption">Tables, furniture, and entrances shown from the active Tabletron layout.</small>
+              </div>
+            )}
           </article>
         ))}
         <div className="report-subsection"><h3>Furniture and Equipment Library</h3><div className="report-furniture-list">{report.furniture.map((item) => <span key={item}><span className="report-checkbox" />{item}</span>)}</div></div>
@@ -258,9 +339,9 @@ export default function MasterReportPage() {
         {report.meal ? <p className="report-lead"><b>{report.meal.name}</b> · {report.meal.guests} guests{report.meal.recipes.length ? ` · ${report.meal.recipes.join(", ")}` : ""}</p> : <div className="report-callout">No Foodotron meal is linked to this event yet.</div>}
         {report.groceries.length ? (
           <div className="report-shopping-list">
-            <div className="report-shopping-head"><span>BUY</span><span>INGREDIENT</span><span>NEEDED</span><span>PURCHASE</span><span>STORE</span><span>EST. COST</span></div>
-            {report.groceries.map((line) => <div className="report-shopping-row" key={`${line.ingredient}-${line.store}`}><span className="report-checkbox" /><b>{line.ingredient}</b><span>{line.needed}</span><span>{line.quantity} · {line.purchase}</span><span>{line.store}</span><strong>{line.cost ? `$${line.cost.toFixed(2)}` : "—"}</strong></div>)}
-            <div className="report-shopping-total"><span>ESTIMATED GROCERY TOTAL</span><b>{total ? `$${total.toFixed(2)}` : "Not priced"}</b></div>
+            <div className="report-shopping-head"><span>BUY</span><span>INGREDIENT</span><span>NEEDED</span><span>PURCHASE</span><span>STORE</span>{report.includeCosts && <span>EST. COST</span>}</div>
+            {report.groceries.map((line) => <div className="report-shopping-row" key={`${line.ingredient}-${line.store}`}><span className="report-checkbox" /><b>{line.ingredient}</b><span>{line.needed}</span><span>{line.quantity} · {line.purchase}</span><span>{line.store}</span>{report.includeCosts && <strong>{line.cost ? `$${line.cost.toFixed(2)}` : "—"}</strong>}</div>)}
+            {report.includeCosts && <div className="report-shopping-total"><span>ESTIMATED GROCERY TOTAL</span><b>{total ? `$${total.toFixed(2)}` : "Not priced"}</b></div>}
           </div>
         ) : null}
       </section>

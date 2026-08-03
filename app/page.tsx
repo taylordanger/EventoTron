@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
@@ -30,6 +31,66 @@ type EventoEvent = {
   paymentNotes: string;
   quoteEnteredBy: string;
   requestedItems: string;
+};
+
+type CalendarProvider = "google" | "outlook" | "ical" | "work";
+type CalendarSource = {
+  id: string;
+  name: string;
+  provider: CalendarProvider;
+  url: string;
+  enabled: boolean;
+  color: string;
+  syncMinutes: number;
+  lastSynced?: string;
+  lastError?: string;
+  eventCount?: number;
+};
+type ImportedCalendarEvent = {
+  id: string;
+  title: string;
+  date: string;
+  eventTime: string;
+  description: string;
+  location: string;
+  sourceId: string;
+  sourceName: string;
+  color: string;
+};
+type EventoSettings = {
+  workspaceName: string;
+  timezone: string;
+  weekStartsOn: "sunday" | "monday";
+  defaultView: "month" | "week";
+  showWeekends: boolean;
+  autoSave: boolean;
+  eventRailWidth: number;
+  reportPaper: "letter" | "a4";
+  reportIncludeCosts: boolean;
+  reportIncludeLayout: boolean;
+  calendarSources: CalendarSource[];
+};
+
+const SETTINGS_STORE_KEY = "eventotron-settings-v1";
+const UI_STORE_KEY = "eventotron-ui-v1";
+const defaultSettings: EventoSettings = {
+  workspaceName: "EventoTron Operations Suite",
+  timezone: "America/Los_Angeles",
+  weekStartsOn: "sunday",
+  defaultView: "month",
+  showWeekends: true,
+  autoSave: true,
+  eventRailWidth: 390,
+  reportPaper: "letter",
+  reportIncludeCosts: true,
+  reportIncludeLayout: true,
+  calendarSources: [],
+};
+const providerLabels: Record<CalendarProvider, string> = {
+  google: "Google Calendar",
+  outlook: "Outlook / Microsoft 365",
+  ical: "iCal / ICS feed",
+  work: "Other work calendar",
 };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -138,6 +199,13 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [calendarYear, setCalendarYear] = useState(2026);
   const [calendarMonth, setCalendarMonth] = useState(7);
+  const [infoExpanded, setInfoExpanded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<EventoSettings>(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [railWidth, setRailWidth] = useState(defaultSettings.eventRailWidth);
+  const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
+  const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const selected = events.find((event) => event.id === selectedId) ?? events[0];
 
   useEffect(() => {
@@ -178,6 +246,46 @@ export default function Home() {
     );
   }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded]);
 
+  useEffect(() => {
+    const rawSettings = localStorage.getItem(SETTINGS_STORE_KEY);
+    const rawUi = localStorage.getItem(UI_STORE_KEY);
+    const rawCalendarEvents = localStorage.getItem("eventotron-calendar-events-v1");
+    const timer = window.setTimeout(() => {
+      try {
+        const restoredSettings = rawSettings ? JSON.parse(rawSettings) as Partial<EventoSettings> : {};
+        const restoredUi = rawUi ? JSON.parse(rawUi) as { railWidth?: number } : {};
+        const nextSettings = {
+          ...defaultSettings,
+          ...restoredSettings,
+          calendarSources: Array.isArray(restoredSettings.calendarSources)
+            ? restoredSettings.calendarSources
+            : [],
+        };
+        setSettings(nextSettings);
+        setRailWidth(Math.max(280, Math.min(620, restoredUi.railWidth ?? nextSettings.eventRailWidth)));
+        const restoredCalendarEvents = rawCalendarEvents ? JSON.parse(rawCalendarEvents) as ImportedCalendarEvent[] : [];
+        setCalendarFeedEvents(Array.isArray(restoredCalendarEvents) ? restoredCalendarEvents : []);
+      } catch {}
+      setSettingsLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(settings));
+  }, [settings, settingsLoaded]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    localStorage.setItem(UI_STORE_KEY, JSON.stringify({ railWidth }));
+  }, [railWidth, settingsLoaded]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    localStorage.setItem("eventotron-calendar-events-v1", JSON.stringify(calendarFeedEvents));
+  }, [calendarFeedEvents, settingsLoaded]);
+
   const days = useMemo(() => {
     const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
     const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
@@ -188,14 +296,18 @@ export default function Home() {
   }, [calendarYear, calendarMonth]);
 
   const eventsByDay = useMemo(() => {
-    const map = new Map<number, EventoEvent[]>();
+    const map = new Map<number, Array<EventoEvent | ImportedCalendarEvent>>();
     const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
     events.filter((event) => event.date.startsWith(prefix)).forEach((event) => {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
+    calendarFeedEvents.filter((event) => event.date.startsWith(prefix)).forEach((event) => {
+      const day = Number(event.date.slice(-2));
+      map.set(day, [...(map.get(day) ?? []), event]);
+    });
     return map;
-  }, [events, calendarYear, calendarMonth]);
+  }, [events, calendarFeedEvents, calendarYear, calendarMonth]);
 
   function save() {
     localStorage.setItem(
@@ -206,6 +318,7 @@ export default function Home() {
 
   function openEvent(event: EventoEvent) {
     setSelectedId(event.id);
+    setInfoExpanded(false);
     const [year, month] = event.date.split("-").map(Number);
     if (year && month) {
       setCalendarYear(year);
@@ -218,6 +331,88 @@ export default function Home() {
     setEvents((items) =>
       items.map((event) => (event.id === selected.id ? { ...event, ...patch } : event)),
     );
+  }
+
+  function updateSettings(patch: Partial<EventoSettings>) {
+    setSettings((current) => ({ ...current, ...patch }));
+  }
+
+  function addCalendarSource() {
+    const source: CalendarSource = {
+      id: `calendar_${uid()}`,
+      name: "New work calendar",
+      provider: "ical",
+      url: "",
+      enabled: true,
+      color: "#75ff47",
+      syncMinutes: 15,
+    };
+    setSettings((current) => ({ ...current, calendarSources: [...current.calendarSources, source] }));
+  }
+
+  function updateCalendarSource(id: string, patch: Partial<CalendarSource>) {
+    setSettings((current) => ({
+      ...current,
+      calendarSources: current.calendarSources.map((source) =>
+        source.id === id ? { ...source, ...patch } : source,
+      ),
+    }));
+  }
+
+  function removeCalendarSource(id: string) {
+    setSettings((current) => ({
+      ...current,
+      calendarSources: current.calendarSources.filter((source) => source.id !== id),
+    }));
+    setCalendarFeedEvents((current) => current.filter((event) => event.sourceId !== id));
+  }
+
+  async function syncCalendarSource(source: CalendarSource) {
+    if (!source.url) {
+      updateCalendarSource(source.id, { lastError: "Add a feed URL first." });
+      return;
+    }
+    setCalendarSyncing((current) => ({ ...current, [source.id]: true }));
+    try {
+      const response = await fetch("/api/calendar-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: source.url }),
+      });
+      const result = await response.json() as { events?: Omit<ImportedCalendarEvent, "sourceId" | "sourceName" | "color">[]; error?: string };
+      if (!response.ok) throw new Error(result.error || "Calendar feed could not be read");
+      const imported = (result.events ?? []).map((event) => ({
+        ...event,
+        sourceId: source.id,
+        sourceName: source.name,
+        color: source.color,
+      }));
+      setCalendarFeedEvents((current) => [...current.filter((event) => event.sourceId !== source.id), ...imported]);
+      updateCalendarSource(source.id, { lastSynced: new Date().toISOString(), lastError: "", eventCount: imported.length });
+    } catch (error) {
+      updateCalendarSource(source.id, { lastError: error instanceof Error ? error.message : "Calendar feed could not be read" });
+    } finally {
+      setCalendarSyncing((current) => ({ ...current, [source.id]: false }));
+    }
+  }
+
+  function adjustRail(delta: number) {
+    setRailWidth((width) => Math.max(280, Math.min(620, width + delta)));
+  }
+
+  function resizeRail(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = railWidth;
+    const move = (nextEvent: PointerEvent) => {
+      setRailWidth(Math.max(280, Math.min(620, startWidth + nextEvent.clientX - startX)));
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
   }
 
   function addEvent(day?: number) {
@@ -254,9 +449,13 @@ export default function Home() {
         <button className="primary" onClick={() => addEvent(new Date().getDate())}>
           NEW EVENT
         </button>
+        <button onClick={() => setSettingsOpen(true)}>SETTINGS</button>
       </div>
 
-      <section className="eventotron-workbench">
+      <section
+        className="eventotron-workbench"
+        style={{ "--event-rail-width": `${railWidth}px` } as CSSProperties}
+      >
         <aside className="event-stack">
           <div className="stack-title">
             <span>OPEN EVENT FILES</span>
@@ -276,14 +475,29 @@ export default function Home() {
               </button>
             );
           })}
-          <div className="active-event-tab">
+          <button className="active-event-tab" onClick={() => setInfoExpanded(false)}>
             <small>ACTIVE EVENT FILE</small>
             <strong>{selected.title}</strong>
             <span>{selected.date} · {selected.eventTime}</span>
             <span>{selected.space}</span>
             <em>THIS EVENT FOLLOWS YOU THROUGH THE SUITE TABS</em>
-          </div>
+          </button>
         </aside>
+
+        <div
+          className="event-rail-resizer"
+          role="separator"
+          tabIndex={0}
+          aria-label="Resize event workspace"
+          aria-valuemin={280}
+          aria-valuemax={620}
+          aria-valuenow={railWidth}
+          onPointerDown={resizeRail}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") adjustRail(-20);
+            if (event.key === "ArrowRight") adjustRail(20);
+          }}
+        />
 
         <section className="calendar-panel">
           <div className="calendar-title">
@@ -341,16 +555,21 @@ export default function Home() {
                       {day}
                     </button>
                     <div className="day-events">
-                      {(eventsByDay.get(day) ?? []).map((event) => (
-                        <button
-                          className={`calendar-event ${event.kind} ${event.id === selected.id ? "active" : ""}`}
-                          key={event.id}
-                          onClick={() => openEvent(event)}
-                        >
-                          <b>{event.title}</b>
-                          <small>{event.eventTime}</small>
-                        </button>
-                      ))}
+                      {(eventsByDay.get(day) ?? []).map((event) => {
+                        const imported = "sourceId" in event;
+                        return (
+                          <button
+                            className={`calendar-event ${imported ? "external" : event.kind} ${!imported && event.id === selected.id ? "active" : ""}`}
+                            key={`${imported ? event.sourceId : "event"}-${event.id}`}
+                            onClick={() => { if (!imported) openEvent(event); }}
+                            style={imported ? { borderColor: event.color, color: event.color } : undefined}
+                            title={imported ? `${event.sourceName}${event.location ? ` · ${event.location}` : ""}` : undefined}
+                          >
+                            <b>{event.title}</b>
+                            <small>{event.eventTime}</small>
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -359,11 +578,33 @@ export default function Home() {
           </div>
         </section>
 
-        <aside className="event-info-sheet">
+        <aside className={`event-info-sheet ${infoExpanded ? "expanded" : "compact"}`}>
           <div className="sheet-header">
-            <small>INFORMATION TAB</small>
-            <b>{selected.title}</b>
+            <div>
+              <small>INFORMATION TAB</small>
+              <b>{selected.title}</b>
+            </div>
+            <div className="sheet-actions">
+              <Link href={`/master-report?event=${encodeURIComponent(selected.id)}`}>MASTER REPORT</Link>
+              <button onClick={() => setInfoExpanded((expanded) => !expanded)}>
+                {infoExpanded ? "COLLAPSE" : "EXPAND"}
+              </button>
+            </div>
           </div>
+          {!infoExpanded ? (
+            <div className="sheet-preview">
+              <div className="sheet-preview-grid">
+                <div><small>DATE</small><b>{selected.date || "Not set"}</b></div>
+                <div><small>EVENT TIME</small><b>{selected.eventTime || "Not set"}</b></div>
+                <div><small>SPACE</small><b>{selected.space || "Not assigned"}</b></div>
+                <div><small>ATTENDEES</small><b>{selected.attendees || 0}</b></div>
+                <div><small>CONTACT</small><b>{selected.contact || "Not entered"}</b></div>
+                <div><small>MANAGER</small><b>{selected.manager || "Not assigned"}</b></div>
+              </div>
+              <p>{selected.description || "No event description entered."}</p>
+              <em>Use EXPAND to edit the full information sheet.</em>
+            </div>
+          ) : (
           <div className="sheet-grid">
             <label className="wide">
               <span>Event Date Requested</span>
@@ -537,8 +778,107 @@ export default function Home() {
               />
             </label>
           </div>
+          )}
         </aside>
       </section>
+
+      {settingsOpen && (
+        <div className="settings-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSettingsOpen(false);
+        }}>
+          <section className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <header className="settings-header">
+              <div>
+                <small>EVENTOTRON // WORKSPACE SETTINGS</small>
+                <h2 id="settings-title">Settings</h2>
+                <p>Shape the suite around your venue, calendars, and printed workflow.</p>
+              </div>
+              <button aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button>
+            </header>
+
+            <div className="settings-layout">
+              <section className="settings-card">
+                <div className="settings-card-heading"><span>01</span><h3>Workspace</h3></div>
+                <label className="settings-field wide">
+                  <span>Workspace name</span>
+                  <input value={settings.workspaceName} onChange={(event) => updateSettings({ workspaceName: event.target.value })} />
+                </label>
+                <div className="settings-two-up">
+                  <label className="settings-field">
+                    <span>Time zone</span>
+                    <select value={settings.timezone} onChange={(event) => updateSettings({ timezone: event.target.value })}>
+                      <option value="America/Los_Angeles">Pacific</option>
+                      <option value="America/Denver">Mountain</option>
+                      <option value="America/Chicago">Central</option>
+                      <option value="America/New_York">Eastern</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </label>
+                  <label className="settings-field">
+                    <span>Week starts on</span>
+                    <select value={settings.weekStartsOn} onChange={(event) => updateSettings({ weekStartsOn: event.target.value as EventoSettings["weekStartsOn"] })}>
+                      <option value="sunday">Sunday</option>
+                      <option value="monday">Monday</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="settings-two-up">
+                  <label className="settings-field">
+                    <span>Default calendar view</span>
+                    <select value={settings.defaultView} onChange={(event) => updateSettings({ defaultView: event.target.value as EventoSettings["defaultView"] })}>
+                      <option value="month">Month</option>
+                      <option value="week">Week</option>
+                    </select>
+                  </label>
+                  <label className="settings-field">
+                    <span>Event rail width</span>
+                    <input type="range" min="280" max="620" step="10" value={railWidth} onChange={(event) => setRailWidth(Number(event.target.value))} />
+                    <output>{railWidth}px</output>
+                  </label>
+                </div>
+                <label className="settings-check"><input type="checkbox" checked={settings.showWeekends} onChange={(event) => updateSettings({ showWeekends: event.target.checked })} /><span>Show weekends on the calendar</span></label>
+                <label className="settings-check"><input type="checkbox" checked={settings.autoSave} onChange={(event) => updateSettings({ autoSave: event.target.checked })} /><span>Save event edits automatically on this device</span></label>
+              </section>
+
+              <section className="settings-card settings-calendar-card">
+                <div className="settings-card-heading"><span>02</span><h3>Calendar Connections</h3><button onClick={addCalendarSource}>＋ ADD CALENDAR</button></div>
+                <p className="settings-note">Add Google, Outlook, iCal, or another work calendar. Public and private ICS feed URLs can be stored locally; account sign-in and OAuth credentials can be connected when the suite backend is enabled.</p>
+                {settings.calendarSources.length ? settings.calendarSources.map((source) => (
+                  <div className="calendar-source" key={source.id}>
+                    <div className="calendar-source-topline">
+                      <span className="calendar-source-swatch" style={{ background: source.color }} />
+                      <input value={source.name} aria-label="Calendar name" onChange={(event) => updateCalendarSource(source.id, { name: event.target.value })} />
+                      <label className="settings-check compact-check"><input type="checkbox" checked={source.enabled} onChange={(event) => updateCalendarSource(source.id, { enabled: event.target.checked })} /><span>SHOW</span></label>
+                      <button aria-label={`Remove ${source.name}`} onClick={() => removeCalendarSource(source.id)}>REMOVE</button>
+                    </div>
+                    <div className="settings-two-up">
+                      <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => updateCalendarSource(source.id, { provider: event.target.value as CalendarProvider })}>{Object.entries(providerLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                      <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => updateCalendarSource(source.id, { color: event.target.value })} /></label>
+                    </div>
+                    <label className="settings-field wide"><span>{source.provider === "ical" ? "ICS feed URL" : "Calendar connection URL or account"}</span><input placeholder={source.provider === "ical" ? "https://.../calendar.ics" : "Connect account or paste a feed URL"} value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
+                    <div className="calendar-source-footer"><span>{providerLabels[source.provider]}</span><span>{source.lastError || (source.eventCount ? `${source.eventCount} EVENTS` : source.url ? "FEED READY" : "SETUP NEEDED")}</span><label>SYNC <select value={source.syncMinutes} onChange={(event) => updateCalendarSource(source.id, { syncMinutes: Number(event.target.value) })}><option value="5">5 MIN</option><option value="15">15 MIN</option><option value="30">30 MIN</option><option value="60">60 MIN</option></select></label><button className="calendar-sync-button" disabled={Boolean(calendarSyncing[source.id])} onClick={() => syncCalendarSource(source)}>{calendarSyncing[source.id] ? "SYNCING" : "SYNC NOW"}</button></div>
+                  </div>
+                )) : <div className="settings-empty">No external calendars connected yet. Add one to configure its display color, visibility, and sync interval.</div>}
+              </section>
+
+              <section className="settings-card">
+                <div className="settings-card-heading"><span>03</span><h3>Reports and Print</h3></div>
+                <label className="settings-field"><span>Paper size</span><select value={settings.reportPaper} onChange={(event) => updateSettings({ reportPaper: event.target.value as EventoSettings["reportPaper"] })}><option value="letter">Letter</option><option value="a4">A4</option></select></label>
+                <label className="settings-check"><input type="checkbox" checked={settings.reportIncludeCosts} onChange={(event) => updateSettings({ reportIncludeCosts: event.target.checked })} /><span>Include rental, catering, and grocery costs</span></label>
+                <label className="settings-check"><input type="checkbox" checked={settings.reportIncludeLayout} onChange={(event) => updateSettings({ reportIncludeLayout: event.target.checked })} /><span>Include the Tabletron room layout picture</span></label>
+                <div className="settings-note settings-callout">The Master Report always follows the active event. Its print view is formatted for a clipboard, room setup, shopping trip, or client conversation.</div>
+              </section>
+
+              <section className="settings-card">
+                <div className="settings-card-heading"><span>04</span><h3>Interface</h3></div>
+                <div className="settings-note settings-callout">Drag the vertical rail handle beside the event files, or use the width control above. The width is saved locally with this workspace.</div>
+                <button className="settings-reset" onClick={() => { setSettings(defaultSettings); setRailWidth(defaultSettings.eventRailWidth); }}>RESET LOCAL SETTINGS</button>
+              </section>
+            </div>
+            <footer className="settings-footer"><span>LOCAL WORKSPACE SETTINGS</span><button className="primary" onClick={() => setSettingsOpen(false)}>DONE</button></footer>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
