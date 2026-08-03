@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { readSuiteEventBundle } from "../event-bundle";
 import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
-import { loadSuiteSettings } from "../suite-settings";
+import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY } from "../suite-settings";
 
 type RoomAssignment = {
   roomId: string;
@@ -144,11 +145,13 @@ function groceryLines(
   return lines;
 }
 
-function buildReport(event: EventoEventContext): ReportData {
-  const table = readJson<TableProject>("tabletron-project-v2");
-  const food = readJson<FoodPlan>("foodotron-plan-v1");
-  const schedule = readJson<SchedulePlan>("eventotron-scheduluotron-v1");
-  const settings = readJson<{ reportIncludeCosts?: boolean; reportIncludeLayout?: boolean }>("eventotron-settings-v1");
+function buildReport(
+  event: EventoEventContext,
+  table: TableProject | null,
+  food: FoodPlan | null,
+  schedule: SchedulePlan | null,
+  settings: { reportIncludeCosts?: boolean; reportIncludeLayout?: boolean } | null,
+): ReportData {
   const tableEvent = table?.events?.find((item) => item.id === event.id);
   const roomRows: ReportRoom[] = (tableEvent?.rooms ?? []).map((assignment) => {
     const room = table?.rooms?.find((item) => item.id === assignment.roomId);
@@ -211,23 +214,46 @@ export default function MasterReportPage() {
       const params = new URLSearchParams(window.location.search);
       const stored = readJson<{ events?: EventoEventContext[]; selectedId?: string }>("eventotron-events-v1");
       const eventId = params.get("event") ?? stored?.selectedId ?? "";
-      const event = readEventContext(eventId) ?? stored?.events?.find((item) => item.id === eventId) ?? null;
+      let event = readEventContext(eventId) ?? stored?.events?.find((item) => item.id === eventId) ?? null;
+      let table = readJson<TableProject>("tabletron-project-v2");
+      let food = readJson<FoodPlan>("foodotron-plan-v1");
+      let schedule = readJson<SchedulePlan>("eventotron-scheduluotron-v1");
+      let settings = readJson<{ reportIncludeCosts?: boolean; reportIncludeLayout?: boolean }>(SETTINGS_STORE_KEY);
+
+      if (eventId) {
+        try {
+          const bundle = await readSuiteEventBundle<TableProject, FoodPlan, SchedulePlan>(eventId);
+          if (bundle) {
+            event = bundle.event;
+            table = bundle.applets.tabletron;
+            food = bundle.applets.foodotron;
+            schedule = bundle.applets.scheduluotron;
+            settings = mergeSuiteSettings(bundle.settings ?? settings);
+            localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(settings));
+            if (bundle.applets.tabletron) localStorage.setItem("tabletron-project-v2", JSON.stringify(bundle.applets.tabletron));
+            if (bundle.applets.foodotron) localStorage.setItem("foodotron-plan-v1", JSON.stringify(bundle.applets.foodotron));
+            if (bundle.applets.scheduluotron) localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(bundle.applets.scheduluotron));
+          }
+        } catch {
+          try {
+            settings = await loadSuiteSettings();
+            const [savedTable, savedFood, savedSchedule] = await Promise.all([
+              readSuiteAppletState<TableProject>(eventId, "tabletron"),
+              readSuiteAppletState<FoodPlan>(eventId, "foodotron"),
+              readSuiteAppletState<SchedulePlan>(eventId, "scheduluotron"),
+            ]);
+            table = savedTable ?? table;
+            food = savedFood ?? food;
+            schedule = savedSchedule ?? schedule;
+          } catch {}
+        }
+      }
+
       if (!event) {
         setMissing(true);
         return;
       }
-      try {
-        await loadSuiteSettings();
-        const [table, food, schedule] = await Promise.all([
-          readSuiteAppletState<TableProject>(event.id, "tabletron"),
-          readSuiteAppletState<FoodPlan>(event.id, "foodotron"),
-          readSuiteAppletState<SchedulePlan>(event.id, "scheduluotron"),
-        ]);
-        if (table) localStorage.setItem("tabletron-project-v2", JSON.stringify(table));
-        if (food) localStorage.setItem("foodotron-plan-v1", JSON.stringify(food));
-        if (schedule) localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(schedule));
-      } catch {}
-      setReport(buildReport(event));
+      setReport(buildReport(event, table, food, schedule, settings));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
