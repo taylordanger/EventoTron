@@ -331,3 +331,9 @@ export async function removeAppletProjection(db: Database, eventId: string, appN
   ));
   await db.delete(foodotronMeals).where(eq(foodotronMeals.tabletronEventId, eventId));
 }
+
+export async function removeEventProjections(db: Database, eventId: string) {
+  await removeAppletProjection(db, eventId, "tabletron");
+  await removeAppletProjection(db, eventId, "foodotron");
+  await removeAppletProjection(db, eventId, "scheduluotron");
+}

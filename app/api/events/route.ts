@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { suiteEvents } from "@/db/schema";
+import { mealTransfers, suiteAppletStates, suiteEvents } from "@/db/schema";
+import { removeEventProjections } from "../event-app-state/projections";
 import { readLocalEvents, writeLocalEvents } from "./local-store";
 
 type SuiteEvent = {
@@ -256,6 +257,11 @@ export async function DELETE(request: Request) {
 
   try {
     const db = await getDb();
+    await removeEventProjections(db, id);
+    await Promise.all([
+      db.delete(suiteAppletStates).where(eq(suiteAppletStates.eventId, id)),
+      db.delete(mealTransfers).where(eq(mealTransfers.tabletronEventId, id)),
+    ]);
     await db.delete(suiteEvents).where(eq(suiteEvents.id, id));
     return Response.json({ id, deleted: true, source: "database" });
   } catch (error) {

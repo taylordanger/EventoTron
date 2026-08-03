@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { suiteAppletStates } from "@/db/schema";
+import { suiteAppletStates, suiteEvents } from "@/db/schema";
 import { deleteLocalAppletState, readLocalAppletState, writeLocalAppletState } from "./local-store";
 import { projectAppletState, removeAppletProjection } from "./projections";
 
@@ -76,6 +76,14 @@ export async function PUT(request: Request) {
   const id = `${appName}_${eventId}`;
   try {
     const db = await getDb();
+    const event = await db
+      .select({ id: suiteEvents.id })
+      .from(suiteEvents)
+      .where(eq(suiteEvents.id, eventId))
+      .get();
+    if (!event) {
+      return Response.json({ error: "Applet state requires an existing event." }, { status: 404 });
+    }
     await db
       .insert(suiteAppletStates)
       .values({

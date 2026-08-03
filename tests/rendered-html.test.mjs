@@ -90,13 +90,15 @@ test("API routes reject incomplete writes before touching storage", async () => 
   }
 });
 
-test("production data contracts keep IDs and cross-applet links out of URLs", async () => {
-  const [schema, transfers, chrome, projections, records] = await Promise.all([
+test("production data contracts keep IDs, migrations, and event ownership explicit", async () => {
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/event-app-state/projections.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
   ]);
 
   assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
@@ -112,4 +114,11 @@ test("production data contracts keep IDs and cross-applet links out of URLs", as
   assert.match(records, /suiteShoppingItems/);
   assert.match(records, /suiteScheduleItems/);
   assert.match(records, /suiteLayoutItems/);
+  assert.match(schema, /suiteSchemaMigrations/);
+  assert.match(schema, /uniqueIndex\("idx_suite_applet_states_event_app"\)/);
+  assert.match(projections, /removeEventProjections/);
+  assert.match(eventsRoute, /removeEventProjections\(db, id\)/);
+  assert.match(migration, /CREATE TABLE `suite_schema_migrations`/);
+  assert.match(migration, /CREATE UNIQUE INDEX `idx_suite_applet_states_event_app`/);
+  assert.match(migration, /'0003_suite_integrity_indexes'/);
 });

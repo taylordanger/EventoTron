@@ -1,4 +1,9 @@
-import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+export const suiteSchemaMigrations = sqliteTable("suite_schema_migrations", {
+  id: text("id").primaryKey(),
+  appliedAt: text("applied_at").notNull(),
+});
 
 export const suiteEvents = sqliteTable(
   "suite_events",
@@ -33,6 +38,7 @@ export const suiteEvents = sqliteTable(
   (table) => [
     index("idx_suite_events_date").on(table.date),
     index("idx_suite_events_kind").on(table.kind),
+    index("idx_suite_events_updated_at").on(table.updatedAt),
   ],
 );
 
@@ -78,17 +84,24 @@ export const suiteLayoutItems = sqliteTable(
   ],
 );
 
-export const foodotronMeals = sqliteTable("foodotron_meals", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  date: text("date").notNull(),
-  guests: integer("guests").notNull(),
-  total: real("total").notNull().default(0),
-  tabletronEventId: text("tabletron_event_id"),
-  payload: text("payload", { mode: "json" }).notNull(),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
+export const foodotronMeals = sqliteTable(
+  "foodotron_meals",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    date: text("date").notNull(),
+    guests: integer("guests").notNull(),
+    total: real("total").notNull().default(0),
+    tabletronEventId: text("tabletron_event_id"),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_foodotron_meals_tabletron_event_id").on(table.tabletronEventId),
+    index("idx_foodotron_meals_updated_at").on(table.updatedAt),
+  ],
+);
 
 export const suiteRecipes = sqliteTable("suite_recipes", {
   id: text("id").primaryKey(),
@@ -120,16 +133,23 @@ export const suiteShoppingItems = sqliteTable(
   ],
 );
 
-export const tabletronEvents = sqliteTable("tabletron_events", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  date: text("date").notNull(),
-  guestCount: integer("guest_count").notNull(),
-  foodotronMealId: text("foodotron_meal_id"),
-  payload: text("payload", { mode: "json" }).notNull(),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
+export const tabletronEvents = sqliteTable(
+  "tabletron_events",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    date: text("date").notNull(),
+    guestCount: integer("guest_count").notNull(),
+    foodotronMealId: text("foodotron_meal_id"),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_tabletron_events_foodotron_meal_id").on(table.foodotronMealId),
+    index("idx_tabletron_events_updated_at").on(table.updatedAt),
+  ],
+);
 
 export const suiteScheduleItems = sqliteTable(
   "suite_schedule_items",
@@ -147,7 +167,10 @@ export const suiteScheduleItems = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (table) => [index("idx_suite_schedule_items_event_id").on(table.eventId)],
+  (table) => [
+    index("idx_suite_schedule_items_event_id").on(table.eventId),
+    index("idx_suite_schedule_items_event_start").on(table.eventId, table.start),
+  ],
 );
 
 export const suiteCalendarSources = sqliteTable("suite_calendar_sources", {
@@ -185,6 +208,7 @@ export const suiteAppletStates = sqliteTable(
   (table) => [
     index("idx_suite_applet_states_event_id").on(table.eventId),
     index("idx_suite_applet_states_app_name").on(table.appName),
+    uniqueIndex("idx_suite_applet_states_event_app").on(table.eventId, table.appName),
   ],
 );
 
@@ -201,5 +225,6 @@ export const mealTransfers = sqliteTable(
   (table) => [
     index("idx_meal_transfers_foodotron_meal_id").on(table.foodotronMealId),
     index("idx_meal_transfers_tabletron_event_id").on(table.tabletronEventId),
+    index("idx_meal_transfers_status_created_at").on(table.status, table.createdAt),
   ],
 );
