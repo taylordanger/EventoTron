@@ -8,6 +8,7 @@ import {
   tabletronEvents,
 } from "@/db/schema";
 import { readAllLocalAppletStates, writeLocalAppletState } from "../event-app-state/local-store";
+import { projectAppletState } from "../event-app-state/projections";
 import { readLocalEvents, writeLocalEvents } from "../events/local-store";
 import { readLocalSettings, writeLocalSettings } from "../settings/local-store";
 
@@ -154,6 +155,15 @@ async function restoreDatabase(backup: WorkspaceBackup) {
   }
 
   await Promise.all(upserts);
+  for (const state of backup.data.appletStates ?? []) {
+    await projectAppletState(
+      db,
+      state.eventId,
+      state.appName,
+      state.payload,
+      state.updatedAt,
+    );
+  }
 }
 
 function restoreLocal(backup: WorkspaceBackup) {

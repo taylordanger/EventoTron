@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteAppletStates } from "@/db/schema";
 import { deleteLocalAppletState, readLocalAppletState, writeLocalAppletState } from "./local-store";
+import { projectAppletState, removeAppletProjection } from "./projections";
 
 const allowedApps = new Set(["tabletron", "foodotron", "scheduluotron"]);
 
@@ -94,7 +95,8 @@ export async function PUT(request: Request) {
           updatedAt: now,
         },
       });
-    return Response.json({ id, eventId, appName, savedAt: now, source: "database" });
+    const normalized = await projectAppletState(db, eventId, appName, body.payload, now);
+    return Response.json({ id, eventId, appName, savedAt: now, normalized, source: "database" });
   } catch (caught) {
     if (!dbUnavailable(caught)) {
       return Response.json(
@@ -125,6 +127,7 @@ export async function DELETE(request: Request) {
           eq(suiteAppletStates.appName, appName),
         ),
       );
+    await removeAppletProjection(db, eventId, appName);
     return Response.json({ eventId, appName, deleted: true, source: "database" });
   } catch (caught) {
     if (!dbUnavailable(caught)) {
