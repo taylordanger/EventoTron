@@ -757,3 +757,8 @@
     break-after: avoid;
   }
 }
+
+.tabletron-applet .topbar .project-name {
+  border-left: 0;
+  padding-left: 0;
+}

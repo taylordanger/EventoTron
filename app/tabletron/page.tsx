@@ -1135,9 +1135,6 @@ export default function Home() {
   return (
     <div className="suite-frame"><SuiteChrome active="tabletron" eventId={event?.id} /><main className="tabletron-applet app-shell">
       <header className="topbar">
-        <div className="brand">
-          <span>T</span>TABLETRON
-        </div>
         <label className="project-name">
           <small>PROJECT</small>
           <input
