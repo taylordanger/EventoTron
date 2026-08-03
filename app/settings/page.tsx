@@ -26,6 +26,7 @@ type SystemHealth = {
     tabletronEvents: number;
     scheduleItems: number;
     transfers: number;
+    calendarEvents: number;
     settings: number;
   } | null;
 };
@@ -36,6 +37,7 @@ export default function SettingsPage() {
   const [loaded, setLoaded] = useState(false);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthChecking, setHealthChecking] = useState(true);
+  const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
 
@@ -49,6 +51,11 @@ export default function SettingsPage() {
           const data = (await response.json()) as { payload?: Partial<SuiteSettings> };
           restored = mergeSuiteSettings(data.payload ?? restored);
           setStatus("DATABASE READY");
+        }
+        const calendarResponse = await fetch("/api/calendar-sources", { cache: "no-store" });
+        if (calendarResponse.ok) {
+          const calendarData = await calendarResponse.json() as { sources?: SuiteSettings["calendarSources"] };
+          if (calendarData.sources?.length) restored = { ...restored, calendarSources: calendarData.sources };
         }
       } catch {}
       setSettings(restored);
@@ -72,8 +79,15 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payload: settings }),
       })
-        .then((response) => {
+        .then(async (response) => {
           if (!response.ok) throw new Error("Settings save failed");
+          await Promise.all(settings.calendarSources.map((source) => fetch("/api/calendar-sources", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source }),
+          }).then((calendarResponse) => {
+            if (!calendarResponse.ok) throw new Error("Calendar connection save failed");
+          })));
           setStatus("SAVED");
         })
         .catch(() => setStatus("LOCAL ONLY"));
@@ -97,7 +111,7 @@ export default function SettingsPage() {
         checkedAt: new Date().toISOString(),
         latencyMs: 0,
         database: "unavailable",
-        schema: { expected: "0003_suite_integrity_indexes", current: null, applied: [] },
+        schema: { expected: "0004_calendar_sync_records", current: null, applied: [] },
         records: null,
       });
     } finally {
@@ -126,6 +140,49 @@ export default function SettingsPage() {
         },
       ],
     });
+  }
+
+  function updateCalendarSource(id: string, patch: Partial<SuiteSettings["calendarSources"][number]>) {
+    update({
+      calendarSources: settings.calendarSources.map((source) => source.id === id ? { ...source, ...patch } : source),
+    });
+  }
+
+  function removeCalendarSource(id: string) {
+    update({ calendarSources: settings.calendarSources.filter((source) => source.id !== id) });
+    void fetch(`/api/calendar-sources?sourceId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
+  }
+
+  async function syncCalendarSource(source: SuiteSettings["calendarSources"][number]) {
+    if (!source.url.trim()) {
+      updateCalendarSource(source.id, { lastError: "Add a feed URL first." });
+      return;
+    }
+    setCalendarSyncing((current) => ({ ...current, [source.id]: true }));
+    try {
+      const response = await fetch("/api/calendar-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source }),
+      });
+      const result = await response.json() as {
+        source?: SuiteSettings["calendarSources"][number];
+        events?: unknown[];
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error || "Calendar sync failed");
+      updateCalendarSource(source.id, result.source ?? {
+        lastSynced: new Date().toISOString(),
+        lastError: "",
+        eventCount: result.events?.length ?? 0,
+      });
+      setStatus(`CALENDAR ${result.events?.length ?? 0} EVENTS`);
+    } catch (error) {
+      updateCalendarSource(source.id, { lastError: error instanceof Error ? error.message : "Calendar sync failed" });
+      setStatus("CALENDAR ERROR");
+    } finally {
+      setCalendarSyncing((current) => ({ ...current, [source.id]: false }));
+    }
   }
 
   function exportSettings() {
@@ -268,15 +325,20 @@ export default function SettingsPage() {
               <div className="calendar-source" key={source.id}>
                 <div className="calendar-source-topline">
                   <span className="calendar-source-swatch" style={{ background: source.color }} />
-                  <input value={source.name} aria-label="Calendar name" onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, name: event.target.value } : item) })} />
-                  <label className="settings-check compact-check"><input type="checkbox" checked={source.enabled} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, enabled: event.target.checked } : item) })} /><span>SHOW</span></label>
-                  <button onClick={() => update({ calendarSources: settings.calendarSources.filter((item) => item.id !== source.id) })}>REMOVE</button>
+                  <input value={source.name} aria-label="Calendar name" onChange={(event) => updateCalendarSource(source.id, { name: event.target.value })} />
+                  <label className="settings-check compact-check"><input type="checkbox" checked={source.enabled} onChange={(event) => updateCalendarSource(source.id, { enabled: event.target.checked })} /><span>SHOW</span></label>
+                  <button onClick={() => removeCalendarSource(source.id)}>REMOVE</button>
                 </div>
                 <div className="settings-two-up">
-                  <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, provider: event.target.value as CalendarProvider } : item) })}>{Object.entries(calendarProviderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-                  <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, color: event.target.value } : item) })} /></label>
+                  <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => updateCalendarSource(source.id, { provider: event.target.value as CalendarProvider })}>{Object.entries(calendarProviderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                  <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => updateCalendarSource(source.id, { color: event.target.value })} /></label>
                 </div>
-                <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => update({ calendarSources: settings.calendarSources.map((item) => item.id === source.id ? { ...item, url: event.target.value } : item) })} /></label>
+                <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
+                <div className="calendar-source-footer">
+                  <span>{calendarProviderLabels[source.provider]}</span>
+                  <span>{source.lastError || (source.eventCount !== undefined ? `${source.eventCount} EVENTS` : source.url ? "READY TO SYNC" : "SETUP NEEDED")}</span>
+                  <button className="calendar-sync-button" disabled={Boolean(calendarSyncing[source.id])} onClick={() => void syncCalendarSource(source)}>{calendarSyncing[source.id] ? "SYNCING" : "SYNC NOW"}</button>
+                </div>
               </div>
             )) : <div className="settings-empty">No external calendars connected yet.</div>}
           </section>

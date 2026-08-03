@@ -3,6 +3,7 @@ import {
   foodotronMeals,
   mealTransfers,
   suiteAppletStates,
+  suiteCalendarEvents,
   suiteCalendarSources,
   suiteEvents,
   suiteLayoutItems,
@@ -34,6 +35,7 @@ type BackupData = {
   tabletronEvents?: Array<typeof tabletronEvents.$inferSelect>;
   scheduleItems?: Array<typeof suiteScheduleItems.$inferSelect>;
   calendarSources?: Array<typeof suiteCalendarSources.$inferSelect>;
+  calendarEvents?: Array<typeof suiteCalendarEvents.$inferSelect>;
   mealTransfers?: Array<typeof mealTransfers.$inferSelect>;
 };
 
@@ -59,6 +61,7 @@ const backupKeys = [
   "tabletronEvents",
   "scheduleItems",
   "calendarSources",
+  "calendarEvents",
   "mealTransfers",
 ] as const satisfies ReadonlyArray<keyof BackupData>;
 
@@ -120,6 +123,7 @@ export async function GET() {
       tableEvents,
       scheduleItems,
       calendarSources,
+      calendarEvents,
       transfers,
     ] = await Promise.all([
       db.select().from(suiteSettings),
@@ -134,6 +138,7 @@ export async function GET() {
       db.select().from(tabletronEvents),
       db.select().from(suiteScheduleItems),
       db.select().from(suiteCalendarSources),
+      db.select().from(suiteCalendarEvents),
       db.select().from(mealTransfers),
     ]);
     return backupResponse(
@@ -150,6 +155,7 @@ export async function GET() {
         tabletronEvents: tableEvents,
         scheduleItems,
         calendarSources,
+        calendarEvents,
         mealTransfers: transfers,
       },
       "database",
@@ -185,6 +191,7 @@ export async function GET() {
         tabletronEvents: [],
         scheduleItems: [],
         calendarSources: [],
+        calendarEvents: [],
         mealTransfers: [],
       },
       "local-dev",
@@ -228,6 +235,9 @@ async function restoreDatabase(backup: WorkspaceBackup) {
   }
   for (const row of backup.data.calendarSources ?? []) {
     upserts.push(db.insert(suiteCalendarSources).values(row).onConflictDoUpdate({ target: suiteCalendarSources.id, set: row }));
+  }
+  for (const row of backup.data.calendarEvents ?? []) {
+    upserts.push(db.insert(suiteCalendarEvents).values(row).onConflictDoUpdate({ target: suiteCalendarEvents.id, set: row }));
   }
   for (const row of backup.data.appletStates ?? []) {
     upserts.push(db.insert(suiteAppletStates).values(row).onConflictDoUpdate({ target: suiteAppletStates.id, set: row }));

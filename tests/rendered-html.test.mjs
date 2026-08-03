@@ -79,6 +79,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
     ["/api/workspace-backup", "POST", {}, 400, /not recognized/i],
     ["/api/workspace-backup", "POST", { format: "eventotron-workspace-backup", version: 2, exportedAt: new Date().toISOString(), data: { events: [{ title: "Missing ID" }] } }, 400, /not recognized/i],
     ["/api/calendar-sources", "POST", { url: "calendar.example.test" }, 400, /must begin with http/i],
+    ["/api/calendar-sources", "PUT", { source: { name: "Missing ID" } }, 400, /connection is incomplete/i],
   ];
 
   for (const [path, method, body, status, message] of checks) {
@@ -92,7 +93,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration, backupRoute] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -100,7 +101,10 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0004_calendar_sync_records.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
@@ -117,13 +121,21 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(records, /suiteScheduleItems/);
   assert.match(records, /suiteLayoutItems/);
   assert.match(schema, /suiteSchemaMigrations/);
+  assert.match(schema, /suiteCalendarEvents/);
   assert.match(schema, /uniqueIndex\("idx_suite_applet_states_event_app"\)/);
   assert.match(projections, /removeEventProjections/);
   assert.match(eventsRoute, /removeEventProjections\(db, id\)/);
   assert.match(migration, /CREATE TABLE `suite_schema_migrations`/);
   assert.match(migration, /CREATE UNIQUE INDEX `idx_suite_applet_states_event_app`/);
   assert.match(migration, /'0003_suite_integrity_indexes'/);
-  for (const table of ["rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources"]) {
+  assert.match(calendarMigration, /CREATE TABLE `suite_calendar_events`/);
+  assert.match(calendarMigration, /CREATE UNIQUE INDEX `idx_suite_calendar_events_source_external`/);
+  assert.match(calendarRoute, /permanentCalendarEventId/);
+  assert.match(calendarRoute, /export async function GET/);
+  assert.match(calendarRoute, /export async function PUT/);
+  assert.match(calendarRoute, /export async function DELETE/);
+  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0004_calendar_sync_records"/);
+  for (const table of ["rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
   }
   assert.match(backupRoute, /BACKUP_VERSION = 2/);

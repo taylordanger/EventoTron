@@ -3,7 +3,7 @@ import * as schema from "./schema";
 
 let schemaReady: Promise<void> | null = null;
 
-export const EXPECTED_SCHEMA_MIGRATION = "0003_suite_integrity_indexes";
+export const EXPECTED_SCHEMA_MIGRATION = "0004_calendar_sync_records";
 
 async function getD1() {
   const { env } = await import("cloudflare:workers");
@@ -94,6 +94,18 @@ export async function ensureSuiteSchema() {
         "CREATE TABLE IF NOT EXISTS suite_calendar_sources (id text PRIMARY KEY NOT NULL, name text NOT NULL, provider text NOT NULL, url text DEFAULT '' NOT NULL, enabled integer DEFAULT true NOT NULL, color text DEFAULT '#75ff47' NOT NULL, sync_minutes integer DEFAULT 15 NOT NULL, last_synced text, last_error text, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
       ),
       db.prepare(
+        "CREATE TABLE IF NOT EXISTS suite_calendar_events (id text PRIMARY KEY NOT NULL, source_id text NOT NULL, external_id text NOT NULL, title text NOT NULL, date text NOT NULL, event_time text DEFAULT '' NOT NULL, description text DEFAULT '' NOT NULL, location text DEFAULT '' NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_calendar_events_source_id ON suite_calendar_events (source_id)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_calendar_events_date ON suite_calendar_events (date)",
+      ),
+      db.prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_suite_calendar_events_source_external ON suite_calendar_events (source_id, external_id)",
+      ),
+      db.prepare(
         "CREATE TABLE IF NOT EXISTS suite_settings (id text PRIMARY KEY NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
       ),
       db.prepare(
@@ -121,7 +133,7 @@ export async function ensureSuiteSchema() {
         "CREATE INDEX IF NOT EXISTS idx_meal_transfers_status_created_at ON meal_transfers (status, created_at)",
       ),
       db.prepare(
-        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
+        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
       ),
     ]).then(() => undefined),
   );

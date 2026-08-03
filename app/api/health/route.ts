@@ -4,6 +4,7 @@ import {
   foodotronMeals,
   mealTransfers,
   suiteAppletStates,
+  suiteCalendarEvents,
   suiteEvents,
   suiteScheduleItems,
   suiteSchemaMigrations,
@@ -23,6 +24,7 @@ export async function GET() {
       tabletronRows,
       scheduleRows,
       transferRows,
+      calendarRows,
       settingsRows,
     ] = await Promise.all([
       db.select().from(suiteSchemaMigrations).orderBy(asc(suiteSchemaMigrations.id)),
@@ -32,6 +34,7 @@ export async function GET() {
       db.select({ value: count() }).from(tabletronEvents),
       db.select({ value: count() }).from(suiteScheduleItems),
       db.select({ value: count() }).from(mealTransfers),
+      db.select({ value: count() }).from(suiteCalendarEvents),
       db.select({ value: count() }).from(suiteSettings),
     ]);
     const applied = migrations.map((migration) => migration.id);
@@ -55,6 +58,7 @@ export async function GET() {
         tabletronEvents: tabletronRows[0]?.value ?? 0,
         scheduleItems: scheduleRows[0]?.value ?? 0,
         transfers: transferRows[0]?.value ?? 0,
+        calendarEvents: calendarRows[0]?.value ?? 0,
         settings: settingsRows[0]?.value ?? 0,
       },
     };

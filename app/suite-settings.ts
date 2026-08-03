@@ -8,6 +8,9 @@ export type CalendarSource = {
   enabled: boolean;
   color: string;
   syncMinutes: number;
+  lastSynced?: string;
+  lastError?: string;
+  eventCount?: number;
 };
 
 export type SuiteSettings = {

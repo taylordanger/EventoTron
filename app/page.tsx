@@ -48,6 +48,7 @@ type CalendarSource = {
 };
 type ImportedCalendarEvent = {
   id: string;
+  externalId?: string;
   title: string;
   date: string;
   eventTime: string;
@@ -336,6 +337,30 @@ export default function Home() {
     localStorage.setItem("eventotron-calendar-events-v1", JSON.stringify(calendarFeedEvents));
   }, [calendarFeedEvents, settingsLoaded]);
 
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    const controller = new AbortController();
+    fetch("/api/calendar-sources", { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result: { sources?: CalendarSource[]; events?: ImportedCalendarEvent[] } | null) => {
+        if (!result) return;
+        const databaseSources = Array.isArray(result.sources) ? result.sources : [];
+        const databaseEvents = Array.isArray(result.events) ? result.events : [];
+        if (databaseSources.length) {
+          setSettings((current) => ({
+            ...current,
+            calendarSources: [
+              ...databaseSources,
+              ...current.calendarSources.filter((source) => !databaseSources.some((saved) => saved.id === source.id)),
+            ],
+          }));
+          setCalendarFeedEvents(databaseEvents);
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [settingsLoaded]);
+
   const days = useMemo(() => {
     const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
     const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
@@ -352,12 +377,13 @@ export default function Home() {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
-    calendarFeedEvents.filter((event) => event.date.startsWith(prefix)).forEach((event) => {
+    const visibleSources = new Set(settings.calendarSources.filter((source) => source.enabled).map((source) => source.id));
+    calendarFeedEvents.filter((event) => visibleSources.has(event.sourceId) && event.date.startsWith(prefix)).forEach((event) => {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
     return map;
-  }, [events, calendarFeedEvents, calendarYear, calendarMonth]);
+  }, [events, calendarFeedEvents, calendarYear, calendarMonth, settings.calendarSources]);
 
   async function save() {
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
@@ -417,6 +443,13 @@ export default function Home() {
         source.id === id ? { ...source, ...patch } : source,
       ),
     }));
+    if (patch.color || patch.name) {
+      setCalendarFeedEvents((current) => current.map((event) => event.sourceId === id ? {
+        ...event,
+        color: patch.color ?? event.color,
+        sourceName: patch.name ?? event.sourceName,
+      } : event));
+    }
   }
 
   function removeCalendarSource(id: string) {
@@ -425,6 +458,7 @@ export default function Home() {
       calendarSources: current.calendarSources.filter((source) => source.id !== id),
     }));
     setCalendarFeedEvents((current) => current.filter((event) => event.sourceId !== id));
+    void fetch(`/api/calendar-sources?sourceId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
   }
 
   async function syncCalendarSource(source: CalendarSource) {
@@ -437,18 +471,13 @@ export default function Home() {
       const response = await fetch("/api/calendar-sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: source.url }),
+        body: JSON.stringify({ source }),
       });
-      const result = await response.json() as { events?: Omit<ImportedCalendarEvent, "sourceId" | "sourceName" | "color">[]; error?: string };
+      const result = await response.json() as { events?: ImportedCalendarEvent[]; source?: CalendarSource; error?: string };
       if (!response.ok) throw new Error(result.error || "Calendar feed could not be read");
-      const imported = (result.events ?? []).map((event) => ({
-        ...event,
-        sourceId: source.id,
-        sourceName: source.name,
-        color: source.color,
-      }));
+      const imported = result.events ?? [];
       setCalendarFeedEvents((current) => [...current.filter((event) => event.sourceId !== source.id), ...imported]);
-      updateCalendarSource(source.id, { lastSynced: new Date().toISOString(), lastError: "", eventCount: imported.length });
+      updateCalendarSource(source.id, result.source ?? { lastSynced: new Date().toISOString(), lastError: "", eventCount: imported.length });
     } catch (error) {
       updateCalendarSource(source.id, { lastError: error instanceof Error ? error.message : "Calendar feed could not be read" });
     } finally {

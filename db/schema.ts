@@ -188,6 +188,28 @@ export const suiteCalendarSources = sqliteTable("suite_calendar_sources", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const suiteCalendarEvents = sqliteTable(
+  "suite_calendar_events",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id").notNull(),
+    externalId: text("external_id").notNull(),
+    title: text("title").notNull(),
+    date: text("date").notNull(),
+    eventTime: text("event_time").notNull().default(""),
+    description: text("description").notNull().default(""),
+    location: text("location").notNull().default(""),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_calendar_events_source_id").on(table.sourceId),
+    index("idx_suite_calendar_events_date").on(table.date),
+    uniqueIndex("idx_suite_calendar_events_source_external").on(table.sourceId, table.externalId),
+  ],
+);
+
 export const suiteSettings = sqliteTable("suite_settings", {
   id: text("id").primaryKey(),
   payload: text("payload", { mode: "json" }).notNull(),
