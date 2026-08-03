@@ -8,6 +8,13 @@
       "when": 1785715200000,
       "tag": "0000_suite_meal_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785741373533,
+      "tag": "0001_suite_production_tables",
+      "breakpoints": true
     }
   ]
 }

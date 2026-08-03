@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
-import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
@@ -206,10 +206,14 @@ export default function Home() {
   const [railWidth, setRailWidth] = useState(defaultSettings.eventRailWidth);
   const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
+  const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
+  const [eventBackendChecked, setEventBackendChecked] = useState(false);
+  const hadLocalEventsOnBoot = useRef(true);
   const selected = events.find((event) => event.id === selectedId) ?? events[0];
 
   useEffect(() => {
     const raw = localStorage.getItem("eventotron-events-v1");
+    hadLocalEventsOnBoot.current = Boolean(raw);
     const timer = window.setTimeout(() => {
       try {
         const restored = raw ? JSON.parse(raw) as {
@@ -234,17 +238,63 @@ export default function Home() {
         }
         setLoaded(true);
       } catch {}
+      setEventBackendChecked(Boolean(raw));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    localStorage.setItem(
-      EVENT_STORE_KEY,
-      JSON.stringify({ events, selectedId, openIds, calendarYear, calendarMonth }),
-    );
-  }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded]);
+    if (!hadLocalEventsOnBoot.current && !eventBackendChecked) return;
+    const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
+    localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
+    if (settingsLoaded && !settings.autoSave) return;
+    const timer = window.setTimeout(() => {
+      setEventSaveStatus("SAVING");
+      fetch("/api/events", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("Event database save failed");
+          setEventSaveStatus("SAVED");
+        })
+        .catch(() => setEventSaveStatus("LOCAL ONLY"));
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded, settings.autoSave, settingsLoaded, eventBackendChecked]);
+
+  useEffect(() => {
+    if (!loaded || hadLocalEventsOnBoot.current) return;
+    const controller = new AbortController();
+    fetch("/api/events", { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((restored: {
+        events?: EventoEvent[];
+        selectedId?: string;
+        openIds?: string[];
+        calendarYear?: number;
+        calendarMonth?: number;
+      } | null) => {
+        if (!restored?.events?.length) return;
+        const restoredEvents = restored.events.map((event) => ({
+          ...event,
+          requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
+        }));
+        setEvents(restoredEvents);
+        setSelectedId(restored.selectedId ?? restoredEvents[0].id);
+        setOpenIds(restored.openIds?.length ? restored.openIds : [restoredEvents[0].id]);
+        const restoredSelected = restoredEvents.find((event) => event.id === (restored.selectedId ?? restoredEvents[0].id));
+        const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
+        setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
+        setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
+        setEventSaveStatus("DATABASE READY");
+      })
+      .catch(() => {})
+      .finally(() => setEventBackendChecked(true));
+    return () => controller.abort();
+  }, [loaded]);
 
   useEffect(() => {
     const rawSettings = localStorage.getItem(SETTINGS_STORE_KEY);
@@ -309,11 +359,21 @@ export default function Home() {
     return map;
   }, [events, calendarFeedEvents, calendarYear, calendarMonth]);
 
-  function save() {
-    localStorage.setItem(
-      "eventotron-events-v1",
-      JSON.stringify({ events, selectedId, openIds }),
-    );
+  async function save() {
+    const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
+    localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
+    setEventSaveStatus("SAVING");
+    try {
+      const response = await fetch("/api/events", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error("Event database save failed");
+      setEventSaveStatus("SAVED");
+    } catch {
+      setEventSaveStatus("LOCAL ONLY");
+    }
   }
 
   function openEvent(event: EventoEvent) {
@@ -445,7 +505,7 @@ export default function Home() {
     <main className="eventotron-desktop">
       <div className="eventotron-ribbon-row">
         <SuiteChrome active="calendar" eventId={selected.id} />
-        <button onClick={save}>SAVE EVENTS</button>
+        <button onClick={() => void save()}>{eventSaveStatus}</button>
         <button className="primary" onClick={() => addEvent(new Date().getDate())}>
           NEW EVENT
         </button>

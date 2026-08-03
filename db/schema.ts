@@ -1,5 +1,83 @@
 import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+export const suiteEvents = sqliteTable(
+  "suite_events",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    date: text("date").notNull(),
+    kind: text("kind").notNull(),
+    eventTime: text("event_time").notNull().default(""),
+    rentalTime: text("rental_time").notNull().default(""),
+    space: text("space").notNull().default(""),
+    manager: text("manager").notNull().default(""),
+    contact: text("contact").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    email: text("email").notNull().default(""),
+    attendees: integer("attendees").notNull().default(0),
+    description: text("description").notNull().default(""),
+    planningNotes: text("planning_notes").notNull().default(""),
+    mod: text("mod").notNull().default(""),
+    vacation: text("vacation").notNull().default(""),
+    rentalTotal: real("rental_total").notNull().default(0),
+    cateringTotal: real("catering_total").notNull().default(0),
+    discountRate: real("discount_rate").notNull().default(0),
+    deposit: real("deposit").notNull().default(0),
+    paymentNotes: text("payment_notes").notNull().default(""),
+    quoteEnteredBy: text("quote_entered_by").notNull().default(""),
+    requestedItems: text("requested_items").notNull().default(""),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_events_date").on(table.date),
+    index("idx_suite_events_kind").on(table.kind),
+  ],
+);
+
+export const suiteRooms = sqliteTable("suite_rooms", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  width: real("width").notNull().default(26),
+  height: real("height").notNull().default(26),
+  payload: text("payload", { mode: "json" }).notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const suiteRoomLayouts = sqliteTable(
+  "suite_room_layouts",
+  {
+    id: text("id").primaryKey(),
+    roomId: text("room_id").notNull(),
+    name: text("name").notNull(),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [index("idx_suite_room_layouts_room_id").on(table.roomId)],
+);
+
+export const suiteLayoutItems = sqliteTable(
+  "suite_layout_items",
+  {
+    id: text("id").primaryKey(),
+    layoutId: text("layout_id").notNull(),
+    eventId: text("event_id"),
+    itemType: text("item_type").notNull(),
+    name: text("name").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_layout_items_layout_id").on(table.layoutId),
+    index("idx_suite_layout_items_event_id").on(table.eventId),
+  ],
+);
+
 export const foodotronMeals = sqliteTable("foodotron_meals", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -12,12 +90,83 @@ export const foodotronMeals = sqliteTable("foodotron_meals", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const suiteRecipes = sqliteTable("suite_recipes", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  baseServings: integer("base_servings").notNull().default(1),
+  payload: text("payload", { mode: "json" }).notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const suiteShoppingItems = sqliteTable(
+  "suite_shopping_items",
+  {
+    id: text("id").primaryKey(),
+    mealId: text("meal_id").notNull(),
+    recipeId: text("recipe_id"),
+    ingredient: text("ingredient").notNull(),
+    store: text("store").notNull().default(""),
+    quantity: text("quantity").notNull().default(""),
+    estimatedCost: real("estimated_cost").notNull().default(0),
+    purchased: integer("purchased", { mode: "boolean" }).notNull().default(false),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_shopping_items_meal_id").on(table.mealId),
+    index("idx_suite_shopping_items_recipe_id").on(table.recipeId),
+  ],
+);
+
 export const tabletronEvents = sqliteTable("tabletron_events", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   date: text("date").notNull(),
   guestCount: integer("guest_count").notNull(),
   foodotronMealId: text("foodotron_meal_id"),
+  payload: text("payload", { mode: "json" }).notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const suiteScheduleItems = sqliteTable(
+  "suite_schedule_items",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull(),
+    title: text("title").notNull(),
+    start: text("start").notNull().default(""),
+    end: text("end").notNull().default(""),
+    owner: text("owner").notNull().default(""),
+    location: text("location").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [index("idx_suite_schedule_items_event_id").on(table.eventId)],
+);
+
+export const suiteCalendarSources = sqliteTable("suite_calendar_sources", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  provider: text("provider").notNull(),
+  url: text("url").notNull().default(""),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  color: text("color").notNull().default("#75ff47"),
+  syncMinutes: integer("sync_minutes").notNull().default(15),
+  lastSynced: text("last_synced"),
+  lastError: text("last_error"),
+  payload: text("payload", { mode: "json" }).notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const suiteSettings = sqliteTable("suite_settings", {
+  id: text("id").primaryKey(),
   payload: text("payload", { mode: "json" }).notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
