@@ -183,7 +183,9 @@ test("print report contracts keep report previews and print mode aligned", async
   ]);
 
   assert.match(printMode, /eventotron-printing/);
-  assert.match(printMode, /window\.setTimeout\(\(\) => \{/);
+  assert.match(printMode, /afterReportPaint/);
+  assert.match(printMode, /requestAnimationFrame/);
+  assert.match(printMode, /window\.setTimeout\(callback, 120\)/);
   assert.match(printMode, /classList\.remove\("eventotron-printing"\)/);
   assert.match(printMode, /reportDocumentTitle/);
   assert.match(printMode, /document\.title = reportDocumentTitle\(title\)/);
