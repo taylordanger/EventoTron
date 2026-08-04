@@ -93,7 +93,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -105,6 +105,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/master-report/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/foodotron/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8"),
@@ -176,8 +177,14 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /updateOperationsTemplate/);
   assert.match(settingsPage, /Launch Readiness/);
   assert.match(settingsPage, /Local event suite/);
+  assert.match(homePage, /operationsTemplateId/);
+  assert.match(homePage, /applyOperationsTemplate/);
+  assert.match(homePage, /operationsTemplatePatch/);
+  assert.match(homePage, /START FROM/);
+  assert.match(homePage, /Operations Template/);
   assert.match(styles, /operations-template-list/);
   assert.match(styles, /launch-readiness-list/);
+  assert.match(styles, /new-event-template/);
   assert.match(roadmap, /Phase 1: Local Pilot/);
   assert.match(roadmap, /Phase 4: Desktop App/);
   assert.match(roadmap, /70 percent ready for a local pilot/);

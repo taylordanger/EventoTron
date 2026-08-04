@@ -104,7 +104,7 @@
 
 .eventotron-ribbon-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 230px) auto auto auto;
   align-items: stretch;
   gap: 7px;
   padding-right: 12px;
@@ -134,6 +134,35 @@
   background: var(--p);
   color: #041004;
   border-color: var(--p);
+}
+
+.new-event-template {
+  align-self: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid #305b34;
+  background: #061008;
+  color: #b9ddb3;
+  padding: 6px 8px;
+}
+
+.new-event-template span {
+  color: #75ff47;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.new-event-template select {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #dcffd7;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .eventotron-logo {
@@ -867,6 +896,11 @@
   font-weight: 700;
 }
 
+.operations-template-field select {
+  border-color: #75ff47;
+  box-shadow: inset 0 0 18px #75ff4714;
+}
+
 .sheet-grid textarea {
   min-height: 62px;
   resize: vertical;
@@ -979,6 +1013,11 @@
     padding: 7px 8px;
     font-size: 8px;
   }
+
+  .new-event-template {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
 }
 
 @media(max-width:780px) {
@@ -1008,6 +1047,10 @@
   }
 
   .eventotron-ribbon-row > button {
+    width: 100%;
+  }
+
+  .new-event-template {
     width: 100%;
   }
 

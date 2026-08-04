@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
+import { defaultSuiteSettings, mergeSuiteSettings, type OperationsTemplate } from "./suite-settings";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
@@ -31,6 +32,7 @@ type EventoEvent = {
   paymentNotes: string;
   quoteEnteredBy: string;
   requestedItems: string;
+  operationsTemplateId?: string;
 };
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
@@ -69,6 +71,7 @@ type EventoSettings = {
   reportPaper: "letter" | "a4";
   reportIncludeCosts: boolean;
   reportIncludeLayout: boolean;
+  operationsTemplates: OperationsTemplate[];
   calendarSources: CalendarSource[];
 };
 
@@ -85,6 +88,7 @@ const defaultSettings: EventoSettings = {
   reportPaper: "letter",
   reportIncludeCosts: true,
   reportIncludeLayout: true,
+  operationsTemplates: defaultSuiteSettings.operationsTemplates,
   calendarSources: [],
 };
 const providerLabels: Record<CalendarProvider, string> = {
@@ -110,6 +114,34 @@ const labels: Record<EventKind, string> = {
   prep: "Prep",
   note: "Note",
 };
+
+function templateKind(template: OperationsTemplate): EventKind {
+  if (template.category === "maintenance" || template.category === "food") return "prep";
+  if (template.category === "volunteer") return "note";
+  if (template.category === "contract") return "rental";
+  if (template.name.toLowerCase().includes("concert")) return "concert";
+  return "meeting";
+}
+
+function templateRequestedItems(template: OperationsTemplate) {
+  const name = template.name.toLowerCase();
+  if (name.includes("rotary")) return "6 FT ROUND TABLES, CHAIRS, BLACK TABLECLOTHS, PODIUM, WATER GLASSES, COFFEE STATION, WRAPPED FLATWARE";
+  if (name.includes("concert")) return "GREEN ROOM HOSPITALITY, CASH BAGS, GUEST LIST, ANNOUNCEMENT TEMPLATE, BAR / CONCESSIONS";
+  if (name.includes("market")) return "TRASH BAGS, MARKET CART, ATTENDANCE LOG, CERAMICS STUDIO WARNING";
+  if (name.includes("kitchen")) return "DISH RACK, TRASH LINERS, MOP, LAUNDRY BAG, SANITIZER";
+  if (name.includes("maintenance")) return "CONTRACTOR NOTES, DUE DATE, COMPLETION DATE, COST, FOLLOW-UP";
+  return template.checklist.map((item) => item.split(",")[0]).slice(0, 4).join(", ").toUpperCase();
+}
+
+function operationsTemplatePatch(template: OperationsTemplate): Partial<EventoEvent> {
+  return {
+    kind: templateKind(template),
+    operationsTemplateId: template.id,
+    description: template.summary,
+    planningNotes: [template.summary, "", ...template.checklist.map((item) => `- ${item}`)].join("\n"),
+    requestedItems: templateRequestedItems(template),
+  };
+}
 const monthNames = [
   "January",
   "February",
@@ -205,6 +237,7 @@ export default function Home() {
   const [settings, setSettings] = useState<EventoSettings>(defaultSettings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [railWidth, setRailWidth] = useState(defaultSettings.eventRailWidth);
+  const [newEventTemplateId, setNewEventTemplateId] = useState("");
   const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
@@ -305,12 +338,15 @@ export default function Home() {
       try {
         const restoredSettings = rawSettings ? JSON.parse(rawSettings) as Partial<EventoSettings> : {};
         const restoredUi = rawUi ? JSON.parse(rawUi) as { railWidth?: number } : {};
+        const mergedSuiteSettings = mergeSuiteSettings(restoredSettings);
         const nextSettings = {
           ...defaultSettings,
+          ...mergedSuiteSettings,
           ...restoredSettings,
+          operationsTemplates: mergedSuiteSettings.operationsTemplates,
           calendarSources: Array.isArray(restoredSettings.calendarSources)
             ? restoredSettings.calendarSources
-            : [],
+            : mergedSuiteSettings.calendarSources,
         };
         setSettings(nextSettings);
         setRailWidth(Math.max(280, Math.min(620, restoredUi.railWidth ?? nextSettings.eventRailWidth)));
@@ -419,6 +455,11 @@ export default function Home() {
     );
   }
 
+  function applyOperationsTemplate(templateId: string) {
+    const template = settings.operationsTemplates.find((item) => item.id === templateId);
+    updateSelected(template ? operationsTemplatePatch(template) : { operationsTemplateId: undefined });
+  }
+
   function updateSettings(patch: Partial<EventoSettings>) {
     setSettings((current) => ({ ...current, ...patch }));
   }
@@ -504,20 +545,24 @@ export default function Home() {
     window.addEventListener("pointerup", stop);
   }
 
-  function addEvent(day?: number) {
+  function addEvent(day?: number, templateId = newEventTemplateId) {
     const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-    const created = eventSeed(
+    const template = settings.operationsTemplates.find((item) => item.id === templateId);
+    const created: EventoEvent = {
+      ...eventSeed(
       `event_${uid()}`,
-      "New Event",
+      template?.name ?? "New Event",
       `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(Math.min(day ?? 1, monthLength)).padStart(2, "0")}`,
-      "rental",
+      template ? templateKind(template) : "rental",
       "9:00 AM-12:00 PM",
       "Margaret's Room",
       "",
       "Heather",
       "",
       25,
-    );
+      ),
+      ...(template ? operationsTemplatePatch(template) : {}),
+    };
     setEvents((items) => [...items, created]);
     openEvent(created);
   }
@@ -535,6 +580,15 @@ export default function Home() {
       <div className="eventotron-ribbon-row">
         <SuiteChrome active="calendar" eventId={selected.id} />
         <button onClick={() => void save()}>{eventSaveStatus}</button>
+        <label className="new-event-template">
+          <span>START FROM</span>
+          <select value={newEventTemplateId} onChange={(event) => setNewEventTemplateId(event.target.value)}>
+            <option value="">Blank event</option>
+            {settings.operationsTemplates.map((template) => (
+              <option value={template.id} key={template.id}>{template.name}</option>
+            ))}
+          </select>
+        </label>
         <button className="primary" onClick={() => addEvent(new Date().getDate())}>
           NEW EVENT
         </button>
@@ -709,6 +763,20 @@ export default function Home() {
                 value={selected.title}
                 onChange={(e) => updateSelected({ title: e.target.value })}
               />
+            </label>
+            <label className="wide operations-template-field">
+              <span>Operations Template</span>
+              <select
+                value={selected.operationsTemplateId ?? ""}
+                onChange={(e) => applyOperationsTemplate(e.target.value)}
+              >
+                <option value="">No template attached</option>
+                {settings.operationsTemplates.map((template) => (
+                  <option value={template.id} key={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>Contact Name</span>
