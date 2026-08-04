@@ -30,6 +30,8 @@ The system-readiness response is available at `/api/health`. The same database a
 
 Use `Settings > Export Workspace` to download a complete version 2 backup. It contains events, applet state, rooms, layouts, furniture, meals, recipes, shopping items, schedules, calendar sources and their synced events, settings, and transfer links.
 
+Settings keeps a local backup checkpoint after a workspace export so staff can see when the last backup happened, what it contained, and whether a recovery file has to be reviewed before restore.
+
 Use `Settings > Restore` to merge a version 1 or version 2 backup into the current workspace. EventoTron validates table records before writing them, reports the restored event count, and rebuilds normalized applet records only for legacy version 1 files.
 
 ## Production Roadmap

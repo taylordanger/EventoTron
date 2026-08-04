@@ -17,6 +17,7 @@ import {
 } from "../suite-settings";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
+const BACKUP_CHECKPOINT_KEY = "eventotron-backup-checkpoint-v1";
 
 type SystemHealth = {
   status: "ready" | "migration-required" | "unavailable";
@@ -51,6 +52,14 @@ type BackupPreview = {
   format: string;
   version: number;
   exportedAt: string;
+  source: string;
+  counts: Record<string, number>;
+};
+
+type BackupCheckpoint = {
+  exportedAt: string;
+  format: string;
+  version: number;
   source: string;
   counts: Record<string, number>;
 };
@@ -120,6 +129,13 @@ function readableDate(value: string | null) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
+function daysSince(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 86_400_000));
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
@@ -133,14 +149,23 @@ export default function SettingsPage() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null);
+  const [backupCheckpoint, setBackupCheckpoint] = useState<BackupCheckpoint | null>(null);
   const [restoreInProgress, setRestoreInProgress] = useState(false);
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
+  const backupAgeDays = daysSince(backupCheckpoint?.exportedAt ?? null);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       const raw = localStorage.getItem(SETTINGS_STORE_KEY);
       let restored = raw ? mergeSuiteSettings(JSON.parse(raw) as Partial<SuiteSettings>) : defaultSuiteSettings;
+      const rawBackupCheckpoint = localStorage.getItem(BACKUP_CHECKPOINT_KEY);
+      if (rawBackupCheckpoint) {
+        try {
+          const checkpoint = JSON.parse(rawBackupCheckpoint) as BackupCheckpoint;
+          if (checkpoint?.exportedAt && checkpoint?.counts) setBackupCheckpoint(checkpoint);
+        } catch {}
+      }
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
@@ -387,7 +412,13 @@ export default function SettingsPage() {
     try {
       const response = await fetch("/api/workspace-backup");
       if (!response.ok) throw new Error("Workspace backup failed");
-      const backup = await response.json() as { version?: number; counts?: { events?: number } };
+      const backup = await response.json() as {
+        format?: string;
+        version?: number;
+        exportedAt?: string;
+        source?: string;
+        counts?: Record<string, number> & { events?: number };
+      };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -395,6 +426,15 @@ export default function SettingsPage() {
       link.download = `eventotron-workspace-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
+      const checkpoint = {
+        exportedAt: backup.exportedAt ?? new Date().toISOString(),
+        format: backup.format ?? "eventotron-workspace-backup",
+        version: backup.version ?? 1,
+        source: backup.source ?? "database",
+        counts: backup.counts ?? {},
+      };
+      localStorage.setItem(BACKUP_CHECKPOINT_KEY, JSON.stringify(checkpoint));
+      setBackupCheckpoint(checkpoint);
       setStatus(`BACKUP V${backup.version ?? 1} / ${backup.counts?.events ?? 0} EVENTS`);
     } catch {
       const fallback = {
@@ -416,6 +456,15 @@ export default function SettingsPage() {
       link.download = `eventotron-local-browser-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
+      const checkpoint = {
+        exportedAt: fallback.exportedAt,
+        format: fallback.format,
+        version: fallback.version,
+        source: "browser storage",
+        counts: Object.fromEntries(Object.entries(fallback.localStorage).map(([key, value]) => [key, value ? 1 : 0])),
+      };
+      localStorage.setItem(BACKUP_CHECKPOINT_KEY, JSON.stringify(checkpoint));
+      setBackupCheckpoint(checkpoint);
       setStatus("LOCAL BACKUP");
     }
   }
@@ -645,8 +694,28 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          <section className="settings-card settings-backup-card">
+            <div className="settings-card-heading"><span>07</span><h3>Backup And Recovery</h3><button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button></div>
+            <div className={`backup-status-banner ${backupCheckpoint && backupAgeDays !== null && backupAgeDays <= 7 ? "fresh" : "stale"}`}>
+              <small>RECOVERY READINESS</small>
+              <b>{backupCheckpoint ? backupAgeDays === 0 ? "BACKED UP TODAY" : backupAgeDays === 1 ? "BACKED UP YESTERDAY" : `${backupAgeDays ?? "UNKNOWN"} DAYS OLD` : "NO BACKUP RECORDED"}</b>
+            </div>
+            <div className="backup-checkpoint-grid">
+              <div><small>LAST EXPORT</small><b>{backupCheckpoint ? readableDate(backupCheckpoint.exportedAt) : "Not recorded"}</b></div>
+              <div><small>FORMAT</small><b>{backupCheckpoint ? `V${backupCheckpoint.version}` : "PENDING"}</b></div>
+              <div><small>SOURCE</small><b>{backupCheckpoint?.source.toUpperCase() ?? "PENDING"}</b></div>
+              <div><small>EVENTS</small><b>{backupCheckpoint?.counts.events ?? 0}</b></div>
+              <div><small>CALENDAR RECORDS</small><b>{backupCheckpoint?.counts.calendarEvents ?? 0}</b></div>
+              <div><small>APPLET RECORDS</small><b>{backupCheckpoint ? (backupCheckpoint.counts.appletStates ?? 0) + (backupCheckpoint.counts.foodotronMeals ?? 0) + (backupCheckpoint.counts.tabletronEvents ?? 0) + (backupCheckpoint.counts.scheduleItems ?? 0) : 0}</b></div>
+            </div>
+            <div className="backup-actions-row">
+              <button onClick={() => backupInput.current?.click()}>REVIEW RESTORE FILE</button>
+              <span>{backupPreview ? "REVIEW OPEN" : "RESTORE REQUIRES REVIEW"}</span>
+            </div>
+          </section>
+
           <section className="settings-card settings-health-card">
-            <div className="settings-card-heading"><span>07</span><h3>Event Activity</h3><button onClick={() => void loadActivity()} disabled={activityLoading}>{activityLoading ? "LOADING" : "REFRESH ACTIVITY"}</button></div>
+            <div className="settings-card-heading"><span>08</span><h3>Event Activity</h3><button onClick={() => void loadActivity()} disabled={activityLoading}>{activityLoading ? "LOADING" : "REFRESH ACTIVITY"}</button></div>
             <p className="settings-note">Recent permanent event changes. Deleted files remain visible here so a handoff or recovery can be traced.</p>
             {activity.length ? <div className="activity-list">
               {activity.map((entry) => (
@@ -660,7 +729,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="settings-card settings-health-card">
-            <div className="settings-card-heading"><span>08</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
+            <div className="settings-card-heading"><span>09</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
             <div className={`health-banner health-${health?.status ?? "checking"}`}>
               <small>EVENTOTRON READINESS</small>
               <b>{healthChecking ? "CHECKING" : health?.status === "ready" ? "READY" : "ATTENTION REQUIRED"}</b>
@@ -678,7 +747,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="settings-card settings-launch-card">
-            <div className="settings-card-heading"><span>09</span><h3>Launch Readiness</h3></div>
+            <div className="settings-card-heading"><span>10</span><h3>Launch Readiness</h3></div>
             <div className="launch-readiness-list">
               {launchReadiness.map((item) => (
                 <article className="launch-readiness-item" key={item.area}>

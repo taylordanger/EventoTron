@@ -253,6 +253,10 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Review Workspace Backup/);
   assert.match(settingsPage, /workspace-backup\?mode=validate/);
   assert.match(settingsPage, /RESTORE REVIEWED BACKUP/);
+  assert.match(settingsPage, /BACKUP_CHECKPOINT_KEY/);
+  assert.match(settingsPage, /Backup And Recovery/);
+  assert.match(settingsPage, /RECOVERY READINESS/);
+  assert.match(settingsPage, /REVIEW RESTORE FILE/);
   assert.match(operationsTicker, /LIVE NOW/);
   assert.match(operationsTicker, /\/api\/events/);
   assert.match(operationsTicker, /\/api\/calendar-sources/);
@@ -270,6 +274,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(styles, /new-event-template/);
   assert.match(styles, /calendar-import-box/);
   assert.match(styles, /backup-review-panel/);
+  assert.match(styles, /backup-status-banner/);
+  assert.match(styles, /backup-checkpoint-grid/);
   assert.match(roadmap, /Phase 1: Local Pilot/);
   assert.match(roadmap, /Phase 4: Desktop App/);
   assert.match(roadmap, /80 percent ready for a local pilot/);

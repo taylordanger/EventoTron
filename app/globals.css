@@ -3040,6 +3040,97 @@
   padding: 9px;
 }
 
+.settings-backup-card {
+  grid-column: 1 / -1;
+}
+
+.backup-status-banner {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+  border: 1px solid #315b34;
+  background: #061009;
+  padding: 10px;
+}
+
+.backup-status-banner small {
+  color: #82a77d;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.backup-status-banner b {
+  color: var(--p);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.backup-status-banner.stale {
+  border-color: #6f5c1f;
+  background: #120f05;
+}
+
+.backup-status-banner.stale b {
+  color: #ffd86d;
+}
+
+.backup-checkpoint-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.backup-checkpoint-grid div {
+  min-width: 0;
+  border: 1px solid #18351c;
+  background: #030a05;
+  padding: 8px;
+}
+
+.backup-checkpoint-grid small {
+  display: block;
+  color: #668d61;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.backup-checkpoint-grid b {
+  display: block;
+  margin-top: 4px;
+  color: #e0f6db;
+  font-size: 10px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.backup-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  border-top: 1px solid #224926;
+  padding-top: 10px;
+}
+
+.backup-actions-row button {
+  border: 1px solid var(--p);
+  background: #0b1a0e;
+  color: var(--p);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.backup-actions-row span {
+  color: #82a77d;
+  font-size: 8px;
+  font-weight: 900;
+  text-align: right;
+}
+
 .calendar-source {
   margin-top: 9px;
   padding: 10px;
@@ -3388,6 +3479,19 @@
 
   .settings-two-up {
     grid-template-columns: 1fr;
+  }
+
+  .backup-checkpoint-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .backup-actions-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .backup-actions-row span {
+    text-align: left;
   }
 
   .health-grid {
