@@ -32,6 +32,39 @@ type SystemHealth = {
   } | null;
 };
 
+const launchReadiness = [
+  {
+    area: "Local event suite",
+    status: "PILOT READY",
+    detail: "Calendar, event files, applet tabs, shared backend routes, print reports, and backups are working locally.",
+  },
+  {
+    area: "Daily operations data",
+    status: "IN PROGRESS",
+    detail: "The operations library has starter templates from the binder material, but templates still need to populate new events automatically.",
+  },
+  {
+    area: "Reports",
+    status: "PILOT READY",
+    detail: "Master, Foodotron, Tabletron, and Scheduluotron reports are printable and branded for clipboard use.",
+  },
+  {
+    area: "Calendar integrations",
+    status: "IN PROGRESS",
+    detail: "ICS feed sync exists; Google and Outlook account sign-in/OAuth still need production setup.",
+  },
+  {
+    area: "Production accounts",
+    status: "NEEDS DECISION",
+    detail: "Before wider use, choose user accounts, permissions, backup owner, and where the production database will live.",
+  },
+  {
+    area: "Desktop packaging",
+    status: "NEXT PHASE",
+    detail: "Routes and backend are structured for reuse, but the desktop wrapper, installer, and data-location choices are not packaged yet.",
+  },
+];
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
@@ -418,6 +451,21 @@ export default function SettingsPage() {
               <div><small>RESPONSE</small><b>{health ? `${health.latencyMs} MS` : "—"}</b></div>
             </div>
             <p className="health-checked">LAST CHECK {health ? new Date(health.checkedAt).toLocaleString() : "PENDING"}</p>
+          </section>
+
+          <section className="settings-card settings-launch-card">
+            <div className="settings-card-heading"><span>08</span><h3>Launch Readiness</h3></div>
+            <div className="launch-readiness-list">
+              {launchReadiness.map((item) => (
+                <article className="launch-readiness-item" key={item.area}>
+                  <div>
+                    <small>{item.status}</small>
+                    <h4>{item.area}</h4>
+                  </div>
+                  <p>{item.detail}</p>
+                </article>
+              ))}
+            </div>
           </section>
         </section>
       </main>

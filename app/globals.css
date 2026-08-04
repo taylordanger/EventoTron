@@ -2307,6 +2307,10 @@
   grid-column: 1 / -1;
 }
 
+.settings-launch-card {
+  grid-column: 1 / -1;
+}
+
 .settings-operations-card {
   grid-column: 1 / -1;
 }
@@ -2634,6 +2638,40 @@
   min-height: 104px;
 }
 
+.launch-readiness-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.launch-readiness-item {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #315b34;
+  background: #071009;
+  box-shadow: inset 3px 0 0 #315b34;
+}
+
+.launch-readiness-item small {
+  color: var(--p);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.launch-readiness-item h4 {
+  margin: 5px 0 9px;
+  color: #dfffd9;
+  font-size: 13px;
+}
+
+.launch-readiness-item p {
+  margin: 0;
+  color: #8eac8a;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
 .settings-footer {
   border-top: 1px solid var(--line);
   border-bottom: 0;
@@ -2669,6 +2707,10 @@
   }
 
   .operations-template-list {
+    grid-template-columns: 1fr;
+  }
+
+  .launch-readiness-list {
     grid-template-columns: 1fr;
   }
 

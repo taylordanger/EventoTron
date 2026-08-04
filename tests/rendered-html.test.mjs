@@ -93,7 +93,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -113,6 +113,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/print-mode.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/suite-settings.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/settings/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/PRODUCTION_ROADMAP.md", import.meta.url), "utf8"),
+    readFile(new URL("../README.md", import.meta.url), "utf8"),
   ]);
 
   assert.match(schema, /foodotronMeals[\s\S]*id: text\("id"\)\.primaryKey/);
@@ -172,7 +174,14 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Operations Library/);
   assert.match(settingsPage, /Reusable binder material/);
   assert.match(settingsPage, /updateOperationsTemplate/);
+  assert.match(settingsPage, /Launch Readiness/);
+  assert.match(settingsPage, /Local event suite/);
   assert.match(styles, /operations-template-list/);
+  assert.match(styles, /launch-readiness-list/);
+  assert.match(roadmap, /Phase 1: Local Pilot/);
+  assert.match(roadmap, /Phase 4: Desktop App/);
+  assert.match(roadmap, /70 percent ready for a local pilot/);
+  assert.match(readme, /PRODUCTION_ROADMAP\.md/);
   assert.match(masterReport, /printReport\(`?\$\{event\.title\} Master Report/);
   assert.match(foodotron, /printReport\(`\$\{meal\.name\} Foodotron Shopping Report/);
   assert.match(tabletron, /printing-report/);
