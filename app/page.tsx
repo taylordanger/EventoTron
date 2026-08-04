@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
 import { eventFingerprint, mergeConcurrentEvent } from "./event-concurrency";
+import { selectLiveTickerItems, type LiveTickerEvent, type LiveTickerItem } from "./live-event-ticker";
 import { formatRegularTime } from "./time-format";
 import {
   defaultSuiteSettings,
@@ -181,6 +182,18 @@ const monthNames = [
 ];
 const monthShortNames = monthNames.map((month) => month.slice(0, 3).toUpperCase());
 
+function formatTickerDate(value: string, status: LiveTickerItem["status"]) {
+  if (status === "live") return "Happening now";
+  if (status === "today") return "Scheduled today";
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day, 12).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function eventSeed(
   id: string,
   title: string,
@@ -262,6 +275,8 @@ export default function Home() {
   const [calendarImportUrl, setCalendarImportUrl] = useState("");
   const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
+  const [tickerNow, setTickerNow] = useState(() => new Date());
+  const [tickerIndex, setTickerIndex] = useState(0);
   const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
   const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
@@ -526,6 +541,59 @@ export default function Home() {
     () => new Set(events.flatMap((event) => event.calendarEventId ? [event.calendarEventId] : [])),
     [events],
   );
+
+  const liveTickerSources = useMemo<LiveTickerEvent[]>(() => {
+    const visibleSources = new Set(visibleCalendarSources.map((source) => source.id));
+    return [
+      ...events.map((event) => ({
+        key: `event:${event.id}`,
+        id: event.id,
+        title: event.title,
+        date: event.date,
+        eventTime: event.eventTime,
+        space: event.space,
+      })),
+      ...calendarFeedEvents
+        .filter((event) => visibleSources.has(event.sourceId) && !linkedCalendarEventIds.has(event.id))
+        .map((event) => ({
+          key: `calendar:${event.sourceId}:${event.id}`,
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          eventTime: event.eventTime,
+          space: event.location,
+          sourceName: event.sourceName,
+          external: true,
+        })),
+    ];
+  }, [calendarFeedEvents, events, linkedCalendarEventIds, visibleCalendarSources]);
+
+  const liveTickerItems = useMemo(
+    () => selectLiveTickerItems(liveTickerSources, tickerNow, settings.timezone),
+    [liveTickerSources, settings.timezone, tickerNow],
+  );
+  const tickerSequenceKey = liveTickerItems.map((item) => `${item.key}:${item.status}`).join("|");
+  const liveTickerItem = liveTickerItems.length
+    ? liveTickerItems[tickerIndex % liveTickerItems.length]
+    : null;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setTickerNow(new Date()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTickerIndex(0), 0);
+    return () => window.clearTimeout(timer);
+  }, [tickerSequenceKey]);
+
+  useEffect(() => {
+    if (liveTickerItems.length < 2) return;
+    const timer = window.setInterval(() => {
+      setTickerIndex((index) => (index + 1) % liveTickerItems.length);
+    }, 7_000);
+    return () => window.clearInterval(timer);
+  }, [liveTickerItems.length, tickerSequenceKey]);
 
   const calendarSourceDiagnostics = useMemo(() => {
     const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
@@ -813,6 +881,16 @@ export default function Home() {
   const setMonth = (month: number) => setCalendarMonth(Math.max(0, Math.min(11, month)));
   const shiftYear = (amount: number) => setCalendarYear((year) => Math.max(1900, Math.min(2200, year + amount)));
 
+  function openTickerEvent(item: LiveTickerItem) {
+    if (item.external) {
+      const imported = calendarFeedEvents.find((event) => event.id === item.id);
+      if (imported) void convertCalendarEvent(imported);
+      return;
+    }
+    const event = events.find((candidate) => candidate.id === item.id);
+    if (event) openEvent(event);
+  }
+
   return (
     <main className="eventotron-desktop">
       <div className="eventotron-ribbon-row">
@@ -832,6 +910,52 @@ export default function Home() {
         </button>
         <button onClick={() => setSettingsOpen(true)}>SETTINGS</button>
       </div>
+
+      <section
+        className={`live-operations-ticker ${liveTickerItem?.status ?? "clear"}`}
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div className="live-ticker-state">
+          <span aria-hidden="true" />
+          <strong>
+            {liveTickerItem?.status === "live"
+              ? "LIVE NOW"
+              : liveTickerItem?.status === "today"
+                ? "TODAY"
+                : liveTickerItem?.status === "next"
+                  ? "NEXT UP"
+                  : "OPS FEED"}
+          </strong>
+        </div>
+        {liveTickerItem ? (
+          <button
+            type="button"
+            className="live-ticker-open"
+            onClick={() => openTickerEvent(liveTickerItem)}
+            aria-label={`Open ${liveTickerItem.title}`}
+          >
+            <span className="live-ticker-viewport">
+              <span className="live-ticker-track" key={liveTickerItem.key}>
+                {[0, 1].map((copy) => (
+                  <span className="live-ticker-message" aria-hidden="true" key={copy}>
+                    <b>{liveTickerItem.title}</b>
+                    <span>{formatTickerDate(liveTickerItem.date, liveTickerItem.status)}</span>
+                    <span>{formatRegularTime(liveTickerItem.eventTime) || "Time not set"}</span>
+                    <span>{liveTickerItem.space || liveTickerItem.sourceName || "Location not assigned"}</span>
+                  </span>
+                ))}
+              </span>
+            </span>
+          </button>
+        ) : (
+          <div className="live-ticker-empty">No active or upcoming events found in the connected schedule.</div>
+        )}
+        <div className="live-ticker-counter">
+          <small>{settings.timezone.replaceAll("_", " ")}</small>
+          <b>{liveTickerItems.length ? `${tickerIndex % liveTickerItems.length + 1}/${liveTickerItems.length}` : "0/0"}</b>
+        </div>
+      </section>
 
       <section
         className="eventotron-workbench"

@@ -48,6 +48,7 @@ test("server-renders the EventoTron calendar and permanent suite navigation", as
   assert.match(html, /Scheduluotron/);
   assert.match(html, /Settings/);
   assert.match(html, /MASTER REPORT/);
+  assert.match(html, /OPS FEED/);
   assert.doesNotMatch(html, /Your site is taking shape|Starter Project/);
 });
 
@@ -93,7 +94,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, eventConcurrency, migration, calendarMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, eventConcurrency, liveTicker, migration, calendarMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -101,6 +102,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/event-concurrency.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/live-event-ticker.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_calendar_sync_records.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
@@ -200,6 +202,12 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(eventsRoute, /expectedUpdatedAt/);
   assert.match(eventConcurrency, /mergeConcurrentEvent/);
   assert.match(eventConcurrency, /conflictFields/);
+  assert.match(liveTicker, /selectLiveTickerItems/);
+  assert.match(liveTicker, /wallClockMinute/);
+  assert.match(homePage, /live-operations-ticker/);
+  assert.match(homePage, /LIVE NOW/);
+  assert.match(styles, /live-ticker-roll/);
+  assert.match(styles, /prefers-reduced-motion/);
   assert.match(homePage, /persistEvent/);
   assert.match(homePage, /CONFLICT -/);
   assert.match(backupRoute, /selectedId: ""/);

@@ -8,6 +8,7 @@ EventoTron is ready for a controlled local pilot when the current local database
 - Shared backend storage exists for events, applet states, transfers, settings, calendar sources, and backups.
 - Synced calendar entries can be promoted into permanent editable EventoTron event files without duplicate calendar tiles.
 - Event files save independently with server revisions, automatic non-overlapping edit merges, and visible same-field conflict protection.
+- The calendar board has a timezone-aware operations ticker that rolls through concurrent live events and falls back to today or the next scheduled item.
 - Printable reports are branded, named, and formatted for clipboard/event-day use.
 - Operations templates now hold reusable binder material for recurring event and building workflows.
 - Local production runs through the Workers runtime with D1 available at `npm start`.
@@ -25,6 +26,7 @@ Goal: use EventoTron locally for real planning while keeping paper as backup.
 - Confirm `Settings > Export Workspace` creates a readable backup.
 - Plan one upcoming event using Calendar, Tabletron, Foodotron, and Scheduluotron.
 - Open one synced calendar entry as an editable event file and confirm its source label is retained.
+- Confirm the operations ticker changes between `LIVE NOW`, `TODAY`, and `NEXT UP` at the expected venue times.
 - Print the master report and applet reports.
 - Compare the report against the existing binder workflow.
 - Record missing fields, confusing labels, and anything staff still need to write by hand.
