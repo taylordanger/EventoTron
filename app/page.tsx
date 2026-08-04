@@ -269,9 +269,14 @@ export default function Home() {
             requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
           }));
           setEvents(restoredEvents);
-          setSelectedId(restored.selectedId ?? restoredEvents[0].id);
-          setOpenIds(restored.openIds?.length ? restored.openIds : [restoredEvents[0].id]);
-          const restoredSelected = restoredEvents.find((event) => event.id === (restored.selectedId ?? restoredEvents[0].id));
+          const nextSelectedId = restored.selectedId && restoredEvents.some((event) => event.id === restored.selectedId)
+            ? restored.selectedId
+            : "";
+          setSelectedId(nextSelectedId);
+          setOpenIds(Array.isArray(restored.openIds)
+            ? restored.openIds.filter((id) => restoredEvents.some((event) => event.id === id))
+            : nextSelectedId ? [nextSelectedId] : []);
+          const restoredSelected = restoredEvents.find((event) => event.id === nextSelectedId);
           const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
           setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
           setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
@@ -326,13 +331,21 @@ export default function Home() {
           ...event,
           requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
         })) : [];
-        const nextSelectedId = restored.selectedId && restoredEvents.some((event) => event.id === restored.selectedId)
-          ? restored.selectedId
-          : restoredEvents[0]?.id ?? "";
         setEvents(restoredEvents);
-        setSelectedId(nextSelectedId);
-        setOpenIds(restored.openIds?.filter((id) => restoredEvents.some((event) => event.id === id)) ?? (nextSelectedId ? [nextSelectedId] : []));
-        const restoredSelected = restoredEvents.find((event) => event.id === nextSelectedId);
+        const restoredEventIds = new Set(restoredEvents.map((event) => event.id));
+        setSelectedId((current) => {
+          return current && restoredEventIds.has(current)
+            ? current
+            : restored.selectedId && restoredEventIds.has(restored.selectedId) ? restored.selectedId : "";
+        });
+        setOpenIds((current) => {
+          const currentOpenIds = current.filter((id) => restoredEventIds.has(id));
+          if (currentOpenIds.length || Array.isArray(restored.openIds)) {
+            return currentOpenIds.length ? currentOpenIds : restored.openIds?.filter((id) => restoredEventIds.has(id)) ?? [];
+          }
+          return [];
+        });
+        const restoredSelected = restoredEvents.find((event) => event.id === restored.selectedId);
         const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
         setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
         setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
@@ -505,6 +518,19 @@ export default function Home() {
       calendarYear,
       calendarMonth,
     }));
+    if (events.length) {
+      void fetch("/api/events", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events,
+          selectedId: nextSelectedId,
+          openIds: nextIds,
+          calendarYear,
+          calendarMonth,
+        }),
+      }).catch(() => undefined);
+    }
   }
 
   function updateSelected(patch: Partial<EventoEvent>) {

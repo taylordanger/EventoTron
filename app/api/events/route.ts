@@ -108,8 +108,8 @@ export async function GET() {
       .orderBy(asc(suiteEvents.date), asc(suiteEvents.title));
     return Response.json({
       events: events.map(rowToEvent),
-      selectedId: events[0]?.id ?? "",
-      openIds: events.slice(0, 3).map((event) => event.id),
+      selectedId: "",
+      openIds: [],
       source: "database",
     });
   } catch (error) {
