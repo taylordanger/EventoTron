@@ -166,3 +166,33 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(tabletron, /printing-report/);
   assert.match(scheduluotron, /onClick=\{printReport\}/);
 });
+
+test("print report contracts keep report previews and print mode aligned", async () => {
+  const [styles, printMode, masterReport, foodotron, tabletron, scheduluotron] = await Promise.all([
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/print-mode.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/master-report/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/foodotron/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/scheduluotron/page.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(printMode, /eventotron-printing/);
+  assert.match(printMode, /window\.setTimeout\(\(\) => \{/);
+  assert.match(printMode, /classList\.remove\("eventotron-printing"\)/);
+
+  for (const source of [masterReport, foodotron, tabletron, scheduluotron]) {
+    assert.match(source, /printReport/);
+    assert.match(source, /SHEPPARD SEMICONDUCTOR SYSTEMS/);
+  }
+
+  assert.match(styles, /width: min\(1050px, calc\(100vw - 52px\)\) !important/);
+  assert.match(styles, /html\.eventotron-printing \.suite-frame > \.suite-chrome/);
+  assert.match(styles, /html\.eventotron-printing \.foodotron-applet\.app-shell > \.workspace/);
+  assert.match(styles, /html\.eventotron-printing \.tabletron-applet\.printing-report\.app-shell > \.workspace/);
+  assert.match(styles, /html\.eventotron-printing \.scheduluotron-app > \.sched-workspace/);
+  assert.match(styles, /break-inside: avoid/);
+  assert.match(foodotron, /disabled=\{!meal\} onClick=\{printMeal\}/);
+  assert.match(tabletron, /EXPORT SETUP SHEET/);
+  assert.match(tabletron, /window\.print\(\)/);
+});
