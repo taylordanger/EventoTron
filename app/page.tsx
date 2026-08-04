@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
+import { OperationsTicker } from "./OperationsTicker";
 import { EVENT_STORE_KEY } from "./event-context";
 import { eventFingerprint, mergeConcurrentEvent } from "./event-concurrency";
-import { selectLiveTickerItems, type LiveTickerEvent, type LiveTickerItem } from "./live-event-ticker";
+import { type LiveTickerEvent, type LiveTickerItem } from "./live-event-ticker";
 import { formatRegularTime } from "./time-format";
+import { useEventLiveStatus } from "./use-event-live-status";
 import {
   defaultSuiteSettings,
   extractGoogleCalendarIds,
@@ -182,18 +184,6 @@ const monthNames = [
 ];
 const monthShortNames = monthNames.map((month) => month.slice(0, 3).toUpperCase());
 
-function formatTickerDate(value: string, status: LiveTickerItem["status"]) {
-  if (status === "live") return "Happening now";
-  if (status === "today") return "Scheduled today";
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  return new Date(year, month - 1, day, 12).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function eventSeed(
   id: string,
   title: string,
@@ -275,14 +265,13 @@ export default function Home() {
   const [calendarImportUrl, setCalendarImportUrl] = useState("");
   const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
-  const [tickerNow, setTickerNow] = useState(() => new Date());
-  const [tickerIndex, setTickerIndex] = useState(0);
   const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
   const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
   const inFlightEventsRef = useRef(new Set<string>());
   const selected = events.find((event) => event.id === selectedId) ?? emptySelectedEvent;
   const hasActiveEvent = Boolean(selected.id);
+  const selectedIsLive = useEventLiveStatus(hasActiveEvent ? selected : null, settings.timezone);
 
   const commitServerEvent = useCallback((saved: EventoEvent, capturedFingerprint: string) => {
     syncedEventsRef.current.set(saved.id, {
@@ -568,33 +557,6 @@ export default function Home() {
     ];
   }, [calendarFeedEvents, events, linkedCalendarEventIds, visibleCalendarSources]);
 
-  const liveTickerItems = useMemo(
-    () => selectLiveTickerItems(liveTickerSources, tickerNow, settings.timezone),
-    [liveTickerSources, settings.timezone, tickerNow],
-  );
-  const tickerSequenceKey = liveTickerItems.map((item) => `${item.key}:${item.status}`).join("|");
-  const liveTickerItem = liveTickerItems.length
-    ? liveTickerItems[tickerIndex % liveTickerItems.length]
-    : null;
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setTickerNow(new Date()), 15_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setTickerIndex(0), 0);
-    return () => window.clearTimeout(timer);
-  }, [tickerSequenceKey]);
-
-  useEffect(() => {
-    if (liveTickerItems.length < 2) return;
-    const timer = window.setInterval(() => {
-      setTickerIndex((index) => (index + 1) % liveTickerItems.length);
-    }, 7_000);
-    return () => window.clearInterval(timer);
-  }, [liveTickerItems.length, tickerSequenceKey]);
-
   const calendarSourceDiagnostics = useMemo(() => {
     const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
     return settings.calendarSources.map((source) => {
@@ -654,7 +616,7 @@ export default function Home() {
     }
   }
 
-  function openEvent(event: EventoEvent) {
+  const openEvent = useCallback((event: EventoEvent) => {
     setSelectedId(event.id);
     setInfoExpanded(false);
     const [year, month] = event.date.split("-").map(Number);
@@ -663,9 +625,9 @@ export default function Home() {
       setCalendarMonth(month - 1);
     }
     setOpenIds((ids) => [event.id, ...ids.filter((id) => id !== event.id)].slice(0, 8));
-  }
+  }, []);
 
-  async function convertCalendarEvent(imported: ImportedCalendarEvent) {
+  const convertCalendarEvent = useCallback(async (imported: ImportedCalendarEvent) => {
     const existing = events.find((event) => event.calendarEventId === imported.id);
     if (existing) {
       openEvent(existing);
@@ -706,7 +668,31 @@ export default function Home() {
     } else if (outcome === "error") {
       setEventSaveStatus("IMPORTED LOCALLY");
     }
-  }
+  }, [events, openEvent, persistEvent]);
+
+  useEffect(() => {
+    if (!settingsLoaded || !eventBackendChecked) return;
+    const params = new URLSearchParams(window.location.search);
+    const calendarEventId = params.get("calendarEvent");
+    if (!calendarEventId) return;
+    const savedEvent = events.find((event) => event.calendarEventId === calendarEventId);
+    const syncedEvent = calendarFeedEvents.find((event) => event.id === calendarEventId);
+    if (!savedEvent && !syncedEvent) return;
+
+    const timer = window.setTimeout(() => {
+      params.delete("calendarEvent");
+      params.delete("calendarSource");
+      const query = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+      );
+      if (savedEvent) openEvent(savedEvent);
+      else if (syncedEvent) void convertCalendarEvent(syncedEvent);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [calendarFeedEvents, convertCalendarEvent, eventBackendChecked, events, openEvent, settingsLoaded]);
 
   function closeEventFile(id: string, event?: ReactMouseEvent<HTMLButtonElement>) {
     event?.preventDefault();
@@ -723,6 +709,41 @@ export default function Home() {
       calendarYear,
       calendarMonth,
     }));
+  }
+
+  async function deleteSelectedEvent() {
+    if (!hasActiveEvent) return;
+    const target = selected;
+    if (!window.confirm(`Delete ${target.title}? This removes its EventoTron file and linked applet data.`)) return;
+
+    setEventSaveStatus("DELETING EVENT");
+    inFlightEventsRef.current.add(target.id);
+    try {
+      const response = await fetch(`/api/events?id=${encodeURIComponent(target.id)}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Event delete failed");
+
+      const remainingEvents = events.filter((event) => event.id !== target.id);
+      const remainingOpenIds = openIds.filter((id) => id !== target.id);
+      const nextSelectedId = remainingOpenIds[0] ?? "";
+      syncedEventsRef.current.delete(target.id);
+      inFlightEventsRef.current.delete(target.id);
+      setEvents(remainingEvents);
+      setOpenIds(remainingOpenIds);
+      setSelectedId(nextSelectedId);
+      setInfoExpanded(false);
+      localStorage.setItem(EVENT_STORE_KEY, JSON.stringify({
+        events: remainingEvents,
+        selectedId: nextSelectedId,
+        openIds: remainingOpenIds,
+        calendarYear,
+        calendarMonth,
+      }));
+      setEventSaveStatus("EVENT DELETED");
+    } catch {
+      inFlightEventsRef.current.delete(target.id);
+      setEventSaveStatus("DELETE FAILED");
+    }
   }
 
   function updateSelected(patch: Partial<EventoEvent>) {
@@ -911,51 +932,12 @@ export default function Home() {
         <button onClick={() => setSettingsOpen(true)}>SETTINGS</button>
       </div>
 
-      <section
-        className={`live-operations-ticker ${liveTickerItem?.status ?? "clear"}`}
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <div className="live-ticker-state">
-          <span aria-hidden="true" />
-          <strong>
-            {liveTickerItem?.status === "live"
-              ? "LIVE NOW"
-              : liveTickerItem?.status === "today"
-                ? "TODAY"
-                : liveTickerItem?.status === "next"
-                  ? "NEXT UP"
-                  : "OPS FEED"}
-          </strong>
-        </div>
-        {liveTickerItem ? (
-          <button
-            type="button"
-            className="live-ticker-open"
-            onClick={() => openTickerEvent(liveTickerItem)}
-            aria-label={`Open ${liveTickerItem.title}`}
-          >
-            <span className="live-ticker-viewport">
-              <span className="live-ticker-track" key={liveTickerItem.key}>
-                {[0, 1].map((copy) => (
-                  <span className="live-ticker-message" aria-hidden="true" key={copy}>
-                    <b>{liveTickerItem.title}</b>
-                    <span>{formatTickerDate(liveTickerItem.date, liveTickerItem.status)}</span>
-                    <span>{formatRegularTime(liveTickerItem.eventTime) || "Time not set"}</span>
-                    <span>{liveTickerItem.space || liveTickerItem.sourceName || "Location not assigned"}</span>
-                  </span>
-                ))}
-              </span>
-            </span>
-          </button>
-        ) : (
-          <div className="live-ticker-empty">No active or upcoming events found in the connected schedule.</div>
-        )}
-        <div className="live-ticker-counter">
-          <small>{settings.timezone.replaceAll("_", " ")}</small>
-          <b>{liveTickerItems.length ? `${tickerIndex % liveTickerItems.length + 1}/${liveTickerItems.length}` : "0/0"}</b>
-        </div>
-      </section>
+      <OperationsTicker
+        active="calendar"
+        sources={liveTickerSources}
+        timezone={settings.timezone}
+        onOpenEvent={openTickerEvent}
+      />
 
       <section
         className="eventotron-workbench"
@@ -991,7 +973,7 @@ export default function Home() {
             );
           })}
           <button className="active-event-tab" onClick={() => setInfoExpanded(false)}>
-            <small>ACTIVE EVENT FILE</small>
+            <small>{selectedIsLive ? "LIVE EVENT FILE" : "PLANNING EVENT FILE"}</small>
             {hasActiveEvent ? (
               <>
                 <strong>{selected.title}</strong>
@@ -1126,6 +1108,11 @@ export default function Home() {
               <button onClick={() => setInfoExpanded((expanded) => !expanded)}>
                 {infoExpanded ? "COLLAPSE" : "EXPAND"}
               </button>
+              {hasActiveEvent ? (
+                <button className="delete-event-action" onClick={() => void deleteSelectedEvent()}>
+                  DELETE EVENT
+                </button>
+              ) : null}
             </div>
           </div>
           {!infoExpanded ? (

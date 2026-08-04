@@ -5,6 +5,7 @@ import {
   suiteAppletStates,
   suiteCalendarEvents,
   suiteCalendarSources,
+  suiteEventAudit,
   suiteEvents,
   suiteLayoutItems,
   suiteRecipes,
@@ -25,6 +26,7 @@ const BACKUP_VERSION = 2 as const;
 type BackupData = {
   settings?: Array<typeof suiteSettings.$inferSelect>;
   events?: Array<typeof suiteEvents.$inferSelect>;
+  eventAudit?: Array<typeof suiteEventAudit.$inferSelect>;
   appletStates?: Array<typeof suiteAppletStates.$inferSelect>;
   rooms?: Array<typeof suiteRooms.$inferSelect>;
   roomLayouts?: Array<typeof suiteRoomLayouts.$inferSelect>;
@@ -51,6 +53,7 @@ type WorkspaceBackup = {
 const backupKeys = [
   "settings",
   "events",
+  "eventAudit",
   "appletStates",
   "rooms",
   "roomLayouts",
@@ -113,6 +116,7 @@ export async function GET() {
     const [
       settings,
       events,
+      eventAudit,
       appletStates,
       rooms,
       roomLayouts,
@@ -128,6 +132,7 @@ export async function GET() {
     ] = await Promise.all([
       db.select().from(suiteSettings),
       db.select().from(suiteEvents),
+      db.select().from(suiteEventAudit),
       db.select().from(suiteAppletStates),
       db.select().from(suiteRooms),
       db.select().from(suiteRoomLayouts),
@@ -145,6 +150,7 @@ export async function GET() {
       {
         settings,
         events,
+        eventAudit,
         appletStates,
         rooms,
         roomLayouts,
@@ -181,6 +187,7 @@ export async function GET() {
           createdAt: localEvents.updatedAt ?? new Date().toISOString(),
           updatedAt: localEvents.updatedAt ?? new Date().toISOString(),
         })),
+        eventAudit: [],
         appletStates: readAllLocalAppletStates() as Array<typeof suiteAppletStates.$inferSelect>,
         rooms: [],
         roomLayouts: [],
@@ -208,6 +215,9 @@ async function restoreDatabase(backup: WorkspaceBackup) {
   }
   for (const row of backup.data.events ?? []) {
     upserts.push(db.insert(suiteEvents).values(row).onConflictDoUpdate({ target: suiteEvents.id, set: row }));
+  }
+  for (const row of backup.data.eventAudit ?? []) {
+    upserts.push(db.insert(suiteEventAudit).values(row).onConflictDoUpdate({ target: suiteEventAudit.id, set: row }));
   }
   for (const row of backup.data.rooms ?? []) {
     upserts.push(db.insert(suiteRooms).values(row).onConflictDoUpdate({ target: suiteRooms.id, set: row }));

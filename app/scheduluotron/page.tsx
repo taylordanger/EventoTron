@@ -1,11 +1,13 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { OperationsTicker } from "../OperationsTicker";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
+import { useEventLiveStatus } from "../use-event-live-status";
 import { useEffect, useMemo, useState } from "react";
 
 type BlockKind =
@@ -155,6 +157,8 @@ export default function Scheduluotron() {
   const [notice, setNotice] = useState("");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
   const [appletSaveStatus, setAppletSaveStatus] = useState("LOCAL READY");
+  const [timezone, setTimezone] = useState("America/Los_Angeles");
+  const eventIsLive = useEventLiveStatus(activeEvent, timezone);
   const active =
     plan.blocks.find((block) => block.id === plan.activeId) ?? plan.blocks[0];
   const dayStart = toMinutes(plan.dayStart);
@@ -177,6 +181,7 @@ export default function Scheduluotron() {
     const timer = window.setTimeout(async () => {
       const eventId = new URLSearchParams(window.location.search).get("event");
       const settings = await loadSuiteSettings();
+      setTimezone(settings.timezone);
       const owners = settings.staff.length ? settings.staff : ["Ops lead"];
       setPlan((current) => ({
         ...current,
@@ -329,7 +334,7 @@ export default function Scheduluotron() {
   }
 
   return (
-    <div className="suite-frame"><SuiteChrome active="scheduluotron" eventId={activeEvent?.id} /><main className="scheduluotron-app">
+    <div className="suite-frame"><SuiteChrome active="scheduluotron" eventId={activeEvent?.id} /><OperationsTicker active="scheduluotron" /><main className="scheduluotron-app">
       <header className="sched-topbar">
         <div className="sched-title">
           <small>SCHEDULUOTRON EVENT CLOCK</small>
@@ -412,7 +417,7 @@ export default function Scheduluotron() {
         <section className="sched-board">
           <div className="sched-toolbar">
             <div>
-              <small>ACTIVE EVENT</small>
+              <small>{eventIsLive ? "LIVE EVENT" : activeEvent ? "PLANNING EVENT" : "PLANNING WORKSPACE"}</small>
               <b>{plan.eventName}</b>
             </div>
             <div>

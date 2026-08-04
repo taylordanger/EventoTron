@@ -8,16 +8,17 @@ EventoTron is ready for a controlled local pilot when the current local database
 - Shared backend storage exists for events, applet states, transfers, settings, calendar sources, and backups.
 - Synced calendar entries can be promoted into permanent editable EventoTron event files without duplicate calendar tiles.
 - Event files save independently with server revisions, automatic non-overlapping edit merges, and visible same-field conflict protection.
-- The calendar board has a timezone-aware operations ticker that rolls through concurrent live events and falls back to today or the next scheduled item.
+- Every permanent suite tab has the same timezone-aware operations ticker, which rolls through concurrent live events and falls back to today or the next scheduled item.
+- Event creates, edits, and deletes are recorded in durable database audit history with operator, revision, timestamp, and recoverable event snapshots.
 - Printable reports are branded, named, and formatted for clipboard/event-day use.
 - Operations templates now hold reusable binder material for recurring event and building workflows.
 - Local production runs through the Workers runtime with D1 available at `npm start`.
 
 ## Ship Readiness
 
-EventoTron is about 75 percent ready for a local pilot.
+EventoTron is about 80 percent ready for a local pilot.
 
-It is about 55 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
+It is about 60 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
 
 ## Phase 1: Local Pilot
 
@@ -58,8 +59,9 @@ Goal: make the database, users, and calendar sources dependable.
 - Decide who owns backups and how often they are exported.
 - Add user identity and role rules for staff access.
 - Keep conflict-aware event revisions enabled so simultaneous staff edits cannot silently overwrite one another.
+- Review the durable event audit history during recovery drills and expose a staff-facing activity view.
 - Add Google Calendar and Outlook OAuth connections.
-- Expand the current calendar-source labels into a full import/audit history view.
+- Expand the current calendar-source labels into a full calendar import history view.
 
 Exit criteria:
 

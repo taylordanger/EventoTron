@@ -81,6 +81,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
     ["/api/workspace-backup", "POST", { format: "eventotron-workspace-backup", version: 2, exportedAt: new Date().toISOString(), data: { events: [{ title: "Missing ID" }] } }, 400, /not recognized/i],
     ["/api/calendar-sources", "POST", { url: "calendar.example.test" }, 400, /must begin with http/i],
     ["/api/calendar-sources", "PUT", { source: { name: "Missing ID" } }, 400, /connection is incomplete/i],
+    ["/api/event-history", "GET", undefined, 400, /requires an event ID/i],
   ];
 
   for (const [path, method, body, status, message] of checks) {
@@ -94,17 +95,20 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, eventConcurrency, liveTicker, migration, calendarMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/event-app-state/projections.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/event-history/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/event-concurrency.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/live-event-ticker.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/OperationsTicker.tsx", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_calendar_sync_records.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0005_event_audit_history.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
@@ -136,6 +140,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(records, /suiteLayoutItems/);
   assert.match(schema, /suiteSchemaMigrations/);
   assert.match(schema, /suiteCalendarEvents/);
+  assert.match(schema, /suiteEventAudit/);
   assert.match(schema, /uniqueIndex\("idx_suite_applet_states_event_app"\)/);
   assert.match(projections, /removeEventProjections/);
   assert.match(eventsRoute, /removeEventProjections\(db, id\)/);
@@ -144,6 +149,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(migration, /'0003_suite_integrity_indexes'/);
   assert.match(calendarMigration, /CREATE TABLE `suite_calendar_events`/);
   assert.match(calendarMigration, /CREATE UNIQUE INDEX `idx_suite_calendar_events_source_external`/);
+  assert.match(auditMigration, /CREATE TABLE `suite_event_audit`/);
+  assert.match(auditMigration, /idx_suite_event_audit_event_created/);
   assert.match(calendarRoute, /permanentCalendarEventId/);
   assert.match(calendarRoute, /expandRecurringEvent/);
   assert.match(calendarRoute, /maxRecurringOccurrences/);
@@ -153,8 +160,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarRoute, /export async function DELETE/);
   assert.match(calendarRoute, /extractGoogleCalendarIds/);
   assert.match(calendarRoute, /googleCalendarFeedUrl/);
-  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0004_calendar_sync_records"/);
-  for (const table of ["rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
+  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0005_event_audit_history"/);
+  for (const table of ["eventAudit", "rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
   }
   assert.match(backupRoute, /BACKUP_VERSION = 2/);
@@ -200,12 +207,29 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(eventsRoute, /eventColumns/);
   assert.match(eventsRoute, /event_revision_conflict/);
   assert.match(eventsRoute, /expectedUpdatedAt/);
+  assert.match(eventsRoute, /recordEventAudit/);
+  assert.match(eventsRoute, /cf-access-authenticated-user-email/);
+  assert.match(eventsRoute, /existing \? "updated" : "created"/);
+  assert.match(eventsRoute, /"deleted"/);
+  assert.match(eventHistoryRoute, /suiteEventAudit/);
+  assert.match(eventHistoryRoute, /Cache-Control/);
   assert.match(eventConcurrency, /mergeConcurrentEvent/);
   assert.match(eventConcurrency, /conflictFields/);
   assert.match(liveTicker, /selectLiveTickerItems/);
   assert.match(liveTicker, /wallClockMinute/);
-  assert.match(homePage, /live-operations-ticker/);
-  assert.match(homePage, /LIVE NOW/);
+  assert.match(operationsTicker, /selectLiveTickerItems/);
+  assert.match(operationsTicker, /live-operations-ticker/);
+  assert.match(homePage, /DELETE EVENT/);
+  assert.match(homePage, /method: "DELETE"/);
+  assert.match(homePage, /PLANNING EVENT FILE/);
+  assert.match(scheduluotron, /PLANNING EVENT/);
+  assert.match(tabletron, /PLANNING PROJECT/);
+  assert.match(operationsTicker, /LIVE NOW/);
+  assert.match(operationsTicker, /\/api\/events/);
+  assert.match(operationsTicker, /\/api\/calendar-sources/);
+  for (const suitePage of [homePage, foodotron, tabletron, scheduluotron, settingsPage]) {
+    assert.match(suitePage, /OperationsTicker/);
+  }
   assert.match(styles, /live-ticker-roll/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(homePage, /persistEvent/);
@@ -218,7 +242,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(styles, /calendar-import-box/);
   assert.match(roadmap, /Phase 1: Local Pilot/);
   assert.match(roadmap, /Phase 4: Desktop App/);
-  assert.match(roadmap, /75 percent ready for a local pilot/);
+  assert.match(roadmap, /80 percent ready for a local pilot/);
   assert.match(readme, /PRODUCTION_ROADMAP\.md/);
   assert.match(masterReport, /printReport\(`?\$\{event\.title\} Master Report/);
   assert.match(foodotron, /printReport\(`\$\{meal\.name\} Foodotron Shopping Report/);

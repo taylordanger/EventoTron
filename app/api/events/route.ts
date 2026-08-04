@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { mealTransfers, suiteAppletStates, suiteEvents } from "@/db/schema";
+import { mealTransfers, suiteAppletStates, suiteEventAudit, suiteEvents } from "@/db/schema";
 import { removeEventProjections } from "../event-app-state/projections";
 import { readLocalEvents, writeLocalEvents } from "./local-store";
 
@@ -126,6 +126,37 @@ function databaseUnavailable(error: unknown) {
   return detail.includes("cloudflare:");
 }
 
+function eventActor(request: Request) {
+  const accessIdentity = request.headers.get("cf-access-authenticated-user-email")?.trim();
+  if (accessIdentity) return accessIdentity.slice(0, 254);
+  const hostname = new URL(request.url).hostname;
+  const localIdentity = request.headers.get("x-eventotron-actor")?.trim();
+  if ((hostname === "localhost" || hostname === "127.0.0.1") && localIdentity) {
+    return localIdentity.slice(0, 254);
+  }
+  return hostname === "localhost" || hostname === "127.0.0.1"
+    ? "local-operator"
+    : "unidentified-operator";
+}
+
+async function recordEventAudit(
+  db: Awaited<ReturnType<typeof getDb>>,
+  request: Request,
+  action: "created" | "updated" | "deleted",
+  event: SuiteEvent,
+  revision: string,
+) {
+  await db.insert(suiteEventAudit).values({
+    id: `audit_${crypto.randomUUID()}`,
+    eventId: event.id,
+    action,
+    actor: eventActor(request),
+    revision,
+    payload: { ...event, revision },
+    createdAt: new Date().toISOString(),
+  });
+}
+
 function rowToEvent(row: typeof suiteEvents.$inferSelect): SuiteEvent {
   const payload = row.payload && typeof row.payload === "object"
     ? row.payload as Partial<SuiteEvent>
@@ -238,6 +269,7 @@ export async function PUT(request: Request) {
           updatedAt: revision,
         }).where(and(eq(suiteEvents.id, event.id), eq(suiteEvents.updatedAt, event.revision!)));
       }
+      await recordEventAudit(db, request, existing ? "updated" : "created", event, revision);
       return { ...event, revision };
     }));
 
@@ -311,6 +343,7 @@ export async function PATCH(request: Request) {
       }
     }
     const saved = { ...event, revision };
+    await recordEventAudit(db, request, existing ? "updated" : "created", saved, revision);
     return Response.json({ event: saved, savedAt: revision, source: "database" });
   } catch (error) {
     if (!databaseUnavailable(error)) {
@@ -343,12 +376,16 @@ export async function DELETE(request: Request) {
 
   try {
     const db = await getDb();
+    const existing = await db.select().from(suiteEvents).where(eq(suiteEvents.id, id)).get();
     await removeEventProjections(db, id);
     await Promise.all([
       db.delete(suiteAppletStates).where(eq(suiteAppletStates.eventId, id)),
       db.delete(mealTransfers).where(eq(mealTransfers.tabletronEventId, id)),
     ]);
     await db.delete(suiteEvents).where(eq(suiteEvents.id, id));
+    if (existing) {
+      await recordEventAudit(db, request, "deleted", rowToEvent(existing), existing.updatedAt);
+    }
     return Response.json({ id, deleted: true, source: "database" });
   } catch (error) {
     if (!databaseUnavailable(error)) {

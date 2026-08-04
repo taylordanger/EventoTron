@@ -1,11 +1,13 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { OperationsTicker } from "../OperationsTicker";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
+import { useEventLiveStatus } from "../use-event-live-status";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TableItem = { id: string; x: number; y: number };
@@ -500,6 +502,10 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [appletSaveStatus, setAppletSaveStatus] = useState("LOCAL READY");
+  const [linkedSuiteEventId, setLinkedSuiteEventId] = useState("");
+  const [linkedSuiteEvent, setLinkedSuiteEvent] = useState<EventoEventContext | null>(null);
+  const [timezone, setTimezone] = useState("America/Los_Angeles");
+  const linkedEventIsLive = useEventLiveStatus(linkedSuiteEvent, timezone);
   const canvasRef = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -516,6 +522,7 @@ export default function Home() {
     const raw = localStorage.getItem("tabletron-project-v2");
     const timer = window.setTimeout(async () => {
       const suiteSettings = await loadSuiteSettings();
+      setTimezone(suiteSettings.timezone);
       try {
         const stored = raw
           ? applySettingsToProject(normalizeProject(JSON.parse(raw)), suiteSettings)
@@ -547,6 +554,7 @@ export default function Home() {
           const targetEventId = String(
             food.tabletronEventId ?? transfer.tabletronEventId ?? "",
           );
+          setLinkedSuiteEventId(targetEventId);
           const linkedFood: FoodotronMeal = {
             ...food,
             foodotronMealId: String(
@@ -622,7 +630,11 @@ export default function Home() {
           window.history.replaceState({}, "", window.location.pathname);
         }
         const linkedContext = readEventContext(linkedEventId);
-        if (linkedContext) next = hydrateForEvent(next, linkedContext, suiteSettings);
+        if (linkedContext) {
+          setLinkedSuiteEventId(linkedContext.id);
+          setLinkedSuiteEvent(linkedContext);
+          next = hydrateForEvent(next, linkedContext, suiteSettings);
+        }
         setProject(next);
         setSavedAt(raw ? new Date() : null);
       } catch {
@@ -1192,10 +1204,10 @@ export default function Home() {
       : undefined;
 
   return (
-    <div className="suite-frame"><SuiteChrome active="tabletron" eventId={event?.id} /><main className={`tabletron-applet app-shell ${opsReport ? "printing-report" : ""}`}>
+    <div className="suite-frame"><SuiteChrome active="tabletron" eventId={linkedSuiteEventId || undefined} /><OperationsTicker active="tabletron" /><main className={`tabletron-applet app-shell ${opsReport ? "printing-report" : ""}`}>
       <header className="topbar">
         <label className="project-name">
-          <small>PROJECT</small>
+          <small>{linkedEventIsLive ? "LIVE EVENT" : linkedSuiteEvent ? "PLANNING EVENT" : "PLANNING PROJECT"}</small>
           <input
             value={project.name}
             onChange={(e) =>

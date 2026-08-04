@@ -3,7 +3,7 @@ import * as schema from "./schema";
 
 let schemaReady: Promise<void> | null = null;
 
-export const EXPECTED_SCHEMA_MIGRATION = "0004_calendar_sync_records";
+export const EXPECTED_SCHEMA_MIGRATION = "0005_event_audit_history";
 
 async function getD1() {
   const { env } = await import("cloudflare:workers");
@@ -32,6 +32,15 @@ export async function ensureSuiteSchema() {
       ),
       db.prepare(
         "CREATE INDEX IF NOT EXISTS idx_suite_events_updated_at ON suite_events (updated_at)",
+      ),
+      db.prepare(
+        "CREATE TABLE IF NOT EXISTS suite_event_audit (id text PRIMARY KEY NOT NULL, event_id text NOT NULL, action text NOT NULL, actor text NOT NULL, revision text, payload text NOT NULL, created_at text NOT NULL)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_event_audit_event_created ON suite_event_audit (event_id, created_at)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_event_audit_created_at ON suite_event_audit (created_at)",
       ),
       db.prepare(
         "CREATE TABLE IF NOT EXISTS suite_rooms (id text PRIMARY KEY NOT NULL, name text NOT NULL, width real DEFAULT 26 NOT NULL, height real DEFAULT 26 NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",

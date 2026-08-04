@@ -36,6 +36,13 @@
       "when": 1785771097514,
       "tag": "0004_calendar_sync_records",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1785822515047,
+      "tag": "0005_event_audit_history",
+      "breakpoints": true
     }
   ]
 }

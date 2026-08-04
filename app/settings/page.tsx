@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SuiteChrome } from "../SuiteChrome";
+import { OperationsTicker } from "../OperationsTicker";
 import {
   SETTINGS_STORE_KEY,
   calendarProviderLabels,
@@ -364,6 +365,7 @@ export default function SettingsPage() {
   return (
     <div className="suite-frame">
       <SuiteChrome active="settings" />
+      <OperationsTicker active="settings" />
       <main className="settings-applet">
         <header className="settings-page-header">
           <div>

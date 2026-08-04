@@ -42,6 +42,23 @@ export const suiteEvents = sqliteTable(
   ],
 );
 
+export const suiteEventAudit = sqliteTable(
+  "suite_event_audit",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull(),
+    action: text("action").notNull(),
+    actor: text("actor").notNull(),
+    revision: text("revision"),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_event_audit_event_created").on(table.eventId, table.createdAt),
+    index("idx_suite_event_audit_created_at").on(table.createdAt),
+  ],
+);
+
 export const suiteRooms = sqliteTable("suite_rooms", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

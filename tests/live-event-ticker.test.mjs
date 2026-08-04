@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { selectLiveTickerItems } from "../app/live-event-ticker.ts";
+import { isEventLiveNow, selectLiveTickerItems } from "../app/live-event-ticker.ts";
 
 function event(id, date, eventTime, title = id) {
   return { key: `event:${id}`, id, title, date, eventTime, space: "Auditorium" };
@@ -62,4 +62,10 @@ test("ticker labels untimed entries for the current day without claiming they ar
     "UTC",
   );
   assert.equal(items[0].status, "today");
+});
+
+test("planning context is only live during the saved event window", () => {
+  const rotary = { date: "2026-08-05", eventTime: "11:30 AM - 1:00 PM" };
+  assert.equal(isEventLiveNow(rotary, new Date("2026-08-03T12:00:00-07:00"), "America/Los_Angeles"), false);
+  assert.equal(isEventLiveNow(rotary, new Date("2026-08-05T12:00:00-07:00"), "America/Los_Angeles"), true);
 });

@@ -182,3 +182,14 @@ export function selectLiveTickerItems(
     .sort((left, right) => left.startsAt - right.startsAt || left.title.localeCompare(right.title));
   return upcoming.length ? [{ ...upcoming[0], status: "next" as const }] : [];
 }
+
+export function isEventLiveNow(
+  event: Pick<LiveTickerEvent, "date" | "eventTime">,
+  now: Date,
+  timezone: string,
+) {
+  const window = eventWindow(event.date, event.eventTime);
+  if (!window?.hasTime) return false;
+  const currentMinute = wallClockMinute(now, timezone);
+  return currentMinute >= window.startsAt && currentMinute <= window.endsAt;
+}
