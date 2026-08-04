@@ -12,7 +12,7 @@ import {
   mergeSuiteSettings,
   type OperationsTemplate,
 } from "./suite-settings";
-import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
@@ -490,12 +490,21 @@ export default function Home() {
     setOpenIds((ids) => [event.id, ...ids.filter((id) => id !== event.id)].slice(0, 8));
   }
 
-  function closeEventFile(id: string) {
-    setOpenIds((ids) => {
-      const nextIds = ids.filter((openId) => openId !== id);
-      if (selectedId === id) setSelectedId(nextIds[0] ?? "");
-      return nextIds;
-    });
+  function closeEventFile(id: string, event?: ReactMouseEvent<HTMLButtonElement>) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const nextIds = openIds.filter((openId) => openId !== id);
+    const nextSelectedId = selectedId === id ? nextIds[0] ?? "" : selectedId;
+    setOpenIds(nextIds);
+    setSelectedId(nextSelectedId);
+    setInfoExpanded(false);
+    localStorage.setItem(EVENT_STORE_KEY, JSON.stringify({
+      events,
+      selectedId: nextSelectedId,
+      openIds: nextIds,
+      calendarYear,
+      calendarMonth,
+    }));
   }
 
   function updateSelected(patch: Partial<EventoEvent>) {
@@ -697,9 +706,10 @@ export default function Home() {
                   <span>{formatRegularTime(event.eventTime)}</span>
                 </button>
                 <button
+                  type="button"
                   className="vertical-file-close"
                   aria-label={`Close ${event.title}`}
-                  onClick={() => closeEventFile(event.id)}
+                  onClick={(clickEvent) => closeEventFile(event.id, clickEvent)}
                 >
                   ×
                 </button>

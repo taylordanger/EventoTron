@@ -421,6 +421,7 @@
 
 .vertical-file-close {
   position: absolute;
+  z-index: 2;
   top: 5px;
   right: 5px;
   width: 21px;
