@@ -162,10 +162,10 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(printMode, /classList\.add\("eventotron-printing"\)/);
   assert.match(printMode, /window\.print\(\)/);
   assert.match(printMode, /export function saveReportPdf/);
-  assert.match(masterReport, /onClick=\{printReport\}/);
-  assert.match(foodotron, /onClick=\{printReport\}/);
+  assert.match(masterReport, /printReport\(`?\$\{event\.title\} Master Report/);
+  assert.match(foodotron, /printReport\(`\$\{meal\.name\} Foodotron Shopping Report/);
   assert.match(tabletron, /printing-report/);
-  assert.match(scheduluotron, /onClick=\{printReport\}/);
+  assert.match(scheduluotron, /printReport\(`\$\{plan\.eventName\} Scheduluotron Day Sheet/);
   for (const reportSource of [masterReport, foodotron, tabletron, scheduluotron]) {
     assert.match(reportSource, /saveReportPdf/);
     assert.match(reportSource, /SAVE PDF/);
@@ -185,7 +185,10 @@ test("print report contracts keep report previews and print mode aligned", async
   assert.match(printMode, /eventotron-printing/);
   assert.match(printMode, /window\.setTimeout\(\(\) => \{/);
   assert.match(printMode, /classList\.remove\("eventotron-printing"\)/);
-  assert.match(printMode, /saveReportPdf\(\) \{\n  printReport\(\);/);
+  assert.match(printMode, /reportDocumentTitle/);
+  assert.match(printMode, /document\.title = reportDocumentTitle\(title\)/);
+  assert.match(printMode, /document\.title = originalTitle/);
+  assert.match(printMode, /saveReportPdf\(title\?: string\) \{\n  printReport\(title\);/);
 
   for (const source of [masterReport, foodotron, tabletron, scheduluotron]) {
     assert.match(source, /printReport/);
@@ -200,6 +203,10 @@ test("print report contracts keep report previews and print mode aligned", async
   assert.match(styles, /html\.eventotron-printing \.scheduluotron-app > \.sched-workspace/);
   assert.match(styles, /break-inside: avoid/);
   assert.match(foodotron, /disabled=\{!meal\} onClick=\{printMeal\}/);
+  assert.match(foodotron, /meal\.name\} Foodotron Shopping Report/);
+  assert.match(masterReport, /event\.title\} Master Report/);
+  assert.match(tabletron, /event\.name\} Tabletron Operations Report/);
+  assert.match(scheduluotron, /plan\.eventName\} Scheduluotron Day Sheet/);
   assert.match(tabletron, /EXPORT SETUP SHEET/);
   assert.match(tabletron, /window\.print\(\)/);
 });

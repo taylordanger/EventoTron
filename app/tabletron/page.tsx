@@ -1146,7 +1146,7 @@ export default function Home() {
   function printOperations() {
     if (!event) return;
     setOpsReport(true);
-    printReport();
+    printReport(`${event.name} Tabletron Operations Report`);
   }
 
   const eventTimeline = useMemo(() => {
@@ -2416,10 +2416,10 @@ export default function Home() {
             </footer>
             <div className="ops-report-actions">
               <button onClick={() => setOpsReport(false)}>CLOSE</button>
-              <button onClick={saveReportPdf}>
+              <button onClick={() => saveReportPdf(`${event.name} Tabletron Operations Report`)}>
                 SAVE PDF
               </button>
-              <button className="primary" onClick={printReport}>
+              <button className="primary" onClick={() => printReport(`${event.name} Tabletron Operations Report`)}>
                 PRINT REPORT
               </button>
             </div>

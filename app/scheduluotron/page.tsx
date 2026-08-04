@@ -340,10 +340,10 @@ export default function Scheduluotron() {
         <button onClick={save}>SAVE</button>
         <button className="save-state" disabled>{appletSaveStatus}</button>
         <button onClick={exportSchedule}>EXPORT</button>
-        <button className="primary" onClick={printReport}>
+        <button className="primary" onClick={() => printReport(`${plan.eventName} Scheduluotron Day Sheet`)}>
           PRINT DAY SHEET
         </button>
-        <button onClick={saveReportPdf}>
+        <button onClick={() => saveReportPdf(`${plan.eventName} Scheduluotron Day Sheet`)}>
           SAVE PDF
         </button>
       </header>

@@ -282,8 +282,8 @@ export default function MasterReportPage() {
         <div className="master-report-brand"><b>S<sup>3</sup></b><span>EVENTOTRON<br /><small>SHEPPARD SEMICONDUCTOR SYSTEMS</small></span></div>
       </header>
       <div className="master-report-actions">
-        <button className="report-print-button" onClick={printReport}>PRINT MASTER REPORT</button>
-        <button className="report-pdf-button" onClick={saveReportPdf}>SAVE PDF</button>
+        <button className="report-print-button" onClick={() => printReport(`${event.title} Master Report`)}>PRINT MASTER REPORT</button>
+        <button className="report-pdf-button" onClick={() => saveReportPdf(`${event.title} Master Report`)}>SAVE PDF</button>
         <Link href={`/?event=${encodeURIComponent(event.id)}`}>BACK TO EVENT</Link>
       </div>
 
