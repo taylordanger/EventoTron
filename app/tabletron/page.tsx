@@ -155,14 +155,42 @@ const makeRoom = (name: string, width = 26, height = 26): Room => {
     entrances: [makeEntrance()],
   };
 };
-const makeFurnitureTemplate = (name: string, index: number): FurnitureTemplate => ({
-  id: uid(),
-  name,
-  width: index % 2 ? 6 : 8,
-  height: index % 2 ? 2 : 4,
-  clearance: 2,
-  pieces: [{ id: uid(), kind: index % 3 === 0 ? "circle" : "rect", x: 8, y: 16, w: 84, h: 68 }],
-});
+function parseFurnitureDimensions(name: string, index: number) {
+  const upper = name.toUpperCase();
+  const feetMatch = upper.match(/(\d+(?:\.\d+)?)\s*FT(?:\s*(?:X|-|BY)\s*(\d+(?:\.\d+)?)\s*FT)?/);
+  const inchMatch = upper.match(/(\d+(?:\.\d+)?)\s*IN\s*(?:X|-|BY)\s*(\d+(?:\.\d+)?)\s*IN/);
+  if (upper.includes("ROUND") && feetMatch) {
+    const diameter = Number(feetMatch[1]);
+    return { width: diameter, height: diameter, kind: "circle" as ShapeKind, clearance: 2 };
+  }
+  if (feetMatch?.[2]) {
+    return { width: Number(feetMatch[1]), height: Number(feetMatch[2]), kind: "rect" as ShapeKind, clearance: 2 };
+  }
+  if (inchMatch) {
+    return {
+      width: Number(inchMatch[2]) / 12,
+      height: Number(inchMatch[1]) / 12,
+      kind: "rect" as ShapeKind,
+      clearance: 1,
+    };
+  }
+  if (upper.includes("CHAIR")) return { width: 1.5, height: 1.5, kind: "rect" as ShapeKind, clearance: 1 };
+  if (upper.includes("PODIUM")) return { width: 2, height: 2, kind: "rect" as ShapeKind, clearance: 2 };
+  if (upper.includes("PROJECTOR")) return { width: 2, height: 2, kind: "rect" as ShapeKind, clearance: 3 };
+  if (upper.includes("PIANO")) return { width: 5, height: 2.5, kind: "rect" as ShapeKind, clearance: 2 };
+  return { width: index % 2 ? 6 : 8, height: index % 2 ? 2 : 4, kind: index % 3 === 0 ? "circle" as ShapeKind : "rect" as ShapeKind, clearance: 2 };
+}
+const makeFurnitureTemplate = (name: string, index: number): FurnitureTemplate => {
+  const dimensions = parseFurnitureDimensions(name, index);
+  return {
+    id: uid(),
+    name,
+    width: dimensions.width,
+    height: dimensions.height,
+    clearance: dimensions.clearance,
+    pieces: [{ id: uid(), kind: dimensions.kind, x: 8, y: 16, w: 84, h: 68 }],
+  };
+};
 const makeEvent = (name = "New Client Event"): EventPlan => ({
   id: uid(),
   name,

@@ -39,6 +39,46 @@ export type SuiteSettings = {
 
 export const SETTINGS_STORE_KEY = "eventotron-settings-v1";
 
+const defaultRooms: SuiteSettings["rooms"] = [
+  { id: "room_auditorium", name: "Auditorium", width: 55, height: 40 },
+  { id: "room_auditorium_stage", name: "Auditorium Stage", width: 24, height: 16 },
+  { id: "room_margarets", name: "Margaret's Meeting Room", width: 30, height: 22 },
+  { id: "room_elizabethan", name: "Elizabethan Room", width: 27, height: 22 },
+  { id: "room_dance_studio", name: "Dance Studio", width: 33, height: 22 },
+  { id: "room_art_lab", name: "Underground Art Lab", width: 24, height: 18 },
+  { id: "room_plaza", name: "Plaza", width: 60, height: 40 },
+];
+
+const defaultEquipment = [
+  "5 FT ROUND TABLE - 12 available",
+  "6 FT RECTANGULAR TABLE - 19 available",
+  "20 IN x 48 IN SMALL RECTANGULAR TABLE - 20 available",
+  "24 IN x 45 IN SMALL RECTANGULAR TABLE - 10 available",
+  "BURGUNDY BANQUET CHAIR - 75 available",
+  "RED LEATHERETTE CHAIR - 45 available",
+  "WHITE PLASTIC FOLDING CHAIR - 62 available",
+  "MOLDED PLASTIC CHAIR - 43 available",
+  "PODIUM",
+  "PROJECTOR - $30",
+  "MICROPHONE - $30",
+  "SOUND / LIGHT SYSTEM - $50",
+  "PIANO TUNING - $150",
+  "MUSIC STAND - $2 each",
+  "BLACK TABLECLOTH - $5 each",
+  "IVORY TABLECLOTH - $7 each",
+  "IVORY BANQUET SKIRT - $6 each",
+  "IVORY CHAIR COVER - $4 self install / $5 installed",
+  "CHAFING DISH - $11 each",
+  "WINE GLASS - $0.75 each",
+  "WATER GLASS - $0.75 each",
+  "CHINA PLATE 7 IN or 10 IN - $3 each",
+  "SILVERWARE SETTING - $2 each",
+  "COFFEE & WATER SERVICE - $4 per person",
+  "LCCC BEER / WINE SERVER - $25 per hour",
+  "DOWNSTAIRS KITCHEN - $45 four hours / $90 eight hours",
+  "OUTDOOR POWER SPIDER - $55 each",
+];
+
 export const defaultSuiteSettings: SuiteSettings = {
   workspaceName: "EventoTron Operations Suite",
   venueName: "Lincoln City Cultural Center",
@@ -49,12 +89,8 @@ export const defaultSuiteSettings: SuiteSettings = {
   reportIncludeCosts: true,
   reportIncludeLayout: true,
   staff: ["Jason", "Nara", "Heather", "Taylor", "Serena"],
-  rooms: [
-    { id: "room_margarets", name: "Margaret's Room", width: 26, height: 26 },
-    { id: "room_auditorium", name: "Auditorium", width: 60, height: 42 },
-    { id: "room_conference", name: "Conference", width: 26, height: 26 },
-  ],
-  equipment: ["6 FT ROUND TABLES", "CHAIRS", "PODIUM", "PROJECTOR", "LINENS"],
+  rooms: defaultRooms,
+  equipment: defaultEquipment,
   operationsTemplates: [
     {
       id: "template_rotary_luncheon",
@@ -127,6 +163,21 @@ export const defaultSuiteSettings: SuiteSettings = {
         "Complete final ticket, concessions, beer/wine, balance, and settlement notes after event close.",
       ],
     },
+    {
+      id: "template_facility_rental_policies",
+      name: "Facility rental rates and policies",
+      category: "contract",
+      summary: "Room capacities, rental policies, day-rate notes, setup/cleaning charges, and rental amenity pricing.",
+      checklist: [
+        "Event insurance is required for rentals with groups of 50 or more.",
+        "Use compostable products only; no Styrofoam, and keep service as plastic-free as possible.",
+        "Auditorium seats 96 at tables, 160 theatre style, and 200 standing room only; main floor is 55 x 40 feet plus a 24 x 16 foot stage.",
+        "Margaret's Meeting Room seats 32 at tables or 40 theatre style; room is 30 x 22 feet with wipe-off board, TV, sink, and counter.",
+        "Elizabethan Room seats 18 with couches/tables; room is 27 x 22 feet with makeup station, couches, coat rack, sink, and counter.",
+        "Dance Studio is 33 x 22 feet with wood floor, mirrored walls, barre, and window bench.",
+        "Food trucks must have proper City of Lincoln City licensing and provide proof before the event.",
+      ],
+    },
   ],
   calendarSources: [],
 };
@@ -168,13 +219,28 @@ export function googleCalendarName(calendarId: string, index: number) {
 }
 
 export function mergeSuiteSettings(value: Partial<SuiteSettings> | null | undefined): SuiteSettings {
+  const savedRooms = Array.isArray(value?.rooms) ? value.rooms : [];
+  const roomIds = new Set(savedRooms.map((room) => room.id));
+  const savedEquipment = Array.isArray(value?.equipment) ? value.equipment : [];
+  const equipmentNames = new Set(savedEquipment.map((item) => item.toLowerCase()));
+  const savedTemplates = Array.isArray(value?.operationsTemplates) ? value.operationsTemplates : [];
+  const templateIds = new Set(savedTemplates.map((template) => template.id));
   return {
     ...defaultSuiteSettings,
     ...(value ?? {}),
     staff: Array.isArray(value?.staff) ? value.staff : defaultSuiteSettings.staff,
-    rooms: Array.isArray(value?.rooms) ? value.rooms : defaultSuiteSettings.rooms,
-    equipment: Array.isArray(value?.equipment) ? value.equipment : defaultSuiteSettings.equipment,
-    operationsTemplates: Array.isArray(value?.operationsTemplates) ? value.operationsTemplates : defaultSuiteSettings.operationsTemplates,
+    rooms: savedRooms.length ? [
+      ...savedRooms,
+      ...defaultSuiteSettings.rooms.filter((room) => !roomIds.has(room.id)),
+    ] : defaultSuiteSettings.rooms,
+    equipment: savedEquipment.length ? [
+      ...savedEquipment,
+      ...defaultSuiteSettings.equipment.filter((item) => !equipmentNames.has(item.toLowerCase())),
+    ] : defaultSuiteSettings.equipment,
+    operationsTemplates: savedTemplates.length ? [
+      ...savedTemplates,
+      ...defaultSuiteSettings.operationsTemplates.filter((template) => !templateIds.has(template.id)),
+    ] : defaultSuiteSettings.operationsTemplates,
     calendarSources: Array.isArray(value?.calendarSources) ? value.calendarSources : [],
   };
 }

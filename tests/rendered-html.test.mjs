@@ -205,6 +205,16 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(suiteSettings, /template_concert_hospitality/);
   assert.match(suiteSettings, /template_market_mod/);
   assert.match(suiteSettings, /template_maintenance_ticker/);
+  assert.match(suiteSettings, /room_auditorium_stage/);
+  assert.match(suiteSettings, /Margaret's Meeting Room/);
+  assert.match(suiteSettings, /Elizabethan Room/);
+  assert.match(suiteSettings, /Dance Studio/);
+  assert.match(suiteSettings, /5 FT ROUND TABLE - 12 available/);
+  assert.match(suiteSettings, /Facility rental rates and policies/);
+  assert.match(suiteSettings, /Event insurance is required/);
+  assert.match(tabletron, /parseFurnitureDimensions/);
+  assert.match(tabletron, /upper\.includes\("ROUND"\)/);
+  assert.match(tabletron, /inchMatch/);
   assert.match(settingsPage, /Operations Library/);
   assert.match(settingsPage, /Reusable binder material/);
   assert.match(settingsPage, /updateOperationsTemplate/);

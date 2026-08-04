@@ -12,6 +12,7 @@ EventoTron is ready for a controlled local pilot when the current local database
 - Event creates, edits, and deletes are recorded in durable database audit history with operator, revision, timestamp, and recoverable event snapshots.
 - Printable reports are branded, named, and formatted for clipboard/event-day use.
 - Operations templates now hold reusable binder material for recurring event and building workflows.
+- Shared settings now include facility room dimensions, event-rental policy notes, and rental furniture/service inventory for Tabletron planning.
 - Local production runs through the Workers runtime with D1 available at `npm start`.
 
 ## Ship Readiness
