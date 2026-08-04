@@ -21,6 +21,18 @@ export type OperationsTemplate = {
   checklist: string[];
 };
 
+export type SuiteRoomSetting = {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  seats?: string;
+  squareFeet?: number;
+  features?: string[];
+  rentalNotes?: string[];
+  policyNotes?: string[];
+};
+
 export type SuiteSettings = {
   workspaceName: string;
   venueName: string;
@@ -31,7 +43,7 @@ export type SuiteSettings = {
   reportIncludeCosts: boolean;
   reportIncludeLayout: boolean;
   staff: string[];
-  rooms: Array<{ id: string; name: string; width: number; height: number }>;
+  rooms: SuiteRoomSetting[];
   equipment: string[];
   operationsTemplates: OperationsTemplate[];
   calendarSources: CalendarSource[];
@@ -40,13 +52,97 @@ export type SuiteSettings = {
 export const SETTINGS_STORE_KEY = "eventotron-settings-v1";
 
 const defaultRooms: SuiteSettings["rooms"] = [
-  { id: "room_auditorium", name: "Auditorium", width: 55, height: 40 },
-  { id: "room_auditorium_stage", name: "Auditorium Stage", width: 24, height: 16 },
-  { id: "room_margarets", name: "Margaret's Meeting Room", width: 30, height: 22 },
-  { id: "room_elizabethan", name: "Elizabethan Room", width: 27, height: 22 },
-  { id: "room_dance_studio", name: "Dance Studio", width: 33, height: 22 },
-  { id: "room_art_lab", name: "Underground Art Lab", width: 24, height: 18 },
-  { id: "room_plaza", name: "Plaza", width: 60, height: 40 },
+  {
+    id: "room_auditorium",
+    name: "Auditorium",
+    width: 55,
+    height: 40,
+    seats: "96 at tables / 160 theatre / 200 standing",
+    squareFeet: 2200,
+    features: ["Handicapped accessible", "Theatrical light and sound", "24 x 16 FT stage"],
+    rentalNotes: [
+      "Mon-Thu half day: $300 minimum for 2-4 hours between 9 AM and 5 PM; after 4 hours $35/hr; before 9 AM or after 5 PM $40/hr.",
+      "Fri-Sun half day: $425 minimum for 2-4 hours between 9 AM and 5 PM; after 4 hours $50/hr; before 9 AM or after 5 PM $40/hr.",
+      "Setup and teardown $175; cleaning $175; security after midnight $100/hr.",
+    ],
+    policyNotes: ["Event insurance required for rental groups of 50 or more.", "Compostable products only; no Styrofoam."],
+  },
+  {
+    id: "room_auditorium_stage",
+    name: "Auditorium Stage",
+    width: 24,
+    height: 16,
+    squareFeet: 384,
+    features: ["Performance platform", "Pairs with auditorium theatrical light and sound"],
+  },
+  {
+    id: "room_margarets",
+    name: "Margaret's Meeting Room",
+    width: 30,
+    height: 22,
+    seats: "32 at tables / 40 theatre",
+    squareFeet: 660,
+    features: ["Wipe-off board", "TV", "Sink and counter"],
+    rentalNotes: [
+      "Half day: $120 for 2-4 hours; after 4 hours $20/hr; before 9 AM or after 5 PM $40/hr.",
+      "Setup and teardown $45; cleaning $45.",
+    ],
+    policyNotes: ["Event insurance required for rental groups of 50 or more.", "Compostable products only; no Styrofoam."],
+  },
+  {
+    id: "room_elizabethan",
+    name: "Elizabethan Room",
+    width: 27,
+    height: 22,
+    seats: "18 total: 6 on couches / 12 at tables",
+    squareFeet: 536,
+    features: ["6-person lighted makeup station", "2 couches", "Coffee table", "Coat rack", "Sink and counter"],
+    rentalNotes: [
+      "Half day: $100 for 2-4 hours; after 4 hours $20/hr; before 9 AM or after 5 PM $40/hr.",
+      "Setup and teardown $50; cleaning $50.",
+    ],
+    policyNotes: ["Event insurance required for rental groups of 50 or more.", "Compostable products only; no Styrofoam."],
+  },
+  {
+    id: "room_dance_studio",
+    name: "Dance Studio",
+    width: 33,
+    height: 22,
+    squareFeet: 726,
+    features: ["Wooden floors", "Mirrored walls", "Barre", "Window bench"],
+    rentalNotes: [
+      "Half day: $110 for 2-4 hours; after 4 hours $20/hr; before 9 AM or after 5 PM $40/hr.",
+      "Setup and teardown $40; cleaning $40.",
+    ],
+    policyNotes: ["Event insurance required for rental groups of 50 or more.", "Compostable products only; no Styrofoam."],
+  },
+  {
+    id: "room_art_lab",
+    name: "Underground Art Lab",
+    width: 24,
+    height: 18,
+    rentalNotes: [
+      "Room rental with no setup, staff, or materials: $25/hr.",
+      "Party rental with art projects, setup, and staff: $75/hr.",
+      "Before 9 AM or after 5 PM: $40/hr.",
+    ],
+    policyNotes: ["Event insurance required for rental groups of 50 or more.", "Compostable products only; no Styrofoam."],
+  },
+  {
+    id: "room_plaza",
+    name: "Plaza",
+    width: 60,
+    height: 40,
+    features: ["Concrete plaza and Poetry Path", "Adjacent parking", "Access to center bathrooms", "Water and power available", "Outdoor tables and chairs available"],
+    rentalNotes: [
+      "Small party under 50: $245 half day.",
+      "Large party 50 or more: $490 half day.",
+      "After 4 hours $60/hr; before 9 AM or after 5 PM $40/hr.",
+      "Cleaning and damage deposit $120; setup and teardown $110.",
+      "Center power spiders $55/unit.",
+    ],
+    policyNotes: ["Food trucks must provide City of Lincoln City licensing proof before the event."],
+  },
 ];
 
 const defaultEquipment = [
@@ -221,6 +317,20 @@ export function googleCalendarName(calendarId: string, index: number) {
 export function mergeSuiteSettings(value: Partial<SuiteSettings> | null | undefined): SuiteSettings {
   const savedRooms = Array.isArray(value?.rooms) ? value.rooms : [];
   const roomIds = new Set(savedRooms.map((room) => room.id));
+  const mergedRooms = savedRooms.map((room) => {
+    const fallback = defaultSuiteSettings.rooms.find((defaultRoom) => defaultRoom.id === room.id);
+    return fallback
+      ? {
+          ...fallback,
+          ...room,
+          features: room.features ?? fallback.features,
+          rentalNotes: room.rentalNotes ?? fallback.rentalNotes,
+          policyNotes: room.policyNotes ?? fallback.policyNotes,
+          seats: room.seats ?? fallback.seats,
+          squareFeet: room.squareFeet ?? fallback.squareFeet,
+        }
+      : room;
+  });
   const savedEquipment = Array.isArray(value?.equipment) ? value.equipment : [];
   const equipmentNames = new Set(savedEquipment.map((item) => item.toLowerCase()));
   const savedTemplates = Array.isArray(value?.operationsTemplates) ? value.operationsTemplates : [];
@@ -229,8 +339,8 @@ export function mergeSuiteSettings(value: Partial<SuiteSettings> | null | undefi
     ...defaultSuiteSettings,
     ...(value ?? {}),
     staff: Array.isArray(value?.staff) ? value.staff : defaultSuiteSettings.staff,
-    rooms: savedRooms.length ? [
-      ...savedRooms,
+    rooms: mergedRooms.length ? [
+      ...mergedRooms,
       ...defaultSuiteSettings.rooms.filter((room) => !roomIds.has(room.id)),
     ] : defaultSuiteSettings.rooms,
     equipment: savedEquipment.length ? [

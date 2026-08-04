@@ -2263,6 +2263,61 @@
   line-height: 1.35;
 }
 
+.report-room-reference {
+  margin: 13px 0 0 27px;
+  padding: 11px 12px;
+  border: 1px solid #9fb79f;
+  border-left: 4px solid #42644a;
+  background: #fff;
+}
+
+.report-room-reference > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1f3824;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.report-room-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.report-room-reference-grid span,
+.report-room-reference-block {
+  padding: 8px;
+  border: 1px solid #d3dfd2;
+  background: #f6faf6;
+  color: #1f3824;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.report-room-reference small {
+  display: block;
+  margin-bottom: 4px;
+  color: #5b765f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.report-room-reference-block + .report-room-reference-block {
+  margin-top: 8px;
+}
+
+.report-room-reference-block p {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .report-checkbox {
   display: inline-block;
   width: 18px;

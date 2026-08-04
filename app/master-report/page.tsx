@@ -6,7 +6,7 @@ import { printReport, saveReportPdf } from "../print-mode";
 import { readSuiteEventBundle } from "../event-bundle";
 import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
-import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY } from "../suite-settings";
+import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY, type SuiteRoomSetting, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 
 type RoomAssignment = {
@@ -72,7 +72,8 @@ type ReportLayout = {
   objects: Array<LayoutObject & { name: string; width: number; height: number }>;
   entrances: LayoutEntrance[];
 };
-type ReportRoom = { name: string; details: string; checklist: string[]; layout?: ReportLayout };
+type ReportRoomReference = Pick<SuiteRoomSetting, "seats" | "squareFeet" | "features" | "rentalNotes" | "policyNotes">;
+type ReportRoom = { name: string; details: string; checklist: string[]; layout?: ReportLayout; reference?: ReportRoomReference };
 type ReportData = {
   event: EventoEventContext;
   tableEvent?: NonNullable<TableProject["events"]>[number];
@@ -103,6 +104,24 @@ function formatDate(value: string) {
     month: "long",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+function normalizedRoomName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/\b(meeting|main|space|room|the|lccc)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function findRoomReference(settings: SuiteSettings | null, value: string | undefined) {
+  const target = normalizedRoomName(value ?? "");
+  if (!settings?.rooms?.length || !target) return undefined;
+  return settings.rooms.find((room) => {
+    const roomName = normalizedRoomName(room.name);
+    return roomName === target || roomName.includes(target) || target.includes(roomName);
   });
 }
 
@@ -152,7 +171,7 @@ function buildReport(
   table: TableProject | null,
   food: FoodPlan | null,
   schedule: SchedulePlan | null,
-  settings: { reportIncludeCosts?: boolean; reportIncludeLayout?: boolean } | null,
+  settings: SuiteSettings | null,
 ): ReportData {
   const tableEvent = table?.events?.find((item) => item.id === event.id);
   const roomRows: ReportRoom[] = (tableEvent?.rooms ?? []).map((assignment) => {
@@ -185,11 +204,17 @@ function buildReport(
         assignment.notes || "No special room notes",
       ],
       layout: layoutPicture,
+      reference: findRoomReference(settings, room?.name),
     };
   });
   const rooms = roomRows.length
     ? roomRows
-    : [{ name: event.space || "Event space", details: "Room assignment has not been set in Tabletron.", checklist: ["Confirm room, access path, and setup time."] }];
+    : [{
+        name: event.space || "Event space",
+        details: "Room assignment has not been set in Tabletron.",
+        checklist: ["Confirm room, access path, and setup time."],
+        reference: findRoomReference(settings, event.space),
+      }];
   const furniture = (table?.templates ?? []).map((item) => `${item.name} · ${item.width} x ${item.height} FT`);
   const meal = food?.meals?.find((item) => item.tabletronEventId === event.id || item.name === event.title);
   const recipeNames = meal?.recipes.map((entry) => food.recipes?.find((recipe) => recipe.id === entry.recipeId)?.name ?? "Recipe") ?? [];
@@ -220,7 +245,7 @@ export default function MasterReportPage() {
       let table = readJson<TableProject>("tabletron-project-v2");
       let food = readJson<FoodPlan>("foodotron-plan-v1");
       let schedule = readJson<SchedulePlan>("eventotron-scheduluotron-v1");
-      let settings = readJson<{ reportIncludeCosts?: boolean; reportIncludeLayout?: boolean }>(SETTINGS_STORE_KEY);
+      let settings = readJson<SuiteSettings>(SETTINGS_STORE_KEY);
 
       if (eventId) {
         try {
@@ -315,6 +340,24 @@ export default function MasterReportPage() {
             <h3><span className="report-checkbox" />{room.name}</h3>
             <b>{room.details}</b>
             {room.checklist.map((item) => <p key={item}><span className="report-checkbox" />{item}</p>)}
+            {room.reference && (
+              <div className="report-room-reference">
+                <strong>Facility Reference</strong>
+                <div className="report-room-reference-grid">
+                  {room.reference.seats && <span><small>CAPACITY</small>{room.reference.seats}</span>}
+                  {room.reference.squareFeet && <span><small>AREA</small>{room.reference.squareFeet.toLocaleString()} SQ FT</span>}
+                </div>
+                {room.reference.features?.length ? (
+                  <div className="report-room-reference-block"><small>ROOM FEATURES</small><p>{room.reference.features.join(" · ")}</p></div>
+                ) : null}
+                {room.reference.rentalNotes?.length ? (
+                  <div className="report-room-reference-block"><small>RENTAL NOTES</small>{room.reference.rentalNotes.map((item) => <p key={item}>{item}</p>)}</div>
+                ) : null}
+                {room.reference.policyNotes?.length ? (
+                  <div className="report-room-reference-block"><small>POLICY NOTES</small>{room.reference.policyNotes.map((item) => <p key={item}>{item}</p>)}</div>
+                ) : null}
+              </div>
+            )}
             {report.includeLayout && room.layout && (
               <div className="report-layout-figure">
                 <div className="report-layout-figure-heading"><span>LAYOUT PICTURE</span><b>{room.layout.name}</b></div>
