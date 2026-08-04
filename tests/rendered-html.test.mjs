@@ -175,6 +175,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarRoute, /export async function DELETE/);
   assert.match(calendarRoute, /extractGoogleCalendarIds/);
   assert.match(calendarRoute, /googleCalendarFeedUrl/);
+  assert.match(calendarRoute, /function importSummaryForSource/);
+  assert.match(calendarRoute, /importHistory/);
   assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0005_event_audit_history"/);
   for (const table of ["eventAudit", "rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
@@ -210,6 +212,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Local event suite/);
   assert.match(settingsPage, /importGoogleCalendarLink/);
   assert.match(settingsPage, /Paste Google Calendar link/);
+  assert.match(settingsPage, /CalendarImportSummary/);
+  assert.match(settingsPage, /Recent imported events/);
+  assert.match(styles, /calendar-import-history/);
   assert.match(homePage, /operationsTemplateId/);
   assert.match(homePage, /applyOperationsTemplate/);
   assert.match(homePage, /operationsTemplatePatch/);

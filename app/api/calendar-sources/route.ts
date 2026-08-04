@@ -27,6 +27,28 @@ type ParsedCalendarEvent = {
   location: string;
 };
 
+type CalendarImportSummary = {
+  sourceId: string;
+  sourceName: string;
+  provider: CalendarProvider;
+  enabled: boolean;
+  color: string;
+  lastSynced: string | null;
+  lastError: string | null;
+  eventCount: number;
+  firstEventDate: string | null;
+  lastEventDate: string | null;
+  newestImportedAt: string | null;
+  recentEvents: Array<{
+    id: string;
+    title: string;
+    date: string;
+    eventTime: string;
+    location: string;
+    importedAt: string;
+  }>;
+};
+
 const providers = new Set<CalendarProvider>(["google", "outlook", "ical", "work"]);
 const maxRecurringOccurrences = 730;
 const defaultRecurringHorizonDays = 730;
@@ -300,6 +322,41 @@ function eventForClient(
   };
 }
 
+function importSummaryForSource(
+  source: CalendarSourceInput,
+  events: Array<typeof suiteCalendarEvents.$inferSelect>,
+): CalendarImportSummary {
+  const sourceEvents = events
+    .filter((event) => event.sourceId === source.id)
+    .sort((a, b) => {
+      const dateCompare = b.date.localeCompare(a.date);
+      return dateCompare || b.updatedAt.localeCompare(a.updatedAt);
+    });
+  const dates = sourceEvents.map((event) => event.date).filter(Boolean).sort();
+  const updatedDates = sourceEvents.map((event) => event.updatedAt).filter(Boolean).sort();
+  return {
+    sourceId: source.id,
+    sourceName: source.name,
+    provider: source.provider,
+    enabled: source.enabled,
+    color: source.color,
+    lastSynced: source.lastSynced ?? null,
+    lastError: source.lastError ?? null,
+    eventCount: sourceEvents.length,
+    firstEventDate: dates[0] ?? null,
+    lastEventDate: dates.at(-1) ?? null,
+    newestImportedAt: updatedDates.at(-1) ?? null,
+    recentEvents: sourceEvents.slice(0, 5).map((event) => ({
+      id: event.id,
+      title: event.title,
+      date: event.date,
+      eventTime: event.eventTime,
+      location: event.location,
+      importedAt: event.updatedAt,
+    })),
+  };
+}
+
 async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEvent[]) {
   const now = new Date().toISOString();
   const syncedSource: CalendarSourceInput = {
@@ -372,6 +429,7 @@ export async function GET() {
     const sourceById = new Map(sources.map((source) => [source.id, source]));
     return Response.json({
       sources,
+      importHistory: sources.map((source) => importSummaryForSource(source, eventRows)),
       events: eventRows.flatMap((event) => {
         const source = sourceById.get(event.sourceId);
         return source ? [eventForClient(event, source)] : [];

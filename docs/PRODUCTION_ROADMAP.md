@@ -60,8 +60,9 @@ Goal: make the database, users, and calendar sources dependable.
 - Add user identity and role rules for staff access.
 - Keep conflict-aware event revisions enabled so simultaneous staff edits cannot silently overwrite one another.
 - Review the durable event audit history during recovery drills; Settings now exposes the recent staff-facing activity view.
+- Review calendar import health from Settings; each source now shows last sync, errors, imported event count, date range, and recent imported events.
 - Add Google Calendar and Outlook OAuth connections.
-- Expand the current calendar-source labels into a full calendar import history view.
+- Expand the current calendar-source health view into account-based sync logs after OAuth is connected.
 
 Exit criteria:
 

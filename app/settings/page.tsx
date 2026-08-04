@@ -55,6 +55,28 @@ type BackupPreview = {
   counts: Record<string, number>;
 };
 
+type CalendarImportSummary = {
+  sourceId: string;
+  sourceName: string;
+  provider: CalendarProvider;
+  enabled: boolean;
+  color: string;
+  lastSynced: string | null;
+  lastError: string | null;
+  eventCount: number;
+  firstEventDate: string | null;
+  lastEventDate: string | null;
+  newestImportedAt: string | null;
+  recentEvents: Array<{
+    id: string;
+    title: string;
+    date: string;
+    eventTime: string;
+    location: string;
+    importedAt: string;
+  }>;
+};
+
 const launchReadiness = [
   {
     area: "Local event suite",
@@ -88,6 +110,16 @@ const launchReadiness = [
   },
 ];
 
+function readableDate(value: string | null) {
+  if (!value) return "Not available";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString();
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
@@ -96,6 +128,7 @@ export default function SettingsPage() {
   const [healthChecking, setHealthChecking] = useState(true);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [calendarImportUrl, setCalendarImportUrl] = useState("");
+  const [calendarImportHistory, setCalendarImportHistory] = useState<CalendarImportSummary[]>([]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
@@ -117,8 +150,12 @@ export default function SettingsPage() {
         }
         const calendarResponse = await fetch("/api/calendar-sources", { cache: "no-store" });
         if (calendarResponse.ok) {
-          const calendarData = await calendarResponse.json() as { sources?: SuiteSettings["calendarSources"] };
+          const calendarData = await calendarResponse.json() as {
+            sources?: SuiteSettings["calendarSources"];
+            importHistory?: CalendarImportSummary[];
+          };
           if (calendarData.sources?.length) restored = { ...restored, calendarSources: calendarData.sources };
+          setCalendarImportHistory(calendarData.importHistory ?? []);
         }
       } catch {}
       setSettings(restored);
@@ -312,6 +349,7 @@ export default function SettingsPage() {
         lastError: "",
         eventCount: result.events?.length ?? 0,
       });
+      await loadCalendarImportHistory();
       setStatus(`CALENDAR ${result.events?.length ?? 0} EVENTS`);
     } catch (error) {
       updateCalendarSource(source.id, { lastError: error instanceof Error ? error.message : "Calendar sync failed" });
@@ -319,6 +357,19 @@ export default function SettingsPage() {
     } finally {
       setCalendarSyncing((current) => ({ ...current, [source.id]: false }));
     }
+  }
+
+  async function loadCalendarImportHistory() {
+    try {
+      const response = await fetch("/api/calendar-sources", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as {
+        sources?: SuiteSettings["calendarSources"];
+        importHistory?: CalendarImportSummary[];
+      };
+      if (data.sources?.length) update({ calendarSources: data.sources });
+      setCalendarImportHistory(data.importHistory ?? []);
+    } catch {}
   }
 
   function exportSettings() {
@@ -518,26 +569,48 @@ export default function SettingsPage() {
               </label>
               <button onClick={importGoogleCalendarLink}>IMPORT LINK</button>
             </div>
-            {settings.calendarSources.length ? settings.calendarSources.map((source) => (
-              <div className="calendar-source" key={source.id}>
-                <div className="calendar-source-topline">
-                  <span className="calendar-source-swatch" style={{ background: source.color }} />
-                  <input value={source.name} aria-label="Calendar name" onChange={(event) => updateCalendarSource(source.id, { name: event.target.value })} />
-                  <label className="settings-check compact-check"><input type="checkbox" checked={source.enabled} onChange={(event) => updateCalendarSource(source.id, { enabled: event.target.checked })} /><span>SHOW</span></label>
-                  <button onClick={() => removeCalendarSource(source.id)}>REMOVE</button>
+            {settings.calendarSources.length ? settings.calendarSources.map((source) => {
+              const history = calendarImportHistory.find((item) => item.sourceId === source.id);
+              return (
+                <div className="calendar-source" key={source.id}>
+                  <div className="calendar-source-topline">
+                    <span className="calendar-source-swatch" style={{ background: source.color }} />
+                    <input value={source.name} aria-label="Calendar name" onChange={(event) => updateCalendarSource(source.id, { name: event.target.value })} />
+                    <label className="settings-check compact-check"><input type="checkbox" checked={source.enabled} onChange={(event) => updateCalendarSource(source.id, { enabled: event.target.checked })} /><span>SHOW</span></label>
+                    <button onClick={() => removeCalendarSource(source.id)}>REMOVE</button>
+                  </div>
+                  <div className="settings-two-up">
+                    <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => updateCalendarSource(source.id, { provider: event.target.value as CalendarProvider })}>{Object.entries(calendarProviderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                    <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => updateCalendarSource(source.id, { color: event.target.value })} /></label>
+                  </div>
+                  <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
+                  <div className="calendar-source-footer">
+                    <span>{calendarProviderLabels[source.provider]}</span>
+                    <span>{source.lastError || (source.eventCount !== undefined ? `${source.eventCount} EVENTS` : source.url ? "READY TO SYNC" : "SETUP NEEDED")}</span>
+                    <button className="calendar-sync-button" disabled={Boolean(calendarSyncing[source.id])} onClick={() => void syncCalendarSource(source)}>{calendarSyncing[source.id] ? "SYNCING" : "SYNC NOW"}</button>
+                  </div>
+                  <div className="calendar-import-history">
+                    <div className="calendar-import-metrics">
+                      <div><small>LAST SYNC</small><b>{readableDate(history?.lastSynced ?? source.lastSynced ?? null)}</b></div>
+                      <div><small>IMPORTED</small><b>{history?.eventCount ?? source.eventCount ?? 0}</b></div>
+                      <div><small>DATE RANGE</small><b>{history?.firstEventDate && history.lastEventDate ? `${readableDate(history.firstEventDate)} - ${readableDate(history.lastEventDate)}` : "No synced events"}</b></div>
+                    </div>
+                    {history?.lastError ? <p className="calendar-import-error">{history.lastError}</p> : null}
+                    {history?.recentEvents.length ? (
+                      <div className="calendar-import-recent">
+                        <span>Recent imported events</span>
+                        {history.recentEvents.map((event) => (
+                          <div className="calendar-import-event" key={event.id}>
+                            <b>{event.title}</b>
+                            <small>{readableDate(event.date)}{event.eventTime ? ` // ${event.eventTime}` : ""}{event.location ? ` // ${event.location}` : ""}</small>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="calendar-import-empty">No imported events stored for this source yet.</div>}
+                  </div>
                 </div>
-                <div className="settings-two-up">
-                  <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => updateCalendarSource(source.id, { provider: event.target.value as CalendarProvider })}>{Object.entries(calendarProviderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-                  <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => updateCalendarSource(source.id, { color: event.target.value })} /></label>
-                </div>
-                <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
-                <div className="calendar-source-footer">
-                  <span>{calendarProviderLabels[source.provider]}</span>
-                  <span>{source.lastError || (source.eventCount !== undefined ? `${source.eventCount} EVENTS` : source.url ? "READY TO SYNC" : "SETUP NEEDED")}</span>
-                  <button className="calendar-sync-button" disabled={Boolean(calendarSyncing[source.id])} onClick={() => void syncCalendarSource(source)}>{calendarSyncing[source.id] ? "SYNCING" : "SYNC NOW"}</button>
-                </div>
-              </div>
-            )) : <div className="settings-empty">No external calendars connected yet.</div>}
+              );
+            }) : <div className="settings-empty">No external calendars connected yet.</div>}
           </section>
 
           <section className="settings-card">
