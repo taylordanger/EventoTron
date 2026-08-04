@@ -161,10 +161,15 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(styles, /eventotron-printing/);
   assert.match(printMode, /classList\.add\("eventotron-printing"\)/);
   assert.match(printMode, /window\.print\(\)/);
+  assert.match(printMode, /export function saveReportPdf/);
   assert.match(masterReport, /onClick=\{printReport\}/);
   assert.match(foodotron, /onClick=\{printReport\}/);
   assert.match(tabletron, /printing-report/);
   assert.match(scheduluotron, /onClick=\{printReport\}/);
+  for (const reportSource of [masterReport, foodotron, tabletron, scheduluotron]) {
+    assert.match(reportSource, /saveReportPdf/);
+    assert.match(reportSource, /SAVE PDF/);
+  }
 });
 
 test("print report contracts keep report previews and print mode aligned", async () => {
@@ -180,9 +185,11 @@ test("print report contracts keep report previews and print mode aligned", async
   assert.match(printMode, /eventotron-printing/);
   assert.match(printMode, /window\.setTimeout\(\(\) => \{/);
   assert.match(printMode, /classList\.remove\("eventotron-printing"\)/);
+  assert.match(printMode, /saveReportPdf\(\) \{\n  printReport\(\);/);
 
   for (const source of [masterReport, foodotron, tabletron, scheduluotron]) {
     assert.match(source, /printReport/);
+    assert.match(source, /saveReportPdf/);
     assert.match(source, /SHEPPARD SEMICONDUCTOR SYSTEMS/);
   }
 

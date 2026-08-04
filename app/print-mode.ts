@@ -7,3 +7,7 @@ export function printReport() {
     window.setTimeout(() => document.documentElement.classList.remove("eventotron-printing"), 500);
   }, 80);
 }
+
+export function saveReportPdf() {
+  printReport();
+}

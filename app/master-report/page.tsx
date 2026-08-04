@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { printReport } from "../print-mode";
+import { printReport, saveReportPdf } from "../print-mode";
 import { readSuiteEventBundle } from "../event-bundle";
 import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
@@ -283,6 +283,7 @@ export default function MasterReportPage() {
       </header>
       <div className="master-report-actions">
         <button className="report-print-button" onClick={printReport}>PRINT MASTER REPORT</button>
+        <button className="report-pdf-button" onClick={saveReportPdf}>SAVE PDF</button>
         <Link href={`/?event=${encodeURIComponent(event.id)}`}>BACK TO EVENT</Link>
       </div>
 

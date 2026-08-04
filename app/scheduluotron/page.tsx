@@ -3,7 +3,7 @@
 import { SuiteChrome } from "../SuiteChrome";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
-import { printReport } from "../print-mode";
+import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings } from "../suite-settings";
 import { useEffect, useMemo, useState } from "react";
 
@@ -342,6 +342,9 @@ export default function Scheduluotron() {
         <button onClick={exportSchedule}>EXPORT</button>
         <button className="primary" onClick={printReport}>
           PRINT DAY SHEET
+        </button>
+        <button onClick={saveReportPdf}>
+          SAVE PDF
         </button>
       </header>
 

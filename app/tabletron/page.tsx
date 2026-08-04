@@ -3,7 +3,7 @@
 import { SuiteChrome } from "../SuiteChrome";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
-import { printReport } from "../print-mode";
+import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -2416,6 +2416,9 @@ export default function Home() {
             </footer>
             <div className="ops-report-actions">
               <button onClick={() => setOpsReport(false)}>CLOSE</button>
+              <button onClick={saveReportPdf}>
+                SAVE PDF
+              </button>
               <button className="primary" onClick={printReport}>
                 PRINT REPORT
               </button>
