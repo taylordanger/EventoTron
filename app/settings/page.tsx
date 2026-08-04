@@ -8,6 +8,7 @@ import {
   defaultSuiteSettings,
   mergeSuiteSettings,
   type CalendarProvider,
+  type OperationsTemplate,
   type SuiteSettings,
 } from "../suite-settings";
 
@@ -151,6 +152,33 @@ export default function SettingsPage() {
   function removeCalendarSource(id: string) {
     update({ calendarSources: settings.calendarSources.filter((source) => source.id !== id) });
     void fetch(`/api/calendar-sources?sourceId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
+  }
+
+  function addOperationsTemplate() {
+    update({
+      operationsTemplates: [
+        ...settings.operationsTemplates,
+        {
+          id: `template_${uid()}`,
+          name: "New operations template",
+          category: "event",
+          summary: "Reusable event operations checklist.",
+          checklist: ["Add the first checklist item."],
+        },
+      ],
+    });
+  }
+
+  function updateOperationsTemplate(id: string, patch: Partial<OperationsTemplate>) {
+    update({
+      operationsTemplates: settings.operationsTemplates.map((template) =>
+        template.id === id ? { ...template, ...patch } : template,
+      ),
+    });
+  }
+
+  function removeOperationsTemplate(id: string) {
+    update({ operationsTemplates: settings.operationsTemplates.filter((template) => template.id !== id) });
   }
 
   async function syncCalendarSource(source: SuiteSettings["calendarSources"][number]) {
@@ -350,8 +378,33 @@ export default function SettingsPage() {
             <label className="settings-check"><input type="checkbox" checked={settings.reportIncludeLayout} onChange={(event) => update({ reportIncludeLayout: event.target.checked })} /><span>Include Tabletron layout picture</span></label>
           </section>
 
+          <section className="settings-card settings-operations-card">
+            <div className="settings-card-heading"><span>06</span><h3>Operations Library</h3><button onClick={addOperationsTemplate}>+ ADD TEMPLATE</button></div>
+            <p className="settings-note">Reusable binder material for recurring event types, room setups, food service, MOD checklists, maintenance ticklers, contracts, and volunteer workflows.</p>
+            <div className="operations-template-list">
+              {settings.operationsTemplates.map((template) => (
+                <article className="operations-template" key={template.id}>
+                  <div className="operations-template-topline">
+                    <input aria-label="Template name" value={template.name} onChange={(event) => updateOperationsTemplate(template.id, { name: event.target.value })} />
+                    <select aria-label="Template category" value={template.category} onChange={(event) => updateOperationsTemplate(template.id, { category: event.target.value as OperationsTemplate["category"] })}>
+                      <option value="event">Event</option>
+                      <option value="food">Food</option>
+                      <option value="room">Room</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="volunteer">Volunteer</option>
+                      <option value="contract">Contract</option>
+                    </select>
+                    <button onClick={() => removeOperationsTemplate(template.id)}>REMOVE</button>
+                  </div>
+                  <label className="settings-field wide"><span>Summary</span><input value={template.summary} onChange={(event) => updateOperationsTemplate(template.id, { summary: event.target.value })} /></label>
+                  <label className="settings-field wide"><span>Checklist items</span><textarea value={template.checklist.join("\n")} onChange={(event) => updateOperationsTemplate(template.id, { checklist: event.target.value.split(/\n+/).map((item) => item.trim()).filter(Boolean) })} /></label>
+                </article>
+              ))}
+            </div>
+          </section>
+
           <section className="settings-card settings-health-card">
-            <div className="settings-card-heading"><span>06</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
+            <div className="settings-card-heading"><span>07</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
             <div className={`health-banner health-${health?.status ?? "checking"}`}>
               <small>EVENTOTRON READINESS</small>
               <b>{healthChecking ? "CHECKING" : health?.status === "ready" ? "READY" : "ATTENTION REQUIRED"}</b>

@@ -2307,6 +2307,10 @@
   grid-column: 1 / -1;
 }
 
+.settings-operations-card {
+  grid-column: 1 / -1;
+}
+
 .health-banner {
   display: flex;
   align-items: center;
@@ -2584,6 +2588,52 @@
   line-height: 1.4;
 }
 
+.operations-template-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.operations-template {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #315b34;
+  background: #071009;
+}
+
+.operations-template-topline {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, .45fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.operations-template-topline input,
+.operations-template-topline select {
+  min-width: 0;
+  border: 1px solid #315b34;
+  background: #020804;
+  color: #e0f6db;
+  padding: 8px;
+  outline: 0;
+  font-size: 11px;
+}
+
+.operations-template-topline button {
+  border: 0;
+  background: transparent;
+  color: #ff7b6d;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.operations-template textarea {
+  min-height: 104px;
+}
+
 .settings-footer {
   border-top: 1px solid var(--line);
   border-bottom: 0;
@@ -2616,6 +2666,14 @@
 
   .settings-calendar-card {
     grid-row: auto;
+  }
+
+  .operations-template-list {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-template-topline {
+    grid-template-columns: 1fr;
   }
 
   .settings-two-up {
