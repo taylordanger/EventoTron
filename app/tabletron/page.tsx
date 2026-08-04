@@ -5,6 +5,7 @@ import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
+import { formatRegularTime } from "../time-format";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TableItem = { id: string; x: number; y: number };
@@ -2248,7 +2249,7 @@ export default function Home() {
               <div className="timeline">
                 {eventTimeline.map((entry, i) => (
                   <div key={`${entry.room}-${entry.time}-${i}`}>
-                    <b>{entry.time}</b>
+                    <b>{formatRegularTime(entry.time)}</b>
                     <span>{entry.label}</span>
                     <small>{entry.room}</small>
                   </div>
@@ -2296,17 +2297,17 @@ export default function Home() {
                         </div>
                         <div>
                           <dt>Setup</dt>
-                          <dd>{assignment.setupTime}</dd>
+                          <dd>{formatRegularTime(assignment.setupTime)}</dd>
                         </div>
                         <div>
                           <dt>Guests</dt>
                           <dd>
-                            {assignment.guestTime}–{assignment.endTime}
+                            {formatRegularTime(assignment.guestTime)} - {formatRegularTime(assignment.endTime)}
                           </dd>
                         </div>
                         <div>
                           <dt>Teardown done</dt>
-                          <dd>{assignment.teardownTime}</dd>
+                          <dd>{formatRegularTime(assignment.teardownTime)}</dd>
                         </div>
                       </dl>
                       <ReportLayoutMap

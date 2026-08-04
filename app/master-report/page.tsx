@@ -7,6 +7,7 @@ import { readSuiteEventBundle } from "../event-bundle";
 import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY } from "../suite-settings";
+import { formatRegularTime } from "../time-format";
 
 type RoomAssignment = {
   roomId: string;
@@ -294,8 +295,8 @@ export default function MasterReportPage() {
           <div><small>PHONE</small><b>{event.phone || "Not entered"}</b></div>
           <div><small>EMAIL</small><b>{event.email || "Not entered"}</b></div>
           <div><small>EVENT MANAGER</small><b>{event.manager || "Not assigned"}</b></div>
-          <div><small>EVENT TIME</small><b>{event.eventTime || "Not entered"}</b></div>
-          <div><small>RENTAL TIME</small><b>{event.rentalTime || "Not entered"}</b></div>
+          <div><small>EVENT TIME</small><b>{formatRegularTime(event.eventTime) || "Not entered"}</b></div>
+          <div><small>RENTAL TIME</small><b>{formatRegularTime(event.rentalTime) || "Not entered"}</b></div>
           <div><small>EXPECTED ATTENDEES</small><b>{event.attendees || 0}</b></div>
           <div><small>EVENT TYPE</small><b>{event.kind}</b></div>
         </div>
@@ -364,14 +365,14 @@ export default function MasterReportPage() {
           <div className="report-timeline">
             {report.schedule.map((block) => (
               <div className="report-timeline-row" key={`${block.start}-${block.title}`}>
-                <strong>{block.start}<br />{block.end}</strong>
+                <strong>{formatRegularTime(block.start)}<br />{formatRegularTime(block.end)}</strong>
                 <div><h3>{block.title}</h3><p>{block.owner || "Unassigned"} · {block.location || "Location not set"}</p>{block.notes && <small>{block.notes}</small>}</div>
                 <span className="report-status">{block.done ? "DONE" : "OPEN"}</span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="report-callout">Scheduluotron has not been filled out for this event yet. Event time: <b>{event.eventTime || "Not entered"}</b></div>
+          <div className="report-callout">Scheduluotron has not been filled out for this event yet. Event time: <b>{formatRegularTime(event.eventTime) || "Not entered"}</b></div>
         )}
       </section>
 

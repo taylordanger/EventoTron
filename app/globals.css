@@ -395,21 +395,54 @@
 .vertical-file {
   width: 100%;
   min-height: 64px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  justify-content: flex-start;
+  position: relative;
   margin-bottom: 7px;
-  padding: 9px 10px;
   border: 1px solid #305b34;
   border-left-width: 5px;
   background: #050d07;
   color: #d6f4cf;
+}
+
+.vertical-file-open {
+  width: 100%;
+  min-height: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: flex-start;
+  padding: 9px 31px 9px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.vertical-file small {
+.vertical-file-close {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 21px;
+  height: 21px;
+  border: 1px solid #315b34;
+  background: #08120a;
+  color: #9fca99;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vertical-file-close:hover {
+  border-color: var(--p);
+  color: var(--p);
+  background: #102113;
+}
+
+.vertical-file small,
+.vertical-file span {
   color: #71936c;
   font-size: 8px;
 }

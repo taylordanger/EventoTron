@@ -5,6 +5,7 @@ import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings } from "../suite-settings";
+import { formatRegularTime } from "../time-format";
 import { useEffect, useMemo, useState } from "react";
 
 type BlockKind =
@@ -429,7 +430,7 @@ export default function Scheduluotron() {
                 const minutes = dayStart + index * 60;
                 return (
                   <span key={minutes} style={{ left: `${((minutes - dayStart) / span) * 100}%` }}>
-                    {toClock(minutes)}
+                    {formatRegularTime(toClock(minutes))}
                   </span>
                 );
               })}
@@ -449,7 +450,7 @@ export default function Scheduluotron() {
                     }}
                   >
                     <small>
-                      {block.start} - {block.end}
+                      {formatRegularTime(block.start)} - {formatRegularTime(block.end)}
                     </small>
                     <b>{block.title}</b>
                     <span>{block.owner || "Unassigned"}</span>
@@ -465,7 +466,7 @@ export default function Scheduluotron() {
                 key={block.id}
                 onClick={() => setPlan((p) => ({ ...p, activeId: block.id }))}
               >
-                <i>{block.start}</i>
+                <i>{formatRegularTime(block.start)}</i>
                 <span>
                   <b>{block.title}</b>
                   <small>
@@ -605,7 +606,7 @@ export default function Scheduluotron() {
           <div className="sched-print-heading"><span>02</span><h2>Run of Show</h2></div>
           {blocks.map((block) => (
             <div className={`sched-print-row ${block.done ? "done" : ""} ${conflicts.has(block.id) ? "conflict" : ""}`} key={block.id}>
-              <strong>{block.start}<br />{block.end}</strong>
+              <strong>{formatRegularTime(block.start)}<br />{formatRegularTime(block.end)}</strong>
               <div><h3>{block.title}</h3><p>{kinds.find((kind) => kind.id === block.kind)?.label || "Block"} · {block.owner || "Unassigned"} · {block.location || "Location not set"}</p>{block.notes && <small>{block.notes}</small>}</div>
               <span>{block.done ? "DONE" : conflicts.has(block.id) ? "CONFLICT" : "OPEN"}</span>
             </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
+import { formatRegularTime } from "./time-format";
 import {
   defaultSuiteSettings,
   extractGoogleCalendarIds,
@@ -465,6 +466,14 @@ export default function Home() {
     setOpenIds((ids) => [event.id, ...ids.filter((id) => id !== event.id)].slice(0, 8));
   }
 
+  function closeEventFile(id: string) {
+    setOpenIds((ids) => {
+      const nextIds = ids.filter((openId) => openId !== id);
+      if (selectedId === id) setSelectedId(nextIds[0] ?? "");
+      return nextIds;
+    });
+  }
+
   function updateSelected(patch: Partial<EventoEvent>) {
     if (!hasActiveEvent) return;
     setEvents((items) =>
@@ -654,14 +663,23 @@ export default function Home() {
             const event = events.find((item) => item.id === id);
             if (!event) return null;
             return (
-              <button
+              <div
                 className={`vertical-file ${event.id === selected.id ? "active" : ""} ${event.kind}`}
                 key={event.id}
-                onClick={() => openEvent(event)}
               >
-                <small>{event.date.slice(5)}</small>
-                <b>{event.title}</b>
-              </button>
+                <button className="vertical-file-open" onClick={() => openEvent(event)}>
+                  <small>{event.date.slice(5)}</small>
+                  <b>{event.title}</b>
+                  <span>{formatRegularTime(event.eventTime)}</span>
+                </button>
+                <button
+                  className="vertical-file-close"
+                  aria-label={`Close ${event.title}`}
+                  onClick={() => closeEventFile(event.id)}
+                >
+                  ×
+                </button>
+              </div>
             );
           })}
           <button className="active-event-tab" onClick={() => setInfoExpanded(false)}>
@@ -669,7 +687,7 @@ export default function Home() {
             {hasActiveEvent ? (
               <>
                 <strong>{selected.title}</strong>
-                <span>{selected.date} · {selected.eventTime}</span>
+                <span>{selected.date} · {formatRegularTime(selected.eventTime)}</span>
                 <span>{selected.space}</span>
                 <em>THIS EVENT FOLLOWS YOU THROUGH THE SUITE TABS</em>
               </>
@@ -765,7 +783,7 @@ export default function Home() {
                             title={imported ? `${event.sourceName}${event.location ? ` · ${event.location}` : ""}` : undefined}
                           >
                             <b>{event.title}</b>
-                            <small>{event.eventTime}</small>
+                            <small>{formatRegularTime(event.eventTime)}</small>
                           </button>
                         );
                       })}
@@ -798,7 +816,7 @@ export default function Home() {
             <div className="sheet-preview">
               <div className="sheet-preview-grid">
                 <div><small>DATE</small><b>{selected.date || "Not set"}</b></div>
-                <div><small>EVENT TIME</small><b>{selected.eventTime || "Not set"}</b></div>
+                <div><small>EVENT TIME</small><b>{formatRegularTime(selected.eventTime) || "Not set"}</b></div>
                 <div><small>SPACE</small><b>{selected.space || "Not assigned"}</b></div>
                 <div><small>ATTENDEES</small><b>{selected.attendees || 0}</b></div>
                 <div><small>CONTACT</small><b>{selected.contact || "Not entered"}</b></div>
