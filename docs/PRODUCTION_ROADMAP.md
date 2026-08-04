@@ -24,7 +24,7 @@ It is about 60 percent ready for a broader production rollout with multiple user
 
 Goal: use EventoTron locally for real planning while keeping paper as backup.
 
-- Confirm `Settings > Export Workspace` creates a readable backup.
+- Confirm `Settings > Export Workspace` creates a readable backup, then use the review-first restore screen to inspect it without immediately changing the workspace.
 - Plan one upcoming event using Calendar, Tabletron, Foodotron, and Scheduluotron.
 - Open one synced calendar entry as an editable event file and confirm its source label is retained.
 - Confirm the operations ticker changes between `LIVE NOW`, `TODAY`, and `NEXT UP` at the expected venue times.
@@ -41,7 +41,7 @@ Exit criteria:
 
 Goal: turn the binder material into reusable event-starting templates.
 
-- Let new events choose an operations template.
+- Let new events choose an operations template. Complete: template selections now seed the event type, planning notes, and requested-item handoff.
 - Use template checklist items to seed Scheduluotron tasks.
 - Use room/setup template items to seed Tabletron rooms and furniture.
 - Use food/hospitality template items to seed Foodotron meal notes and shopping needs.

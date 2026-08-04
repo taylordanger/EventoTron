@@ -47,6 +47,14 @@ type ActivityEntry = {
   payload?: { title?: string; date?: string };
 };
 
+type BackupPreview = {
+  format: string;
+  version: number;
+  exportedAt: string;
+  source: string;
+  counts: Record<string, number>;
+};
+
 const launchReadiness = [
   {
     area: "Local event suite",
@@ -55,8 +63,8 @@ const launchReadiness = [
   },
   {
     area: "Daily operations data",
-    status: "IN PROGRESS",
-    detail: "The operations library has starter templates from the binder material, but templates still need to populate new events automatically.",
+    status: "PILOT READY",
+    detail: "New event files can start from the operations library, carrying its planning notes, requested items, and event type into the shared workspace.",
   },
   {
     area: "Reports",
@@ -90,6 +98,9 @@ export default function SettingsPage() {
   const [calendarImportUrl, setCalendarImportUrl] = useState("");
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
+  const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null);
+  const [restoreInProgress, setRestoreInProgress] = useState(false);
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
 
@@ -358,39 +369,88 @@ export default function SettingsPage() {
     }
   }
 
-  async function importWorkspaceBackup(file?: File) {
+  async function reviewWorkspaceBackup(file?: File) {
     if (!file) return;
-    setStatus("RESTORING");
+    setStatus("CHECKING BACKUP");
     try {
-      const backup = JSON.parse(await file.text()) as {
+      const backup = JSON.parse(await file.text()) as Record<string, unknown> & {
         format?: string;
         localStorage?: Record<string, string | SuiteSettings | null>;
       };
       if (backup.format === "eventotron-local-browser-backup" && backup.localStorage) {
-        if (backup.localStorage.settings) {
-          const restored = mergeSuiteSettings(backup.localStorage.settings as Partial<SuiteSettings>);
-          localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(restored));
-          setSettings(restored);
-        }
-        if (typeof backup.localStorage.events === "string") localStorage.setItem("eventotron-events-v1", backup.localStorage.events);
-        if (typeof backup.localStorage.tabletron === "string") localStorage.setItem("tabletron-project-v2", backup.localStorage.tabletron);
-        if (typeof backup.localStorage.foodotron === "string") localStorage.setItem("foodotron-plan-v1", backup.localStorage.foodotron);
-        if (typeof backup.localStorage.scheduluotron === "string") localStorage.setItem("eventotron-scheduluotron-v1", backup.localStorage.scheduluotron);
-        setStatus("LOCAL RESTORED");
+        setPendingBackup(backup);
+        setBackupPreview({
+          format: backup.format,
+          version: Number(backup.version) || 1,
+          exportedAt: typeof backup.exportedAt === "string" ? backup.exportedAt : "Unknown date",
+          source: "browser storage",
+          counts: Object.fromEntries(Object.entries(backup.localStorage).map(([key, value]) => [key, value ? 1 : 0])),
+        });
+        setStatus("BACKUP REVIEW READY");
         return;
       }
-      const response = await fetch("/api/workspace-backup", {
+      const response = await fetch("/api/workspace-backup?mode=validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(backup),
       });
-      if (!response.ok) throw new Error("Workspace restore failed");
-      const result = await response.json() as { counts?: { events?: number } };
-      setStatus(`RESTORED ${result.counts?.events ?? 0} EVENTS`);
+      if (!response.ok) throw new Error("Workspace backup is not recognized");
+      const result = await response.json() as BackupPreview;
+      setPendingBackup(backup);
+      setBackupPreview(result);
+      setStatus("BACKUP REVIEW READY");
+    } catch {
+      setPendingBackup(null);
+      setBackupPreview(null);
+      setStatus("BACKUP NOT RECOGNIZED");
+    } finally {
+      if (backupInput.current) backupInput.current.value = "";
+    }
+  }
+
+  function closeBackupReview() {
+    if (restoreInProgress) return;
+    setPendingBackup(null);
+    setBackupPreview(null);
+    setStatus("RESTORE CANCELLED");
+  }
+
+  async function restoreReviewedBackup() {
+    if (!pendingBackup || !backupPreview) return;
+    setRestoreInProgress(true);
+    setStatus("RESTORING");
+    try {
+      if (pendingBackup.format === "eventotron-local-browser-backup") {
+        const localStorageBackup = pendingBackup.localStorage as Record<string, string | SuiteSettings | null> | undefined;
+        if (!localStorageBackup) throw new Error("Local backup is incomplete");
+        if (localStorageBackup.settings) {
+          const restored = mergeSuiteSettings(localStorageBackup.settings as Partial<SuiteSettings>);
+          localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(restored));
+          setSettings(restored);
+        }
+        if (typeof localStorageBackup.events === "string") localStorage.setItem("eventotron-events-v1", localStorageBackup.events);
+        if (typeof localStorageBackup.tabletron === "string") localStorage.setItem("tabletron-project-v2", localStorageBackup.tabletron);
+        if (typeof localStorageBackup.foodotron === "string") localStorage.setItem("foodotron-plan-v1", localStorageBackup.foodotron);
+        if (typeof localStorageBackup.scheduluotron === "string") localStorage.setItem("eventotron-scheduluotron-v1", localStorageBackup.scheduluotron);
+        setStatus("LOCAL RESTORED");
+      } else {
+        const response = await fetch("/api/workspace-backup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pendingBackup),
+        });
+        if (!response.ok) throw new Error("Workspace restore failed");
+        const result = await response.json() as { counts?: { events?: number } };
+        setStatus(`RESTORED ${result.counts?.events ?? 0} EVENTS`);
+      }
+      setPendingBackup(null);
+      setBackupPreview(null);
+      void checkHealth();
+      void loadActivity();
     } catch {
       setStatus("RESTORE FAILED");
     } finally {
-      if (backupInput.current) backupInput.current.value = "";
+      setRestoreInProgress(false);
     }
   }
 
@@ -407,7 +467,7 @@ export default function SettingsPage() {
           <button className="save-state" disabled>{status}</button>
           <button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button>
           <button onClick={() => backupInput.current?.click()}>RESTORE</button>
-          <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Restore EventoTron workspace backup" onChange={(event) => void importWorkspaceBackup(event.target.files?.[0])} />
+          <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Review EventoTron workspace backup before restoring" onChange={(event) => void reviewWorkspaceBackup(event.target.files?.[0])} />
           <button onClick={exportSettings}>EXPORT</button>
           <button className="primary" onClick={() => update(defaultSuiteSettings)}>RESET DEFAULTS</button>
         </header>
@@ -560,6 +620,31 @@ export default function SettingsPage() {
           </section>
         </section>
       </main>
+      {backupPreview && <div className="backup-review-backdrop" role="presentation" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) closeBackupReview();
+      }}>
+        <section className="backup-review-panel" role="dialog" aria-modal="true" aria-labelledby="backup-review-title">
+          <header>
+            <div><small>RECOVERY CHECKPOINT</small><h2 id="backup-review-title">Review Workspace Backup</h2></div>
+            <button aria-label="Close backup review" onClick={closeBackupReview} disabled={restoreInProgress}>×</button>
+          </header>
+          <div className="backup-review-body">
+            <p>This restore will add or update the records in this backup. Review the source and counts before continuing.</p>
+            <div className="backup-review-summary">
+              <div><small>EXPORTED</small><b>{backupPreview.exportedAt === "Unknown date" ? backupPreview.exportedAt : new Date(backupPreview.exportedAt).toLocaleString()}</b></div>
+              <div><small>SOURCE</small><b>{backupPreview.source.toUpperCase()}</b></div>
+              <div><small>FORMAT</small><b>V{backupPreview.version}</b></div>
+            </div>
+            <div className="backup-review-counts">
+              {Object.entries(backupPreview.counts).filter(([, count]) => count > 0).map(([name, count]) => <div key={name}><small>{name.replace(/([A-Z])/g, " $1").toUpperCase()}</small><b>{count}</b></div>)}
+            </div>
+          </div>
+          <footer>
+            <button onClick={closeBackupReview} disabled={restoreInProgress}>CANCEL</button>
+            <button className="primary" onClick={() => void restoreReviewedBackup()} disabled={restoreInProgress}>{restoreInProgress ? "RESTORING" : "RESTORE REVIEWED BACKUP"}</button>
+          </footer>
+        </section>
+      </div>}
     </div>
   );
 }

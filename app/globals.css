@@ -2563,6 +2563,120 @@
   display: none;
 }
 
+.backup-review-backdrop {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: #000c;
+}
+
+.backup-review-panel {
+  width: min(680px, 100%);
+  border: 1px solid var(--p);
+  background: #030704;
+  color: #d6f4cf;
+  box-shadow: 0 0 0 5px #071009, 0 0 40px #43ff2938;
+}
+
+.backup-review-panel header,
+.backup-review-panel footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #061008;
+}
+
+.backup-review-panel footer {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.backup-review-panel small {
+  color: #82a77d;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.backup-review-panel h2 {
+  margin: 4px 0 0;
+  color: var(--pb);
+  font-size: 21px;
+}
+
+.backup-review-panel button {
+  border: 1px solid #315b34;
+  background: #071009;
+  color: var(--p);
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.backup-review-panel header > button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 21px;
+}
+
+.backup-review-panel button.primary {
+  border-color: var(--p);
+  background: var(--p);
+  color: #041004;
+}
+
+.backup-review-panel button:disabled { cursor: wait; opacity: .6; }
+
+.backup-review-body { padding: 16px; }
+
+.backup-review-body > p {
+  margin: 0 0 14px;
+  color: #9bb997;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.backup-review-summary,
+.backup-review-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.backup-review-counts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.backup-review-summary > div,
+.backup-review-counts > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 7px;
+  min-height: 58px;
+  padding: 9px;
+  border: 1px solid #1f4724;
+  background: #030805;
+}
+
+.backup-review-summary b,
+.backup-review-counts b {
+  overflow-wrap: anywhere;
+  color: #dfffd9;
+  font-size: 10px;
+}
+
 .settings-field textarea {
   min-height: 140px;
   resize: vertical;

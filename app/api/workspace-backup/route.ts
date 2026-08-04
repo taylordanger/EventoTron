@@ -88,6 +88,17 @@ function backupResponse(data: BackupData, source: string) {
   });
 }
 
+function backupPreview(backup: WorkspaceBackup) {
+  return {
+    valid: true,
+    format: backup.format,
+    version: backup.version,
+    exportedAt: backup.exportedAt,
+    source: backup.source ?? "unknown",
+    counts: backupCounts(backup.data),
+  };
+}
+
 function validateBackup(value: unknown): WorkspaceBackup | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const backup = value as Partial<WorkspaceBackup>;
@@ -311,6 +322,12 @@ export async function POST(request: Request) {
   const backup = validateBackup(await request.json().catch(() => null));
   if (!backup) {
     return Response.json({ error: "Workspace backup file is not recognized." }, { status: 400 });
+  }
+
+  if (new URL(request.url).searchParams.get("mode") === "validate") {
+    return Response.json(backupPreview(backup), {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 
   try {

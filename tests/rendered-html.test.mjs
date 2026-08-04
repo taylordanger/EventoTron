@@ -93,6 +93,22 @@ test("API routes reject incomplete writes before touching storage", async () => 
   }
 });
 
+test("workspace backups can be reviewed before restore without writing data", async () => {
+  const response = await jsonRequest("/api/workspace-backup?mode=validate", "POST", {
+    format: "eventotron-workspace-backup",
+    version: 2,
+    exportedAt: "2026-08-04T12:00:00.000Z",
+    source: "database",
+    data: { events: [], eventAudit: [], calendarEvents: [] },
+  });
+  assert.equal(response.status, 200);
+  const preview = await response.json();
+  assert.equal(preview.valid, true);
+  assert.equal(preview.counts.events, 0);
+  assert.equal(preview.counts.eventAudit, 0);
+  assert.equal(preview.counts.calendarEvents, 0);
+});
+
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
   const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
@@ -165,6 +181,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   }
   assert.match(backupRoute, /BACKUP_VERSION = 2/);
   assert.match(backupRoute, /validateBackup/);
+  assert.match(backupRoute, /searchParams\.get\("mode"\) === "validate"/);
+  assert.match(backupRoute, /function backupPreview/);
   for (const reportSource of [masterReport, foodotron, tabletron, scheduluotron]) {
     assert.match(reportSource, /SHEPPARD SEMICONDUCTOR SYSTEMS/);
   }
@@ -227,6 +245,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Event Activity/);
   assert.match(settingsPage, /\/api\/event-history\?limit=30/);
   assert.match(settingsPage, /AUDIT ENTRIES/);
+  assert.match(settingsPage, /Review Workspace Backup/);
+  assert.match(settingsPage, /workspace-backup\?mode=validate/);
+  assert.match(settingsPage, /RESTORE REVIEWED BACKUP/);
   assert.match(operationsTicker, /LIVE NOW/);
   assert.match(operationsTicker, /\/api\/events/);
   assert.match(operationsTicker, /\/api\/calendar-sources/);
@@ -243,6 +264,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(styles, /launch-readiness-list/);
   assert.match(styles, /new-event-template/);
   assert.match(styles, /calendar-import-box/);
+  assert.match(styles, /backup-review-panel/);
   assert.match(roadmap, /Phase 1: Local Pilot/);
   assert.match(roadmap, /Phase 4: Desktop App/);
   assert.match(roadmap, /80 percent ready for a local pilot/);
