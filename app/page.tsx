@@ -11,7 +11,7 @@ import {
   mergeSuiteSettings,
   type OperationsTemplate,
 } from "./suite-settings";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
@@ -165,30 +165,6 @@ const monthNames = [
 ];
 const monthShortNames = monthNames.map((month) => month.slice(0, 3).toUpperCase());
 
-const seedEvents: EventoEvent[] = [
-  eventSeed("staff-meeting", "Staff Meeting", "2026-08-04", "meeting", "10:00-11:30", "Conference", "Planning notes", "NA", "", 18),
-  eventSeed("rotary-aug-5", "Rotary", "2026-08-05", "meeting", "11:30", "Margaret's Room", "", "Jason", "", 35),
-  eventSeed("fiber-arts", "Fiber Arts Reception", "2026-08-07", "rental", "5:00-7:00 PM", "Gallery", "Gina's last day", "Day: Jason; Night: Krista with Nara", "", 60),
-  eventSeed("isaacs-wedding", "Isaac's Wedding", "2026-08-08", "rental", "11:00 AM-8:00 PM", "Margaret's Room", "", "Heather day and night", "", 120),
-  eventSeed("lcsm-aug-9", "LCSM", "2026-08-09", "rental", "10:00 AM-2:00 PM", "Auditorium", "", "Heather with Taylor", "", 90),
-  eventSeed("air-force", "Air Force Concert", "2026-08-10", "concert", "7:00 PM", "Auditorium", "", "Day: Serena; Night: Heather", "", 180),
-  eventSeed("piano-delivery", "Piano Delivery", "2026-08-11", "prep", "9:00 AM-1:00 PM", "Auditorium", "Tuning in afternoon", "Jason or Nara", "", 4),
-  eventSeed("rotary-sbmf", "Rotary / SBMF Rehearsal", "2026-08-12", "meeting", "11:30 / 9:00-5:00", "MMR / Auditorium", "Move Rotary to MMR", "Jason", "Serena fam med./remote", 55),
-  eventSeed("sbmf-reception", "SBMF Rehearsal + Reception", "2026-08-13", "concert", "9:00-5:00, 6:30 reception, 7:30-9:30 show", "Theatre seating", "", "Day Nara; Night Jason with Heather backup", "Serena fam med./remote", 160),
-  eventSeed("sbmf-rehearsals", "SBMF Rehearsals", "2026-08-14", "concert", "Daytime, 7:30-9:30 show", "Theatre seating", "", "Day Nara; Night Jason", "Serena fam med./remote", 140),
-  eventSeed("seating-change", "No SBMF events booked", "2026-08-15", "note", "All day", "Auditorium", "Need to change seating to Cabaret.", "Taylor", "Serena", 0),
-  eventSeed("tapas-tunes", "SBMF Tapas & Tunes", "2026-08-16", "concert", "4:30-7:30 meal and music", "Auditorium", "Associated sweep Auditorium PM. Tell Associated to reschedule cleaning to Monday morning?", "Day: Taylor; Night: Jason with Taylor's help", "Serena", 150),
-  eventSeed("art-camp-17", "Art Camp", "2026-08-17", "camp", "10:00-3:00", "Classrooms", "", "NA", "", 30),
-  eventSeed("art-camp-18", "Art Camp", "2026-08-18", "camp", "10:00-3:00", "Classrooms", "", "NA", "", 30),
-  eventSeed("rotary-art-board", "Rotary / Art Camp / Board Meeting", "2026-08-19", "meeting", "11:30 / 10:00-3:00 / 5:30-7:00", "MMR", "Auditorium setup for SBMF; MMR still setup for memorial service.", "Jason", "", 55),
-  eventSeed("jazz-concert", "Piano Tuning / Jazz Concert", "2026-08-20", "concert", "Rehearsal day, 7:30-9:30", "Auditorium", "", "Day: Nara; Night: Jason with Taylor", "", 150),
-  eventSeed("benefit-dinner", "Benefit Dinner and Concert Prep", "2026-08-21", "concert", "Drinks and Dinner 6PM, 7PM show", "Auditorium", "Art Camp 10-3.", "Day: Serena; Night: Jason with Taylor", "Nara", 200),
-  eventSeed("ocean-hates-you", "The Ocean Hates You", "2026-08-23", "concert", "7:00 PM", "Auditorium", "LCSM earlier in day.", "Day: Taylor; Night: Jason", "", 130),
-  eventSeed("art-camp-24", "Art Camp", "2026-08-24", "camp", "10:00-3:00", "Classrooms", "", "NA", "Nara", 30),
-  eventSeed("art-camp-25", "Art Camp", "2026-08-25", "camp", "10:00-3:00", "Classrooms", "", "NA", "Serena", 30),
-  eventSeed("rotary-art-26", "Rotary / Art Camp", "2026-08-26", "meeting", "11:30 / 10:00-3:00", "MMR / Classrooms", "", "Jason", "Serena", 55),
-];
-
 function eventSeed(
   id: string,
   title: string,
@@ -228,14 +204,36 @@ function eventSeed(
   };
 }
 
+const emptySelectedEvent: EventoEvent = {
+  id: "",
+  title: "No active event",
+  date: "",
+  kind: "note",
+  eventTime: "",
+  rentalTime: "",
+  space: "",
+  manager: "",
+  contact: "",
+  phone: "",
+  email: "",
+  attendees: 0,
+  description: "",
+  planningNotes: "",
+  mod: "",
+  vacation: "",
+  rentalTotal: 0,
+  cateringTotal: 0,
+  discountRate: 0,
+  deposit: 0,
+  paymentNotes: "",
+  quoteEnteredBy: "",
+  requestedItems: "",
+};
+
 export default function Home() {
-  const [events, setEvents] = useState<EventoEvent[]>(seedEvents);
-  const [selectedId, setSelectedId] = useState(seedEvents[1].id);
-  const [openIds, setOpenIds] = useState<string[]>([
-    seedEvents[1].id,
-    seedEvents[2].id,
-    seedEvents[15].id,
-  ]);
+  const [events, setEvents] = useState<EventoEvent[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [openIds, setOpenIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [calendarYear, setCalendarYear] = useState(2026);
   const [calendarMonth, setCalendarMonth] = useState(7);
@@ -250,12 +248,11 @@ export default function Home() {
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
-  const hadLocalEventsOnBoot = useRef(true);
-  const selected = events.find((event) => event.id === selectedId) ?? events[0];
+  const selected = events.find((event) => event.id === selectedId) ?? emptySelectedEvent;
+  const hasActiveEvent = Boolean(selected.id);
 
   useEffect(() => {
-    const raw = localStorage.getItem("eventotron-events-v1");
-    hadLocalEventsOnBoot.current = Boolean(raw);
+    const raw = localStorage.getItem(EVENT_STORE_KEY);
     const timer = window.setTimeout(() => {
       try {
         const restored = raw ? JSON.parse(raw) as {
@@ -280,17 +277,20 @@ export default function Home() {
         }
         setLoaded(true);
       } catch {}
-      setEventBackendChecked(Boolean(raw));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    if (!hadLocalEventsOnBoot.current && !eventBackendChecked) return;
+    if (!eventBackendChecked) return;
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
     localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
     if (settingsLoaded && !settings.autoSave) return;
+    if (!events.length) {
+      setEventSaveStatus("NO EVENT FILES");
+      return;
+    }
     const timer = window.setTimeout(() => {
       setEventSaveStatus("SAVING");
       fetch("/api/events", {
@@ -308,7 +308,7 @@ export default function Home() {
   }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded, settings.autoSave, settingsLoaded, eventBackendChecked]);
 
   useEffect(() => {
-    if (!loaded || hadLocalEventsOnBoot.current) return;
+    if (!loaded) return;
     const controller = new AbortController();
     fetch("/api/events", { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
@@ -318,20 +318,24 @@ export default function Home() {
         openIds?: string[];
         calendarYear?: number;
         calendarMonth?: number;
+        source?: string;
       } | null) => {
-        if (!restored?.events?.length) return;
-        const restoredEvents = restored.events.map((event) => ({
+        if (!restored || restored.source !== "database") return;
+        const restoredEvents = Array.isArray(restored.events) ? restored.events.map((event) => ({
           ...event,
           requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
-        }));
+        })) : [];
+        const nextSelectedId = restored.selectedId && restoredEvents.some((event) => event.id === restored.selectedId)
+          ? restored.selectedId
+          : restoredEvents[0]?.id ?? "";
         setEvents(restoredEvents);
-        setSelectedId(restored.selectedId ?? restoredEvents[0].id);
-        setOpenIds(restored.openIds?.length ? restored.openIds : [restoredEvents[0].id]);
-        const restoredSelected = restoredEvents.find((event) => event.id === (restored.selectedId ?? restoredEvents[0].id));
+        setSelectedId(nextSelectedId);
+        setOpenIds(restored.openIds?.filter((id) => restoredEvents.some((event) => event.id === id)) ?? (nextSelectedId ? [nextSelectedId] : []));
+        const restoredSelected = restoredEvents.find((event) => event.id === nextSelectedId);
         const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
         setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
         setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
-        setEventSaveStatus("DATABASE READY");
+        setEventSaveStatus(restoredEvents.length ? "DATABASE READY" : "NO EVENT FILES");
       })
       .catch(() => {})
       .finally(() => setEventBackendChecked(true));
@@ -432,6 +436,10 @@ export default function Home() {
   async function save() {
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
     localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
+    if (!events.length) {
+      setEventSaveStatus("NO EVENT FILES");
+      return;
+    }
     setEventSaveStatus("SAVING");
     try {
       const response = await fetch("/api/events", {
@@ -458,6 +466,7 @@ export default function Home() {
   }
 
   function updateSelected(patch: Partial<EventoEvent>) {
+    if (!hasActiveEvent) return;
     setEvents((items) =>
       items.map((event) => (event.id === selected.id ? { ...event, ...patch } : event)),
     );
@@ -615,7 +624,7 @@ export default function Home() {
   return (
     <main className="eventotron-desktop">
       <div className="eventotron-ribbon-row">
-        <SuiteChrome active="calendar" eventId={selected.id} />
+        <SuiteChrome active="calendar" eventId={hasActiveEvent ? selected.id : undefined} />
         <button onClick={() => void save()}>{eventSaveStatus}</button>
         <label className="new-event-template">
           <span>START FROM</span>
@@ -657,10 +666,20 @@ export default function Home() {
           })}
           <button className="active-event-tab" onClick={() => setInfoExpanded(false)}>
             <small>ACTIVE EVENT FILE</small>
-            <strong>{selected.title}</strong>
-            <span>{selected.date} · {selected.eventTime}</span>
-            <span>{selected.space}</span>
-            <em>THIS EVENT FOLLOWS YOU THROUGH THE SUITE TABS</em>
+            {hasActiveEvent ? (
+              <>
+                <strong>{selected.title}</strong>
+                <span>{selected.date} · {selected.eventTime}</span>
+                <span>{selected.space}</span>
+                <em>THIS EVENT FOLLOWS YOU THROUGH THE SUITE TABS</em>
+              </>
+            ) : (
+              <>
+                <strong>No active event</strong>
+                <span>Calendar feeds are still visible.</span>
+                <em>Click NEW EVENT when you want to create a suite event file.</em>
+              </>
+            )}
           </button>
         </aside>
 
@@ -765,7 +784,11 @@ export default function Home() {
               <b>{selected.title}</b>
             </div>
             <div className="sheet-actions">
-              <Link href={`/master-report?event=${encodeURIComponent(selected.id)}`}>MASTER REPORT</Link>
+              {hasActiveEvent ? (
+                <Link href={`/master-report?event=${encodeURIComponent(selected.id)}`}>MASTER REPORT</Link>
+              ) : (
+                <span className="disabled-report-link">MASTER REPORT</span>
+              )}
               <button onClick={() => setInfoExpanded((expanded) => !expanded)}>
                 {infoExpanded ? "COLLAPSE" : "EXPAND"}
               </button>

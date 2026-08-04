@@ -788,7 +788,8 @@
 }
 
 .sheet-actions a,
-.sheet-actions button {
+.sheet-actions button,
+.disabled-report-link {
   border: 1px solid #315b34;
   background: #071009;
   color: var(--p);
@@ -802,6 +803,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.disabled-report-link {
+  color: #6f966d;
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .sheet-actions a:hover,
