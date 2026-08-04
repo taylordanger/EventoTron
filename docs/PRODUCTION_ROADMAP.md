@@ -59,7 +59,7 @@ Goal: make the database, users, and calendar sources dependable.
 - Decide who owns backups and how often they are exported.
 - Add user identity and role rules for staff access.
 - Keep conflict-aware event revisions enabled so simultaneous staff edits cannot silently overwrite one another.
-- Review the durable event audit history during recovery drills and expose a staff-facing activity view.
+- Review the durable event audit history during recovery drills; Settings now exposes the recent staff-facing activity view.
 - Add Google Calendar and Outlook OAuth connections.
 - Expand the current calendar-source labels into a full calendar import history view.
 

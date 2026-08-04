@@ -2687,6 +2687,54 @@
   grid-column: 1 / -1;
 }
 
+.activity-list {
+  display: grid;
+  gap: 7px;
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: 150px minmax(180px, 1fr) minmax(160px, .6fr);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #1f4724;
+  border-left-width: 3px;
+  background: #030805;
+}
+
+.activity-row.created { border-left-color: var(--p); }
+.activity-row.updated { border-left-color: #50bdff; }
+.activity-row.deleted { border-left-color: #ff7b6d; }
+
+.activity-row > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.activity-row b {
+  overflow: hidden;
+  color: #dfffd9;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-action b { color: var(--p); }
+.activity-row.updated .activity-action b { color: #50bdff; }
+.activity-row.deleted .activity-action b { color: #ff9d9d; }
+
+.activity-row small {
+  overflow: hidden;
+  color: #7f9d7c;
+  font-size: 8px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settings-launch-card {
   grid-column: 1 / -1;
 }
@@ -2732,7 +2780,7 @@
 
 .health-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
   margin-top: 8px;
 }
@@ -3115,6 +3163,11 @@
 
   .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .activity-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .settings-calendar-card {

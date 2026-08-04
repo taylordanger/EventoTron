@@ -81,7 +81,6 @@ test("API routes reject incomplete writes before touching storage", async () => 
     ["/api/workspace-backup", "POST", { format: "eventotron-workspace-backup", version: 2, exportedAt: new Date().toISOString(), data: { events: [{ title: "Missing ID" }] } }, 400, /not recognized/i],
     ["/api/calendar-sources", "POST", { url: "calendar.example.test" }, 400, /must begin with http/i],
     ["/api/calendar-sources", "PUT", { source: { name: "Missing ID" } }, 400, /connection is incomplete/i],
-    ["/api/event-history", "GET", undefined, 400, /requires an event ID/i],
   ];
 
   for (const [path, method, body, status, message] of checks) {
@@ -212,6 +211,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(eventsRoute, /existing \? "updated" : "created"/);
   assert.match(eventsRoute, /"deleted"/);
   assert.match(eventHistoryRoute, /suiteEventAudit/);
+  assert.match(eventHistoryRoute, /eventId: eventId \|\| null/);
   assert.match(eventHistoryRoute, /Cache-Control/);
   assert.match(eventConcurrency, /mergeConcurrentEvent/);
   assert.match(eventConcurrency, /conflictFields/);
@@ -224,6 +224,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(homePage, /PLANNING EVENT FILE/);
   assert.match(scheduluotron, /PLANNING EVENT/);
   assert.match(tabletron, /PLANNING PROJECT/);
+  assert.match(settingsPage, /Event Activity/);
+  assert.match(settingsPage, /\/api\/event-history\?limit=30/);
+  assert.match(settingsPage, /AUDIT ENTRIES/);
   assert.match(operationsTicker, /LIVE NOW/);
   assert.match(operationsTicker, /\/api\/events/);
   assert.match(operationsTicker, /\/api\/calendar-sources/);

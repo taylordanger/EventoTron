@@ -26,6 +26,7 @@ type SystemHealth = {
   schema: { expected: string; current: string | null; applied: string[] };
   records: {
     events: number;
+    eventAudit: number;
     appletStates: number;
     foodotronMeals: number;
     tabletronEvents: number;
@@ -34,6 +35,16 @@ type SystemHealth = {
     calendarEvents: number;
     settings: number;
   } | null;
+};
+
+type ActivityEntry = {
+  id: string;
+  eventId: string;
+  action: "created" | "updated" | "deleted";
+  actor: string;
+  revision: string;
+  createdAt: string;
+  payload?: { title?: string; date?: string };
 };
 
 const launchReadiness = [
@@ -77,6 +88,8 @@ export default function SettingsPage() {
   const [healthChecking, setHealthChecking] = useState(true);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [calendarImportUrl, setCalendarImportUrl] = useState("");
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
 
@@ -105,6 +118,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => void checkHealth(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadActivity(), 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -155,6 +173,20 @@ export default function SettingsPage() {
       });
     } finally {
       setHealthChecking(false);
+    }
+  }
+
+  async function loadActivity() {
+    setActivityLoading(true);
+    try {
+      const response = await fetch("/api/event-history?limit=30", { cache: "no-store" });
+      if (!response.ok) throw new Error("Activity read failed");
+      const result = await response.json() as { entries?: ActivityEntry[] };
+      setActivity(Array.isArray(result.entries) ? result.entries : []);
+    } catch {
+      setActivity([]);
+    } finally {
+      setActivityLoading(false);
     }
   }
 
@@ -481,7 +513,21 @@ export default function SettingsPage() {
           </section>
 
           <section className="settings-card settings-health-card">
-            <div className="settings-card-heading"><span>07</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
+            <div className="settings-card-heading"><span>07</span><h3>Event Activity</h3><button onClick={() => void loadActivity()} disabled={activityLoading}>{activityLoading ? "LOADING" : "REFRESH ACTIVITY"}</button></div>
+            <p className="settings-note">Recent permanent event changes. Deleted files remain visible here so a handoff or recovery can be traced.</p>
+            {activity.length ? <div className="activity-list">
+              {activity.map((entry) => (
+                <article className={`activity-row ${entry.action}`} key={entry.id}>
+                  <div className="activity-action"><b>{entry.action.toUpperCase()}</b><small>{new Date(entry.createdAt).toLocaleString()}</small></div>
+                  <div className="activity-event"><b>{entry.payload?.title || entry.eventId}</b><small>{entry.payload?.date || entry.eventId}</small></div>
+                  <div className="activity-actor"><small>OPERATOR</small><b>{entry.actor || "Local operator"}</b></div>
+                </article>
+              ))}
+            </div> : <div className="settings-empty">{activityLoading ? "Loading recent event activity." : "No event changes have been recorded yet."}</div>}
+          </section>
+
+          <section className="settings-card settings-health-card">
+            <div className="settings-card-heading"><span>08</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
             <div className={`health-banner health-${health?.status ?? "checking"}`}>
               <small>EVENTOTRON READINESS</small>
               <b>{healthChecking ? "CHECKING" : health?.status === "ready" ? "READY" : "ATTENTION REQUIRED"}</b>
@@ -490,6 +536,7 @@ export default function SettingsPage() {
               <div><small>DATABASE</small><b>{health?.database?.toUpperCase() ?? "CHECKING"}</b></div>
               <div><small>SCHEMA</small><b>{health?.schema.current ?? "CHECKING"}</b></div>
               <div><small>EVENTS</small><b>{health?.records?.events ?? "—"}</b></div>
+              <div><small>AUDIT ENTRIES</small><b>{health?.records?.eventAudit ?? "—"}</b></div>
               <div><small>APPLET RECORDS</small><b>{health?.records ? health.records.appletStates + health.records.foodotronMeals + health.records.tabletronEvents + health.records.scheduleItems : "—"}</b></div>
               <div><small>TRANSFERS</small><b>{health?.records?.transfers ?? "—"}</b></div>
               <div><small>RESPONSE</small><b>{health ? `${health.latencyMs} MS` : "—"}</b></div>
@@ -498,7 +545,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="settings-card settings-launch-card">
-            <div className="settings-card-heading"><span>08</span><h3>Launch Readiness</h3></div>
+            <div className="settings-card-heading"><span>09</span><h3>Launch Readiness</h3></div>
             <div className="launch-readiness-list">
               {launchReadiness.map((item) => (
                 <article className="launch-readiness-item" key={item.area}>

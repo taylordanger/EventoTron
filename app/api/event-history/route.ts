@@ -10,9 +10,6 @@ function databaseUnavailable(error: unknown) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const eventId = url.searchParams.get("eventId")?.trim();
-  if (!eventId) {
-    return Response.json({ error: "Event history requires an event ID." }, { status: 400 });
-  }
   const requestedLimit = Number(url.searchParams.get("limit") ?? 50);
   const limit = Number.isFinite(requestedLimit)
     ? Math.max(1, Math.min(200, Math.trunc(requestedLimit)))
@@ -20,14 +17,20 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb();
-    const entries = await db
-      .select()
-      .from(suiteEventAudit)
-      .where(eq(suiteEventAudit.eventId, eventId))
-      .orderBy(desc(suiteEventAudit.createdAt))
-      .limit(limit);
+    const entries = eventId
+      ? await db
+        .select()
+        .from(suiteEventAudit)
+        .where(eq(suiteEventAudit.eventId, eventId))
+        .orderBy(desc(suiteEventAudit.createdAt))
+        .limit(limit)
+      : await db
+        .select()
+        .from(suiteEventAudit)
+        .orderBy(desc(suiteEventAudit.createdAt))
+        .limit(limit);
     return Response.json(
-      { eventId, entries, source: "database" },
+      { eventId: eventId || null, entries, source: "database" },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -41,7 +44,7 @@ export async function GET(request: Request) {
       );
     }
     return Response.json(
-      { eventId, entries: [], source: "local-dev" },
+      { eventId: eventId || null, entries: [], source: "local-dev" },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
