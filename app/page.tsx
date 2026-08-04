@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
-import { defaultSuiteSettings, mergeSuiteSettings, type OperationsTemplate } from "./suite-settings";
+import {
+  defaultSuiteSettings,
+  extractGoogleCalendarIds,
+  googleCalendarFeedUrl,
+  googleCalendarName,
+  mergeSuiteSettings,
+  type OperationsTemplate,
+} from "./suite-settings";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
@@ -238,6 +245,7 @@ export default function Home() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [railWidth, setRailWidth] = useState(defaultSettings.eventRailWidth);
   const [newEventTemplateId, setNewEventTemplateId] = useState("");
+  const [calendarImportUrl, setCalendarImportUrl] = useState("");
   const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
@@ -475,6 +483,35 @@ export default function Home() {
       syncMinutes: 15,
     };
     setSettings((current) => ({ ...current, calendarSources: [...current.calendarSources, source] }));
+  }
+
+  function importGoogleCalendarLink() {
+    const ids = extractGoogleCalendarIds(calendarImportUrl);
+    if (!ids.length) {
+      setEventSaveStatus("NO CALENDAR IDS");
+      return;
+    }
+    setSettings((current) => {
+      const existing = new Set(current.calendarSources.map((source) => source.url));
+      const additions = ids
+        .map((calendarId, index) => ({
+          id: `calendar_google_${uid()}`,
+          name: googleCalendarName(calendarId, index),
+          provider: "google" as const,
+          url: googleCalendarFeedUrl(calendarId),
+          enabled: true,
+          color: index % 2 ? "#45caff" : "#75ff47",
+          syncMinutes: 15,
+        }))
+        .filter((source) => !existing.has(source.url));
+      if (!additions.length) {
+        setEventSaveStatus("CALENDARS ADDED");
+        return current;
+      }
+      setEventSaveStatus(`ADDED ${additions.length} CALENDAR${additions.length === 1 ? "" : "S"}`);
+      return { ...current, calendarSources: [...current.calendarSources, ...additions] };
+    });
+    setCalendarImportUrl("");
   }
 
   function updateCalendarSource(id: string, patch: Partial<CalendarSource>) {
@@ -999,7 +1036,18 @@ export default function Home() {
 
               <section className="settings-card settings-calendar-card">
                 <div className="settings-card-heading"><span>02</span><h3>Calendar Connections</h3><button onClick={addCalendarSource}>＋ ADD CALENDAR</button></div>
-                <p className="settings-note">Add Google, Outlook, iCal, or another work calendar. Public and private ICS feed URLs can be stored locally; account sign-in and OAuth credentials can be connected when the suite backend is enabled.</p>
+                <p className="settings-note">Paste a Google Calendar link with one or more calendar IDs, or add Google, Outlook, iCal, or another work calendar manually. Private calendars may still require account sign-in before they can sync events.</p>
+                <div className="calendar-import-box">
+                  <label className="settings-field wide">
+                    <span>Paste Google Calendar link</span>
+                    <input
+                      value={calendarImportUrl}
+                      placeholder="https://calendar.google.com/calendar/u/0/r?cid=..."
+                      onChange={(event) => setCalendarImportUrl(event.target.value)}
+                    />
+                  </label>
+                  <button onClick={importGoogleCalendarLink}>IMPORT LINK</button>
+                </div>
                 {settings.calendarSources.length ? settings.calendarSources.map((source) => (
                   <div className="calendar-source" key={source.id}>
                     <div className="calendar-source-topline">

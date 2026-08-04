@@ -6,6 +6,9 @@ import {
   SETTINGS_STORE_KEY,
   calendarProviderLabels,
   defaultSuiteSettings,
+  extractGoogleCalendarIds,
+  googleCalendarFeedUrl,
+  googleCalendarName,
   mergeSuiteSettings,
   type CalendarProvider,
   type OperationsTemplate,
@@ -72,6 +75,7 @@ export default function SettingsPage() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthChecking, setHealthChecking] = useState(true);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
+  const [calendarImportUrl, setCalendarImportUrl] = useState("");
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
 
@@ -174,6 +178,33 @@ export default function SettingsPage() {
         },
       ],
     });
+  }
+
+  function importGoogleCalendarLink() {
+    const ids = extractGoogleCalendarIds(calendarImportUrl);
+    if (!ids.length) {
+      setStatus("NO CALENDAR IDS");
+      return;
+    }
+    const existing = new Set(settings.calendarSources.map((source) => source.url));
+    const additions = ids
+      .map((calendarId, index) => ({
+        id: `calendar_google_${uid()}`,
+        name: googleCalendarName(calendarId, index),
+        provider: "google" as const,
+        url: googleCalendarFeedUrl(calendarId),
+        enabled: true,
+        color: index % 2 ? "#45caff" : "#75ff47",
+        syncMinutes: 15,
+      }))
+      .filter((source) => !existing.has(source.url));
+    if (!additions.length) {
+      setStatus("CALENDARS ALREADY ADDED");
+      return;
+    }
+    update({ calendarSources: [...settings.calendarSources, ...additions] });
+    setCalendarImportUrl("");
+    setStatus(`ADDED ${additions.length} CALENDAR${additions.length === 1 ? "" : "S"}`);
   }
 
   function updateCalendarSource(id: string, patch: Partial<SuiteSettings["calendarSources"][number]>) {
@@ -381,7 +412,18 @@ export default function SettingsPage() {
 
           <section className="settings-card settings-calendar-card">
             <div className="settings-card-heading"><span>04</span><h3>Calendar Connections</h3><button onClick={addCalendarSource}>+ ADD CALENDAR</button></div>
-            <p className="settings-note">ICS feeds work first. Google and Outlook account connection will attach here when OAuth is added.</p>
+            <p className="settings-note">Paste a Google Calendar link with one or more calendar IDs, or add an ICS feed manually. Private Google calendars may still require OAuth before they can sync events.</p>
+            <div className="calendar-import-box">
+              <label className="settings-field wide">
+                <span>Paste Google Calendar link</span>
+                <input
+                  value={calendarImportUrl}
+                  placeholder="https://calendar.google.com/calendar/u/0/r?cid=..."
+                  onChange={(event) => setCalendarImportUrl(event.target.value)}
+                />
+              </label>
+              <button onClick={importGoogleCalendarLink}>IMPORT LINK</button>
+            </div>
             {settings.calendarSources.length ? settings.calendarSources.map((source) => (
               <div className="calendar-source" key={source.id}>
                 <div className="calendar-source-topline">

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteCalendarEvents, suiteCalendarSources } from "@/db/schema";
+import { extractGoogleCalendarIds, googleCalendarFeedUrl } from "@/app/suite-settings";
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
 
@@ -65,6 +66,8 @@ function validateFeedUrl(value: string) {
   if (!/^https?:\/\//i.test(value)) {
     throw new Error("Calendar feed URL must begin with http:// or https://");
   }
+  const googleIds = extractGoogleCalendarIds(value);
+  if (googleIds.length) return googleCalendarFeedUrl(googleIds[0]);
   return new URL(value).toString();
 }
 

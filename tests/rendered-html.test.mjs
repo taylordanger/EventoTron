@@ -148,6 +148,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarRoute, /export async function GET/);
   assert.match(calendarRoute, /export async function PUT/);
   assert.match(calendarRoute, /export async function DELETE/);
+  assert.match(calendarRoute, /extractGoogleCalendarIds/);
+  assert.match(calendarRoute, /googleCalendarFeedUrl/);
   assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0004_calendar_sync_records"/);
   for (const table of ["rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
@@ -168,6 +170,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(printMode, /window\.print\(\)/);
   assert.match(printMode, /export function saveReportPdf/);
   assert.match(suiteSettings, /operationsTemplates/);
+  assert.match(suiteSettings, /extractGoogleCalendarIds/);
+  assert.match(suiteSettings, /googleCalendarFeedUrl/);
   assert.match(suiteSettings, /template_rotary_luncheon/);
   assert.match(suiteSettings, /template_concert_hospitality/);
   assert.match(suiteSettings, /template_market_mod/);
@@ -177,14 +181,19 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /updateOperationsTemplate/);
   assert.match(settingsPage, /Launch Readiness/);
   assert.match(settingsPage, /Local event suite/);
+  assert.match(settingsPage, /importGoogleCalendarLink/);
+  assert.match(settingsPage, /Paste Google Calendar link/);
   assert.match(homePage, /operationsTemplateId/);
   assert.match(homePage, /applyOperationsTemplate/);
   assert.match(homePage, /operationsTemplatePatch/);
+  assert.match(homePage, /importGoogleCalendarLink/);
+  assert.match(homePage, /Paste Google Calendar link/);
   assert.match(homePage, /START FROM/);
   assert.match(homePage, /Operations Template/);
   assert.match(styles, /operations-template-list/);
   assert.match(styles, /launch-readiness-list/);
   assert.match(styles, /new-event-template/);
+  assert.match(styles, /calendar-import-box/);
   assert.match(roadmap, /Phase 1: Local Pilot/);
   assert.match(roadmap, /Phase 4: Desktop App/);
   assert.match(roadmap, /70 percent ready for a local pilot/);

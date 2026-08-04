@@ -138,6 +138,35 @@ export const calendarProviderLabels: Record<CalendarProvider, string> = {
   work: "Other work calendar",
 };
 
+export function extractGoogleCalendarIds(value: string) {
+  const ids = new Set<string>();
+  try {
+    const parsed = new URL(value.trim());
+    parsed.searchParams.getAll("cid").forEach((id) => {
+      const clean = id.trim();
+      if (clean) ids.add(clean);
+    });
+  } catch {}
+  for (const match of value.matchAll(/[?&]cid=([^&\s]+)/g)) {
+    const clean = decodeURIComponent(match[1] ?? "").trim();
+    if (clean) ids.add(clean);
+  }
+  for (const match of value.matchAll(/[a-z0-9_.-]+@[a-z0-9_.-]+/gi)) {
+    const clean = match[0].trim();
+    if (clean.endsWith("calendar.google.com")) ids.add(clean);
+  }
+  return [...ids];
+}
+
+export function googleCalendarFeedUrl(calendarId: string) {
+  return `https://calendar.google.com/calendar/ical/${encodeURIComponent(calendarId)}/public/basic.ics`;
+}
+
+export function googleCalendarName(calendarId: string, index: number) {
+  const prefix = calendarId.split("@")[0]?.replace(/^c_/, "").slice(0, 10).toUpperCase();
+  return `Google Calendar ${index + 1}${prefix ? ` ${prefix}` : ""}`;
+}
+
 export function mergeSuiteSettings(value: Partial<SuiteSettings> | null | undefined): SuiteSettings {
   return {
     ...defaultSuiteSettings,
