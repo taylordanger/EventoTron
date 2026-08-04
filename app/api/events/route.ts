@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { mealTransfers, suiteAppletStates, suiteEvents } from "@/db/schema";
 import { removeEventProjections } from "../event-app-state/projections";
@@ -33,6 +33,7 @@ type SuiteEvent = {
   calendarSourceId?: string;
   calendarSourceName?: string;
   calendarImportedAt?: string;
+  revision?: string;
 };
 
 type SuiteEventState = {
@@ -77,7 +78,19 @@ function normalizeEvent(event: Partial<SuiteEvent>): SuiteEvent {
     calendarSourceId: optionalText(event.calendarSourceId),
     calendarSourceName: optionalText(event.calendarSourceName),
     calendarImportedAt: optionalText(event.calendarImportedAt),
+    revision: optionalText(event.revision),
   };
+}
+
+function eventPayload(event: SuiteEvent) {
+  const payload = { ...event };
+  delete payload.revision;
+  return payload;
+}
+
+function nextRevision(previous?: string | null) {
+  const previousTime = previous ? Date.parse(previous) : 0;
+  return new Date(Math.max(Date.now(), Number.isFinite(previousTime) ? previousTime + 1 : 0)).toISOString();
 }
 
 function eventColumns(event: SuiteEvent) {
@@ -142,7 +155,19 @@ function rowToEvent(row: typeof suiteEvents.$inferSelect): SuiteEvent {
     paymentNotes: row.paymentNotes,
     quoteEnteredBy: row.quoteEnteredBy,
     requestedItems: row.requestedItems,
+    revision: row.updatedAt,
   });
+}
+
+function conflictResponse(current: typeof suiteEvents.$inferSelect) {
+  return Response.json(
+    {
+      error: "This event changed after it was opened.",
+      code: "event_revision_conflict",
+      current: rowToEvent(current),
+    },
+    { status: 409 },
+  );
 }
 
 export async function GET() {
@@ -178,63 +203,51 @@ export async function PUT(request: Request) {
   const openIds = Array.isArray(body.openIds) ? body.openIds : selectedId ? [selectedId] : [];
   const calendarYear = Number(body.calendarYear ?? 2026);
   const calendarMonth = Number(body.calendarMonth ?? 7);
-  const now = new Date().toISOString();
-
   if (!events.length) {
     return Response.json({ error: "Saving requires at least one event." }, { status: 400 });
   }
 
   try {
     const db = await getDb();
-    await Promise.all(
-      events.map((event) =>
-        db
-          .insert(suiteEvents)
-          .values({
-            ...eventColumns(event),
-            payload: event,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .onConflictDoUpdate({
-            target: suiteEvents.id,
-            set: {
-              title: event.title,
-              date: event.date,
-              kind: event.kind,
-              eventTime: event.eventTime,
-              rentalTime: event.rentalTime,
-              space: event.space,
-              manager: event.manager,
-              contact: event.contact,
-              phone: event.phone,
-              email: event.email,
-              attendees: event.attendees,
-              description: event.description,
-              planningNotes: event.planningNotes,
-              mod: event.mod,
-              vacation: event.vacation,
-              rentalTotal: event.rentalTotal,
-              cateringTotal: event.cateringTotal,
-              discountRate: event.discountRate,
-              deposit: event.deposit,
-              paymentNotes: event.paymentNotes,
-              quoteEnteredBy: event.quoteEnteredBy,
-              requestedItems: event.requestedItems,
-              payload: event,
-              updatedAt: now,
-            },
-          }),
-      ),
-    );
+    const existingRows = await db
+      .select()
+      .from(suiteEvents)
+      .where(inArray(suiteEvents.id, events.map((event) => event.id)));
+    const existingById = new Map(existingRows.map((row) => [row.id, row]));
+    const stale = events.find((event) => {
+      const existing = existingById.get(event.id);
+      return existing && event.revision !== existing.updatedAt;
+    });
+    if (stale) return conflictResponse(existingById.get(stale.id)!);
+
+    const savedEvents = await Promise.all(events.map(async (event) => {
+      const existing = existingById.get(event.id);
+      const revision = nextRevision(existing?.updatedAt);
+      const payload = eventPayload(event);
+      if (!existing) {
+        await db.insert(suiteEvents).values({
+          ...eventColumns(event),
+          payload,
+          createdAt: revision,
+          updatedAt: revision,
+        });
+      } else {
+        await db.update(suiteEvents).set({
+          ...eventColumns(event),
+          payload,
+          updatedAt: revision,
+        }).where(and(eq(suiteEvents.id, event.id), eq(suiteEvents.updatedAt, event.revision!)));
+      }
+      return { ...event, revision };
+    }));
 
     return Response.json({
-      events,
+      events: savedEvents,
       selectedId,
       openIds,
       calendarYear,
       calendarMonth,
-      savedAt: now,
+      savedAt: savedEvents.map((event) => event.revision).sort().at(-1),
       source: "database",
     });
   } catch (error) {
@@ -256,23 +269,49 @@ export async function PUT(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { event?: Partial<SuiteEvent> };
+  const body = (await request.json().catch(() => ({}))) as {
+    event?: Partial<SuiteEvent>;
+    expectedUpdatedAt?: string | null;
+  };
   const event = normalizeEvent(body.event ?? {});
   if (!event.id) {
     return Response.json({ error: "Updating an event requires an event ID." }, { status: 400 });
   }
-  const now = new Date().toISOString();
-
   try {
     const db = await getDb();
-    await db
-      .insert(suiteEvents)
-      .values({ ...eventColumns(event), payload: event, createdAt: now, updatedAt: now })
-      .onConflictDoUpdate({
-        target: suiteEvents.id,
-        set: { ...eventColumns(event), payload: event, updatedAt: now },
+    const existing = await db.select().from(suiteEvents).where(eq(suiteEvents.id, event.id)).get();
+    const expectedUpdatedAt = body.expectedUpdatedAt ?? event.revision ?? null;
+    if (existing && expectedUpdatedAt !== existing.updatedAt) {
+      return conflictResponse(existing);
+    }
+
+    const revision = nextRevision(existing?.updatedAt);
+    const payload = eventPayload(event);
+    if (!existing) {
+      await db.insert(suiteEvents).values({
+        ...eventColumns(event),
+        payload,
+        createdAt: revision,
+        updatedAt: revision,
       });
-    return Response.json({ event, savedAt: now, source: "database" });
+    } else {
+      const updated = await db.update(suiteEvents).set({
+        ...eventColumns(event),
+        payload,
+        updatedAt: revision,
+      }).where(
+        and(
+          eq(suiteEvents.id, event.id),
+          eq(suiteEvents.updatedAt, expectedUpdatedAt!),
+        ),
+      ).returning({ id: suiteEvents.id }).get();
+      if (!updated) {
+        const current = await db.select().from(suiteEvents).where(eq(suiteEvents.id, event.id)).get();
+        if (current) return conflictResponse(current);
+      }
+    }
+    const saved = { ...event, revision };
+    return Response.json({ event: saved, savedAt: revision, source: "database" });
   } catch (error) {
     if (!databaseUnavailable(error)) {
       return Response.json(
@@ -291,7 +330,8 @@ export async function PATCH(request: Request) {
       calendarYear: local.calendarYear,
       calendarMonth: local.calendarMonth,
     });
-    return Response.json({ event, savedAt: now, source: "local-dev" });
+    const revision = nextRevision(event.revision);
+    return Response.json({ event: { ...event, revision }, savedAt: revision, source: "local-dev" });
   }
 }
 

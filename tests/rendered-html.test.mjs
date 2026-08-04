@@ -93,13 +93,14 @@ test("API routes reject incomplete writes before touching storage", async () => 
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, migration, calendarMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, eventConcurrency, migration, calendarMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/event-app-state/projections.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/event-records/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/event-concurrency.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_calendar_sync_records.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
@@ -195,6 +196,12 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(homePage, /\+ EVENT FILE/);
   assert.match(eventsRoute, /calendarSourceName/);
   assert.match(eventsRoute, /eventColumns/);
+  assert.match(eventsRoute, /event_revision_conflict/);
+  assert.match(eventsRoute, /expectedUpdatedAt/);
+  assert.match(eventConcurrency, /mergeConcurrentEvent/);
+  assert.match(eventConcurrency, /conflictFields/);
+  assert.match(homePage, /persistEvent/);
+  assert.match(homePage, /CONFLICT -/);
   assert.match(backupRoute, /selectedId: ""/);
   assert.match(backupRoute, /openIds: \[\]/);
   assert.match(styles, /operations-template-list/);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SuiteChrome } from "./SuiteChrome";
 import { EVENT_STORE_KEY } from "./event-context";
+import { eventFingerprint, mergeConcurrentEvent } from "./event-concurrency";
 import { formatRegularTime } from "./time-format";
 import {
   defaultSuiteSettings,
@@ -12,7 +13,7 @@ import {
   mergeSuiteSettings,
   type OperationsTemplate,
 } from "./suite-settings";
-import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
@@ -45,6 +46,7 @@ type EventoEvent = {
   calendarSourceId?: string;
   calendarSourceName?: string;
   calendarImportedAt?: string;
+  revision?: string;
 };
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
@@ -262,8 +264,70 @@ export default function Home() {
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
+  const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
+  const inFlightEventsRef = useRef(new Set<string>());
   const selected = events.find((event) => event.id === selectedId) ?? emptySelectedEvent;
   const hasActiveEvent = Boolean(selected.id);
+
+  const commitServerEvent = useCallback((saved: EventoEvent, capturedFingerprint: string) => {
+    syncedEventsRef.current.set(saved.id, {
+      event: saved,
+      fingerprint: eventFingerprint(saved),
+    });
+    setEvents((current) => current.map((item) => {
+      if (item.id !== saved.id) return item;
+      return eventFingerprint(item) === capturedFingerprint
+        ? saved
+        : { ...item, revision: saved.revision };
+    }));
+  }, []);
+
+  const persistEvent = useCallback(async (event: EventoEvent): Promise<"saved" | "conflict" | "error" | "busy"> => {
+    if (inFlightEventsRef.current.has(event.id)) return "busy";
+    inFlightEventsRef.current.add(event.id);
+    const capturedFingerprint = eventFingerprint(event);
+
+    try {
+      const write = async (candidate: EventoEvent, expectedUpdatedAt: string | null | undefined) => {
+        const response = await fetch("/api/events", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: candidate, expectedUpdatedAt }),
+        });
+        const result = await response.json() as {
+          event?: EventoEvent;
+          current?: EventoEvent;
+          error?: string;
+          code?: string;
+        };
+        return { response, result };
+      };
+
+      let { response, result } = await write(event, event.revision);
+      if (response.status === 409 && result.current) {
+        const base = syncedEventsRef.current.get(event.id)?.event;
+        if (!base) {
+          setEventSaveStatus("CONFLICT - REVIEW");
+          return "conflict";
+        }
+        const merged = mergeConcurrentEvent(base, event, result.current);
+        if (merged.conflictFields.length) {
+          setEventSaveStatus(`CONFLICT - ${merged.conflictFields.slice(0, 2).join(" / ").toUpperCase()}`);
+          return "conflict";
+        }
+        ({ response, result } = await write(merged.merged, result.current.revision));
+      }
+
+      if (!response.ok || !result.event) throw new Error(result.error || "Event database save failed");
+      commitServerEvent(result.event, capturedFingerprint);
+      return "saved";
+    } catch {
+      setEventSaveStatus("LOCAL ONLY");
+      return "error";
+    } finally {
+      inFlightEventsRef.current.delete(event.id);
+    }
+  }, [commitServerEvent]);
 
   useEffect(() => {
     const raw = localStorage.getItem(EVENT_STORE_KEY);
@@ -305,26 +369,30 @@ export default function Home() {
     if (!eventBackendChecked) return;
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
     localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
+  }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded, eventBackendChecked]);
+
+  useEffect(() => {
+    if (!loaded || !eventBackendChecked) return;
     if (settingsLoaded && !settings.autoSave) return;
     if (!events.length) {
       const emptyTimer = window.setTimeout(() => setEventSaveStatus("NO EVENT FILES"), 0);
       return () => window.clearTimeout(emptyTimer);
     }
+    const dirtyEvents = events.filter((event) =>
+      syncedEventsRef.current.get(event.id)?.fingerprint !== eventFingerprint(event)
+      && !inFlightEventsRef.current.has(event.id),
+    );
+    if (!dirtyEvents.length) return;
     const timer = window.setTimeout(() => {
       setEventSaveStatus("SAVING");
-      fetch("/api/events", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-        .then((response) => {
-          if (!response.ok) throw new Error("Event database save failed");
+      void Promise.all(dirtyEvents.map((event) => persistEvent(event))).then((results) => {
+        if (results.every((result) => result === "saved" || result === "busy")) {
           setEventSaveStatus("SAVED");
-        })
-        .catch(() => setEventSaveStatus("LOCAL ONLY"));
+        }
+      });
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [events, selectedId, openIds, calendarYear, calendarMonth, loaded, settings.autoSave, settingsLoaded, eventBackendChecked]);
+  }, [events, loaded, settings.autoSave, settingsLoaded, eventBackendChecked, persistEvent]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -344,6 +412,10 @@ export default function Home() {
           ...event,
           requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
         })) : [];
+        syncedEventsRef.current = new Map(restoredEvents.map((event) => [
+          event.id,
+          { event, fingerprint: eventFingerprint(event) },
+        ]));
         setEvents(restoredEvents);
         const restoredEventIds = new Set(restoredEvents.map((event) => event.id));
         setSelectedId((current) => {
@@ -500,17 +572,17 @@ export default function Home() {
       setEventSaveStatus("NO EVENT FILES");
       return;
     }
-    setEventSaveStatus("SAVING");
-    try {
-      const response = await fetch("/api/events", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error("Event database save failed");
+    const dirtyEvents = events.filter((event) =>
+      syncedEventsRef.current.get(event.id)?.fingerprint !== eventFingerprint(event),
+    );
+    if (!dirtyEvents.length) {
       setEventSaveStatus("SAVED");
-    } catch {
-      setEventSaveStatus("LOCAL ONLY");
+      return;
+    }
+    setEventSaveStatus("SAVING");
+    const results = await Promise.all(dirtyEvents.map((event) => persistEvent(event)));
+    if (results.every((result) => result === "saved" || result === "busy")) {
+      setEventSaveStatus("SAVED");
     }
   }
 
@@ -560,15 +632,10 @@ export default function Home() {
       : [...items, created]);
     openEvent(created);
     setEventSaveStatus("IMPORTING EVENT");
-    try {
-      const response = await fetch("/api/events", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: created }),
-      });
-      if (!response.ok) throw new Error("Calendar event import failed");
+    const outcome = await persistEvent(created);
+    if (outcome === "saved") {
       setEventSaveStatus("CALENDAR EVENT SAVED");
-    } catch {
+    } else if (outcome === "error") {
       setEventSaveStatus("IMPORTED LOCALLY");
     }
   }
@@ -588,19 +655,6 @@ export default function Home() {
       calendarYear,
       calendarMonth,
     }));
-    if (events.length) {
-      void fetch("/api/events", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          events,
-          selectedId: nextSelectedId,
-          openIds: nextIds,
-          calendarYear,
-          calendarMonth,
-        }),
-      }).catch(() => undefined);
-    }
   }
 
   function updateSelected(patch: Partial<EventoEvent>) {

@@ -22,6 +22,8 @@ npm start
 
 Development and local production both persist their database under `.wrangler/state`, so events and applet records remain available between restarts.
 
+Event files use per-record server revisions. Independent staff edits merge when they touch different fields, while competing edits to the same field stop with a visible conflict instead of silently overwriting saved work.
+
 The system-readiness response is available at `/api/health`. The same database and routes are intended to be reused when EventoTron is packaged as a desktop application.
 
 ## Workspace Recovery

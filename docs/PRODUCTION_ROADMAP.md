@@ -7,6 +7,7 @@ EventoTron is ready for a controlled local pilot when the current local database
 - Local suite routes are unified under one app: Calendar, Tabletron, Foodotron, Scheduluotron, Settings, and Master Report.
 - Shared backend storage exists for events, applet states, transfers, settings, calendar sources, and backups.
 - Synced calendar entries can be promoted into permanent editable EventoTron event files without duplicate calendar tiles.
+- Event files save independently with server revisions, automatic non-overlapping edit merges, and visible same-field conflict protection.
 - Printable reports are branded, named, and formatted for clipboard/event-day use.
 - Operations templates now hold reusable binder material for recurring event and building workflows.
 - Local production runs through the Workers runtime with D1 available at `npm start`.
@@ -15,7 +16,7 @@ EventoTron is ready for a controlled local pilot when the current local database
 
 EventoTron is about 75 percent ready for a local pilot.
 
-It is about 50 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
+It is about 55 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
 
 ## Phase 1: Local Pilot
 
@@ -54,6 +55,7 @@ Goal: make the database, users, and calendar sources dependable.
 - Decide where the production database lives.
 - Decide who owns backups and how often they are exported.
 - Add user identity and role rules for staff access.
+- Keep conflict-aware event revisions enabled so simultaneous staff edits cannot silently overwrite one another.
 - Add Google Calendar and Outlook OAuth connections.
 - Expand the current calendar-source labels into a full import/audit history view.
 

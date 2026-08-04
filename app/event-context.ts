@@ -27,6 +27,7 @@ export type EventoEventContext = {
   calendarSourceId?: string;
   calendarSourceName?: string;
   calendarImportedAt?: string;
+  revision?: string;
 };
 
 export const EVENT_STORE_KEY = "eventotron-events-v1";
