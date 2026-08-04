@@ -529,7 +529,7 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: 82px 46px minmax(0, 1fr);
+  grid-template-rows: 82px 34px 46px minmax(0, 1fr);
   background: #020503;
   color: #d6f4cf;
   overflow: hidden;
@@ -649,6 +649,37 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px 12px;
+}
+
+.calendar-sync-diagnostics {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #17361b;
+  background: #030704;
+  overflow-x: auto;
+}
+
+.calendar-sync-diagnostics span {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid #224926;
+  background: #071009;
+  color: #82a77d;
+  font-size: 8px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.calendar-sync-diagnostics b {
+  color: var(--p);
+}
+
+.calendar-sync-diagnostics .diagnostic-error {
+  border-color: #d8a734;
+  color: #ffd26a;
 }
 
 .legend-dot {
@@ -2649,6 +2680,18 @@
   align-items: center;
   gap: 12px;
   color: #668d61;
+}
+
+.calendar-source-diagnostics {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #224926;
+  color: #668d61;
+  font-size: 8px;
+  font-weight: 900;
 }
 
 .calendar-source-footer span:nth-child(2) {

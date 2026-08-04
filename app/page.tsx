@@ -419,6 +419,30 @@ export default function Home() {
     return cells;
   }, [calendarYear, calendarMonth]);
 
+  const visibleCalendarSources = useMemo(
+    () => settings.calendarSources.filter((source) => source.enabled),
+    [settings.calendarSources],
+  );
+
+  const calendarSourceDiagnostics = useMemo(() => {
+    const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
+    return settings.calendarSources.map((source) => {
+      const synced = calendarFeedEvents.filter((event) => event.sourceId === source.id);
+      const visibleThisMonth = source.enabled
+        ? synced.filter((event) => event.date.startsWith(prefix)).length
+        : 0;
+      return {
+        ...source,
+        syncedCount: synced.length,
+        visibleThisMonth,
+      };
+    });
+  }, [calendarFeedEvents, calendarMonth, calendarYear, settings.calendarSources]);
+
+  const visibleExternalEventCount = calendarSourceDiagnostics.reduce((total, source) => total + source.visibleThisMonth, 0);
+  const totalSyncedExternalEventCount = calendarSourceDiagnostics.reduce((total, source) => total + source.syncedCount, 0);
+  const calendarErrorCount = calendarSourceDiagnostics.filter((source) => source.lastError).length;
+
   const eventsByDay = useMemo(() => {
     const map = new Map<number, Array<EventoEvent | ImportedCalendarEvent>>();
     const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
@@ -426,13 +450,13 @@ export default function Home() {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
-    const visibleSources = new Set(settings.calendarSources.filter((source) => source.enabled).map((source) => source.id));
+    const visibleSources = new Set(visibleCalendarSources.map((source) => source.id));
     calendarFeedEvents.filter((event) => visibleSources.has(event.sourceId) && event.date.startsWith(prefix)).forEach((event) => {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
     return map;
-  }, [events, calendarFeedEvents, calendarYear, calendarMonth, settings.calendarSources]);
+  }, [events, calendarFeedEvents, calendarYear, calendarMonth, visibleCalendarSources]);
 
   async function save() {
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
@@ -729,6 +753,12 @@ export default function Home() {
                 </span>
               ))}
             </div>
+          </div>
+          <div className="calendar-sync-diagnostics">
+            <span><b>{visibleExternalEventCount}</b> imported visible this month</span>
+            <span><b>{totalSyncedExternalEventCount}</b> synced external records</span>
+            <span><b>{visibleCalendarSources.length}</b> visible calendars</span>
+            {calendarErrorCount ? <span className="diagnostic-error"><b>{calendarErrorCount}</b> calendar error{calendarErrorCount === 1 ? "" : "s"}</span> : null}
           </div>
           <div className="calendar-month-tabs" role="tablist" aria-label="Calendar months">
             <button className="year-step" aria-label="Previous year" onClick={() => shiftYear(-1)}>‹</button>
@@ -1089,7 +1119,9 @@ export default function Home() {
                   </label>
                   <button onClick={importGoogleCalendarLink}>IMPORT LINK</button>
                 </div>
-                {settings.calendarSources.length ? settings.calendarSources.map((source) => (
+                {settings.calendarSources.length ? settings.calendarSources.map((source) => {
+                  const diagnostics = calendarSourceDiagnostics.find((item) => item.id === source.id);
+                  return (
                   <div className="calendar-source" key={source.id}>
                     <div className="calendar-source-topline">
                       <span className="calendar-source-swatch" style={{ background: source.color }} />
@@ -1102,9 +1134,14 @@ export default function Home() {
                       <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => updateCalendarSource(source.id, { color: event.target.value })} /></label>
                     </div>
                     <label className="settings-field wide"><span>{source.provider === "ical" ? "ICS feed URL" : "Calendar connection URL or account"}</span><input placeholder={source.provider === "ical" ? "https://.../calendar.ics" : "Connect account or paste a feed URL"} value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
-                    <div className="calendar-source-footer"><span>{providerLabels[source.provider]}</span><span>{source.lastError || (source.eventCount ? `${source.eventCount} EVENTS` : source.url ? "FEED READY" : "SETUP NEEDED")}</span><label>SYNC <select value={source.syncMinutes} onChange={(event) => updateCalendarSource(source.id, { syncMinutes: Number(event.target.value) })}><option value="5">5 MIN</option><option value="15">15 MIN</option><option value="30">30 MIN</option><option value="60">60 MIN</option></select></label><button className="calendar-sync-button" disabled={Boolean(calendarSyncing[source.id])} onClick={() => syncCalendarSource(source)}>{calendarSyncing[source.id] ? "SYNCING" : "SYNC NOW"}</button></div>
+                    <div className="calendar-source-footer"><span>{providerLabels[source.provider]}</span><span>{source.lastError || `${diagnostics?.visibleThisMonth ?? 0} THIS MONTH / ${diagnostics?.syncedCount ?? source.eventCount ?? 0} SYNCED`}</span><label>SYNC <select value={source.syncMinutes} onChange={(event) => updateCalendarSource(source.id, { syncMinutes: Number(event.target.value) })}><option value="5">5 MIN</option><option value="15">15 MIN</option><option value="30">30 MIN</option><option value="60">60 MIN</option></select></label><button className="calendar-sync-button" disabled={Boolean(calendarSyncing[source.id])} onClick={() => syncCalendarSource(source)}>{calendarSyncing[source.id] ? "SYNCING" : "SYNC NOW"}</button></div>
+                    <div className="calendar-source-diagnostics">
+                      <span>LAST SYNC {source.lastSynced ? new Date(source.lastSynced).toLocaleString() : "NEVER"}</span>
+                      <span>{source.enabled ? "SHOWING ON CALENDAR" : "HIDDEN FROM CALENDAR"}</span>
+                    </div>
                   </div>
-                )) : <div className="settings-empty">No external calendars connected yet. Add one to configure its display color, visibility, and sync interval.</div>}
+                  );
+                }) : <div className="settings-empty">No external calendars connected yet. Add one to configure its display color, visibility, and sync interval.</div>}
               </section>
 
               <section className="settings-card">
