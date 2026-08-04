@@ -524,6 +524,16 @@
 .legend-dot.note { border-color: #d5ff36; color: #d5ff36; }
 .calendar-event.external { border-left-width: 4px; background: #0b1010; }
 
+.calendar-event.external em {
+  align-self: flex-start;
+  padding: 1px 4px;
+  border: 1px solid currentColor;
+  color: currentColor;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .calendar-panel {
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -781,6 +791,39 @@
 .calendar-event small {
   color: #7fa07a;
   font-size: 8px;
+}
+
+.calendar-origin-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border: 1px solid #315b34;
+  border-left: 4px solid var(--p);
+  background: #071009;
+}
+
+.calendar-origin-field span {
+  grid-column: 1 / -1;
+  color: #78a273;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.calendar-origin-field b {
+  min-width: 0;
+  color: #dfffd7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-origin-field small {
+  color: var(--p);
+  font-size: 8px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .calendar-event.active {

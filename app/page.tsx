@@ -41,6 +41,10 @@ type EventoEvent = {
   quoteEnteredBy: string;
   requestedItems: string;
   operationsTemplateId?: string;
+  calendarEventId?: string;
+  calendarSourceId?: string;
+  calendarSourceName?: string;
+  calendarImportedAt?: string;
 };
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
@@ -149,6 +153,15 @@ function operationsTemplatePatch(template: OperationsTemplate): Partial<EventoEv
     planningNotes: [template.summary, "", ...template.checklist.map((item) => `- ${item}`)].join("\n"),
     requestedItems: templateRequestedItems(template),
   };
+}
+
+function importedEventKind(event: ImportedCalendarEvent): EventKind {
+  const text = `${event.title} ${event.description}`.toLowerCase();
+  if (/concert|performance|show|recital|music/.test(text)) return "concert";
+  if (/rental|wedding|reception|party/.test(text)) return "rental";
+  if (/camp|class|workshop/.test(text)) return "camp";
+  if (/prep|setup|delivery|tuning|rehearsal/.test(text)) return "prep";
+  return "meeting";
 }
 const monthNames = [
   "January",
@@ -294,8 +307,8 @@ export default function Home() {
     localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
     if (settingsLoaded && !settings.autoSave) return;
     if (!events.length) {
-      setEventSaveStatus("NO EVENT FILES");
-      return;
+      const emptyTimer = window.setTimeout(() => setEventSaveStatus("NO EVENT FILES"), 0);
+      return () => window.clearTimeout(emptyTimer);
     }
     const timer = window.setTimeout(() => {
       setEventSaveStatus("SAVING");
@@ -437,12 +450,17 @@ export default function Home() {
     [settings.calendarSources],
   );
 
+  const linkedCalendarEventIds = useMemo(
+    () => new Set(events.flatMap((event) => event.calendarEventId ? [event.calendarEventId] : [])),
+    [events],
+  );
+
   const calendarSourceDiagnostics = useMemo(() => {
     const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
     return settings.calendarSources.map((source) => {
       const synced = calendarFeedEvents.filter((event) => event.sourceId === source.id);
       const visibleThisMonth = source.enabled
-        ? synced.filter((event) => event.date.startsWith(prefix)).length
+        ? synced.filter((event) => event.date.startsWith(prefix) && !linkedCalendarEventIds.has(event.id)).length
         : 0;
       return {
         ...source,
@@ -450,7 +468,7 @@ export default function Home() {
         visibleThisMonth,
       };
     });
-  }, [calendarFeedEvents, calendarMonth, calendarYear, settings.calendarSources]);
+  }, [calendarFeedEvents, calendarMonth, calendarYear, linkedCalendarEventIds, settings.calendarSources]);
 
   const visibleExternalEventCount = calendarSourceDiagnostics.reduce((total, source) => total + source.visibleThisMonth, 0);
   const totalSyncedExternalEventCount = calendarSourceDiagnostics.reduce((total, source) => total + source.syncedCount, 0);
@@ -464,12 +482,16 @@ export default function Home() {
       map.set(day, [...(map.get(day) ?? []), event]);
     });
     const visibleSources = new Set(visibleCalendarSources.map((source) => source.id));
-    calendarFeedEvents.filter((event) => visibleSources.has(event.sourceId) && event.date.startsWith(prefix)).forEach((event) => {
+    calendarFeedEvents.filter((event) =>
+      visibleSources.has(event.sourceId)
+      && event.date.startsWith(prefix)
+      && !linkedCalendarEventIds.has(event.id)
+    ).forEach((event) => {
       const day = Number(event.date.slice(-2));
       map.set(day, [...(map.get(day) ?? []), event]);
     });
     return map;
-  }, [events, calendarFeedEvents, calendarYear, calendarMonth, visibleCalendarSources]);
+  }, [events, calendarFeedEvents, calendarYear, calendarMonth, linkedCalendarEventIds, visibleCalendarSources]);
 
   async function save() {
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
@@ -501,6 +523,54 @@ export default function Home() {
       setCalendarMonth(month - 1);
     }
     setOpenIds((ids) => [event.id, ...ids.filter((id) => id !== event.id)].slice(0, 8));
+  }
+
+  async function convertCalendarEvent(imported: ImportedCalendarEvent) {
+    const existing = events.find((event) => event.calendarEventId === imported.id);
+    if (existing) {
+      openEvent(existing);
+      return;
+    }
+
+    const created: EventoEvent = {
+      ...eventSeed(
+        `event_${imported.id}`,
+        imported.title,
+        imported.date,
+        importedEventKind(imported),
+        formatRegularTime(imported.eventTime),
+        imported.location,
+        `Imported from ${imported.sourceName}.`,
+        "",
+        "",
+        0,
+      ),
+      manager: "",
+      description: imported.description || imported.title,
+      planningNotes: `Imported from ${imported.sourceName}.`,
+      requestedItems: "",
+      calendarEventId: imported.id,
+      calendarSourceId: imported.sourceId,
+      calendarSourceName: imported.sourceName,
+      calendarImportedAt: new Date().toISOString(),
+    };
+
+    setEvents((items) => items.some((event) => event.calendarEventId === imported.id)
+      ? items
+      : [...items, created]);
+    openEvent(created);
+    setEventSaveStatus("IMPORTING EVENT");
+    try {
+      const response = await fetch("/api/events", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: created }),
+      });
+      if (!response.ok) throw new Error("Calendar event import failed");
+      setEventSaveStatus("CALENDAR EVENT SAVED");
+    } catch {
+      setEventSaveStatus("IMPORTED LOCALLY");
+    }
   }
 
   function closeEventFile(id: string, event?: ReactMouseEvent<HTMLButtonElement>) {
@@ -791,7 +861,7 @@ export default function Home() {
             </div>
           </div>
           <div className="calendar-sync-diagnostics">
-            <span><b>{visibleExternalEventCount}</b> imported visible this month</span>
+            <span><b>{visibleExternalEventCount}</b> calendar entries ready to open</span>
             <span><b>{totalSyncedExternalEventCount}</b> synced external records</span>
             <span><b>{visibleCalendarSources.length}</b> visible calendars</span>
             {calendarErrorCount ? <span className="diagnostic-error"><b>{calendarErrorCount}</b> calendar error{calendarErrorCount === 1 ? "" : "s"}</span> : null}
@@ -844,12 +914,14 @@ export default function Home() {
                           <button
                             className={`calendar-event ${imported ? "external" : event.kind} ${!imported && event.id === selected.id ? "active" : ""}`}
                             key={`${imported ? event.sourceId : "event"}-${event.id}`}
-                            onClick={() => { if (!imported) openEvent(event); }}
+                            onClick={() => { if (imported) void convertCalendarEvent(event); else openEvent(event); }}
                             style={imported ? { borderColor: event.color, color: event.color } : undefined}
-                            title={imported ? `${event.sourceName}${event.location ? ` · ${event.location}` : ""}` : undefined}
+                            title={imported ? `Open as an editable event file from ${event.sourceName}${event.location ? ` · ${event.location}` : ""}` : undefined}
+                            aria-label={imported ? `Open ${event.title} as an editable event file` : `Open ${event.title}`}
                           >
                             <b>{event.title}</b>
                             <small>{formatRegularTime(event.eventTime)}</small>
+                            {imported ? <em>+ EVENT FILE</em> : null}
                           </button>
                         );
                       })}
@@ -922,6 +994,13 @@ export default function Home() {
                 ))}
               </select>
             </label>
+            {selected.calendarEventId ? (
+              <div className="wide calendar-origin-field">
+                <span>Calendar Source</span>
+                <b>{selected.calendarSourceName || "Connected calendar"}</b>
+                <small>Permanent EventoTron event file</small>
+              </div>
+            ) : null}
             <label>
               <span>Contact Name</span>
               <input

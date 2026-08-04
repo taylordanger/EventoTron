@@ -28,6 +28,11 @@ type SuiteEvent = {
   paymentNotes: string;
   quoteEnteredBy: string;
   requestedItems: string;
+  operationsTemplateId?: string;
+  calendarEventId?: string;
+  calendarSourceId?: string;
+  calendarSourceName?: string;
+  calendarImportedAt?: string;
 };
 
 type SuiteEventState = {
@@ -39,6 +44,10 @@ type SuiteEventState = {
 };
 
 function normalizeEvent(event: Partial<SuiteEvent>): SuiteEvent {
+  const optionalText = (value: unknown) => {
+    const normalized = String(value ?? "").trim();
+    return normalized || undefined;
+  };
   return {
     id: String(event.id ?? ""),
     title: String(event.title ?? "Untitled Event"),
@@ -63,6 +72,39 @@ function normalizeEvent(event: Partial<SuiteEvent>): SuiteEvent {
     paymentNotes: String(event.paymentNotes ?? ""),
     quoteEnteredBy: String(event.quoteEnteredBy ?? ""),
     requestedItems: String(event.requestedItems ?? ""),
+    operationsTemplateId: optionalText(event.operationsTemplateId),
+    calendarEventId: optionalText(event.calendarEventId),
+    calendarSourceId: optionalText(event.calendarSourceId),
+    calendarSourceName: optionalText(event.calendarSourceName),
+    calendarImportedAt: optionalText(event.calendarImportedAt),
+  };
+}
+
+function eventColumns(event: SuiteEvent) {
+  return {
+    id: event.id,
+    title: event.title,
+    date: event.date,
+    kind: event.kind,
+    eventTime: event.eventTime,
+    rentalTime: event.rentalTime,
+    space: event.space,
+    manager: event.manager,
+    contact: event.contact,
+    phone: event.phone,
+    email: event.email,
+    attendees: event.attendees,
+    description: event.description,
+    planningNotes: event.planningNotes,
+    mod: event.mod,
+    vacation: event.vacation,
+    rentalTotal: event.rentalTotal,
+    cateringTotal: event.cateringTotal,
+    discountRate: event.discountRate,
+    deposit: event.deposit,
+    paymentNotes: event.paymentNotes,
+    quoteEnteredBy: event.quoteEnteredBy,
+    requestedItems: event.requestedItems,
   };
 }
 
@@ -72,7 +114,11 @@ function databaseUnavailable(error: unknown) {
 }
 
 function rowToEvent(row: typeof suiteEvents.$inferSelect): SuiteEvent {
-  return {
+  const payload = row.payload && typeof row.payload === "object"
+    ? row.payload as Partial<SuiteEvent>
+    : {};
+  return normalizeEvent({
+    ...payload,
     id: row.id,
     title: row.title,
     date: row.date,
@@ -96,7 +142,7 @@ function rowToEvent(row: typeof suiteEvents.$inferSelect): SuiteEvent {
     paymentNotes: row.paymentNotes,
     quoteEnteredBy: row.quoteEnteredBy,
     requestedItems: row.requestedItems,
-  };
+  });
 }
 
 export async function GET() {
@@ -145,7 +191,7 @@ export async function PUT(request: Request) {
         db
           .insert(suiteEvents)
           .values({
-            ...event,
+            ...eventColumns(event),
             payload: event,
             createdAt: now,
             updatedAt: now,
@@ -221,10 +267,10 @@ export async function PATCH(request: Request) {
     const db = await getDb();
     await db
       .insert(suiteEvents)
-      .values({ ...event, payload: event, createdAt: now, updatedAt: now })
+      .values({ ...eventColumns(event), payload: event, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({
         target: suiteEvents.id,
-        set: { ...event, payload: event, updatedAt: now },
+        set: { ...eventColumns(event), payload: event, updatedAt: now },
       });
     return Response.json({ event, savedAt: now, source: "database" });
   } catch (error) {

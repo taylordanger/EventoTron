@@ -258,6 +258,7 @@ function restoreLocal(backup: WorkspaceBackup) {
   const settings = backup.data.settings?.[0];
   if (settings) writeLocalSettings(settings.payload);
   const events = backup.data.events?.map((row) => ({
+    ...(row.payload && typeof row.payload === "object" ? row.payload : {}),
     id: row.id,
     title: row.title,
     date: row.date,
@@ -285,8 +286,8 @@ function restoreLocal(backup: WorkspaceBackup) {
   if (events.length) {
     writeLocalEvents({
       events,
-      selectedId: events[0].id,
-      openIds: events.slice(0, 3).map((event) => event.id),
+      selectedId: "",
+      openIds: [],
       calendarYear: Number(events[0].date.slice(0, 4)) || 2026,
       calendarMonth: Math.max(0, (Number(events[0].date.slice(5, 7)) || 8) - 1),
     });

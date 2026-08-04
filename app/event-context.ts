@@ -22,6 +22,11 @@ export type EventoEventContext = {
   paymentNotes: string;
   quoteEnteredBy: string;
   requestedItems?: string;
+  operationsTemplateId?: string;
+  calendarEventId?: string;
+  calendarSourceId?: string;
+  calendarSourceName?: string;
+  calendarImportedAt?: string;
 };
 
 export const EVENT_STORE_KEY = "eventotron-events-v1";

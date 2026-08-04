@@ -6,15 +6,16 @@ EventoTron is ready for a controlled local pilot when the current local database
 
 - Local suite routes are unified under one app: Calendar, Tabletron, Foodotron, Scheduluotron, Settings, and Master Report.
 - Shared backend storage exists for events, applet states, transfers, settings, calendar sources, and backups.
+- Synced calendar entries can be promoted into permanent editable EventoTron event files without duplicate calendar tiles.
 - Printable reports are branded, named, and formatted for clipboard/event-day use.
 - Operations templates now hold reusable binder material for recurring event and building workflows.
 - Local production runs through the Workers runtime with D1 available at `npm start`.
 
 ## Ship Readiness
 
-EventoTron is about 70 percent ready for a local pilot.
+EventoTron is about 75 percent ready for a local pilot.
 
-It is about 45 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
+It is about 50 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
 
 ## Phase 1: Local Pilot
 
@@ -22,6 +23,7 @@ Goal: use EventoTron locally for real planning while keeping paper as backup.
 
 - Confirm `Settings > Export Workspace` creates a readable backup.
 - Plan one upcoming event using Calendar, Tabletron, Foodotron, and Scheduluotron.
+- Open one synced calendar entry as an editable event file and confirm its source label is retained.
 - Print the master report and applet reports.
 - Compare the report against the existing binder workflow.
 - Record missing fields, confusing labels, and anything staff still need to write by hand.
@@ -53,7 +55,7 @@ Goal: make the database, users, and calendar sources dependable.
 - Decide who owns backups and how often they are exported.
 - Add user identity and role rules for staff access.
 - Add Google Calendar and Outlook OAuth connections.
-- Add import/audit views for events pulled from external calendars.
+- Expand the current calendar-source labels into a full import/audit history view.
 
 Exit criteria:
 
