@@ -141,6 +141,7 @@ function templateKind(template: OperationsTemplate): EventKind {
 }
 
 function templateRequestedItems(template: OperationsTemplate) {
+  if (template.preset?.event?.requestedItems) return template.preset.event.requestedItems;
   const name = template.name.toLowerCase();
   if (name.includes("rotary")) return "6 FT ROUND TABLES, CHAIRS, BLACK TABLECLOTHS, PODIUM, WATER GLASSES, COFFEE STATION, WRAPPED FLATWARE";
   if (name.includes("concert")) return "GREEN ROOM HOSPITALITY, CASH BAGS, GUEST LIST, ANNOUNCEMENT TEMPLATE, BAR / CONCESSIONS";
@@ -152,6 +153,7 @@ function templateRequestedItems(template: OperationsTemplate) {
 
 function operationsTemplatePatch(template: OperationsTemplate): Partial<EventoEvent> {
   return {
+    ...(template.preset?.event ?? {}),
     kind: templateKind(template),
     operationsTemplateId: template.id,
     description: template.summary,

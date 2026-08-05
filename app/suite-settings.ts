@@ -19,6 +19,28 @@ export type OperationsTemplate = {
   category: "event" | "food" | "room" | "maintenance" | "volunteer" | "contract";
   summary: string;
   checklist: string[];
+  preset?: {
+    event?: {
+      eventTime?: string;
+      rentalTime?: string;
+      space?: string;
+      manager?: string;
+      attendees?: number;
+      requestedItems?: string;
+      rentalTotal?: number;
+      cateringTotal?: number;
+      deposit?: number;
+    };
+    scheduleBlocks?: Array<{
+      title: string;
+      kind: "setup" | "delivery" | "staff" | "service" | "guest" | "teardown" | "note";
+      start: string;
+      end: string;
+      owner: string;
+      location: string;
+      notes: string;
+    }>;
+  };
 };
 
 export type SuiteRoomSetting = {
@@ -199,6 +221,22 @@ export const defaultSuiteSettings: SuiteSettings = {
         "Prepare luncheon food, coffee, hot water, water pitchers, and special dietary notes before guest arrival.",
         "After the meeting, bus tables, separate silverware, pull linens, store leftovers, and reset kitchen areas.",
       ],
+      preset: {
+        event: {
+          eventTime: "11:30 AM-1:00 PM",
+          rentalTime: "9:00 AM-2:00 PM",
+          space: "Auditorium",
+          manager: "Jason",
+          attendees: 24,
+          requestedItems: "6 FT ROUND TABLES, CHAIRS, BLACK TABLECLOTHS, PODIUM, WATER GLASSES, COFFEE STATION, WRAPPED FLATWARE",
+        },
+        scheduleBlocks: [
+          { title: "Set auditorium for luncheon", kind: "setup", start: "09:00", end: "10:15", owner: "Room crew", location: "Auditorium", notes: "Round tables, black tablecloths, podium, wrapped flatware, water glasses, sugar caddies, salt and pepper." },
+          { title: "Prepare coffee, water, and food line", kind: "service", start: "10:15", end: "11:15", owner: "Foodotron runner", location: "Kitchen / buffet", notes: "Coffee, hot water, water pitchers, dietary notes, and food ready before guests arrive." },
+          { title: "Guest arrival and luncheon service", kind: "guest", start: "11:30", end: "12:30", owner: "MOD", location: "Auditorium", notes: "Track guaranteed meals and beverage-only count." },
+          { title: "Bus tables and reset kitchen", kind: "teardown", start: "12:30", end: "14:00", owner: "Close crew", location: "Auditorium / kitchen", notes: "Separate silverware, pull linens, store leftovers, wash dishes, and reset room." },
+        ],
+      },
     },
     {
       id: "template_concert_hospitality",
@@ -211,6 +249,23 @@ export const defaultSuiteSettings: SuiteSettings = {
         "Pull cash bags, check payment requirements, prep announcement template, and coordinate door opening with sound check.",
         "After show, thank guests, collect bank bags, pull leftover food, wash bar/concession dishes, and secure paperwork.",
       ],
+      preset: {
+        event: {
+          eventTime: "7:00 PM-9:15 PM",
+          rentalTime: "4:30 PM-10:00 PM",
+          space: "Auditorium",
+          manager: "Nara",
+          attendees: 150,
+          requestedItems: "GREEN ROOM HOSPITALITY, CASH BAGS, GUEST LIST, ANNOUNCEMENT TEMPLATE, BAR / CONCESSIONS, SOUND CHECK",
+        },
+        scheduleBlocks: [
+          { title: "Contract, cash bags, and house prep", kind: "setup", start: "16:30", end: "17:15", owner: "MOD", location: "Office / auditorium", notes: "Check contract, pull cash bags, prep payment paperwork, guest list, and announcement template." },
+          { title: "Artist hospitality and sound check", kind: "staff", start: "17:15", end: "18:30", owner: "Hospitality lead", location: "Green room / stage", notes: "Hospitality tray, water, towels, tea, snacks, and coordinate sound check before doors open." },
+          { title: "Doors and guest greeting", kind: "guest", start: "18:30", end: "19:00", owner: "Front desk", location: "Lobby", notes: "Keep auditorium doors closed until sound check is complete; greet volunteers and guests." },
+          { title: "Show time", kind: "service", start: "19:00", end: "21:15", owner: "MOD", location: "Auditorium", notes: "Introduce performers, make announcements, check volunteers during intermission, thank guests after the show." },
+          { title: "Post-show cash and cleanup", kind: "teardown", start: "21:15", end: "22:00", owner: "Close crew", location: "Auditorium / kitchen", notes: "Collect bank bags, pull leftover food, wash bar and concessions dishes, secure voucher and W-9 paperwork." },
+        ],
+      },
     },
     {
       id: "template_market_mod",
@@ -223,6 +278,21 @@ export const defaultSuiteSettings: SuiteSettings = {
         "Give market manager trash bags, cart, attendance log, and any change-return items.",
         "Ask market manager for attendance, give ceramics studio warning, then lock and close building.",
       ],
+      preset: {
+        event: {
+          eventTime: "8:00 AM-5:00 PM",
+          rentalTime: "8:00 AM-5:00 PM",
+          space: "Building-wide",
+          manager: "Taylor",
+          attendees: 0,
+          requestedItems: "TRASH BAGS, MARKET CART, ATTENDANCE LOG, CERAMICS STUDIO WARNING, RESTROOM RESTOCK",
+        },
+        scheduleBlocks: [
+          { title: "Unlock and open building", kind: "setup", start: "08:00", end: "10:00", owner: "MOD", location: "Main entrance", notes: "Check reservation book, unlock doors, change reader-board sign, make coffee, and restock restrooms." },
+          { title: "Open galleries and support vendors", kind: "service", start: "10:00", end: "14:00", owner: "MOD", location: "Galleries / market", notes: "Open galleries, support vendors, give market manager trash bags, cart, and attendance log." },
+          { title: "Close market and warn studios", kind: "teardown", start: "16:30", end: "17:00", owner: "MOD", location: "Building-wide", notes: "Ask for attendance, give ceramics studio 30-minute warning, lock and close building." },
+        ],
+      },
     },
     {
       id: "template_kitchen_closing",
@@ -235,6 +305,21 @@ export const defaultSuiteSettings: SuiteSettings = {
         "Empty and reline trash, take trash outside, empty recycle as needed, sweep and mop kitchen floor.",
         "Turn off lights, close doors, confirm gas, hood fans, ovens, mixers, coffee makers, and refrigerators are safe.",
       ],
+      preset: {
+        event: {
+          eventTime: "4:00 PM-6:00 PM",
+          rentalTime: "4:00 PM-6:00 PM",
+          space: "Kitchen",
+          manager: "Jason",
+          attendees: 0,
+          requestedItems: "DISH RACK, TRASH LINERS, MOP, LAUNDRY BAG, SANITIZER, LEFTOVER LABELS",
+        },
+        scheduleBlocks: [
+          { title: "Store and date leftovers", kind: "service", start: "16:00", end: "16:30", owner: "Kitchen lead", location: "Kitchen", notes: "Date leftover food and leave employee-available notes where needed." },
+          { title: "Wash dishes and drain dish machine", kind: "teardown", start: "16:30", end: "17:15", owner: "Kitchen lead", location: "Kitchen", notes: "Wash dishes, clean floor sink and sinks, drain dish machine, and set one rack for employee use." },
+          { title: "Trash, floors, and shutdown", kind: "teardown", start: "17:15", end: "18:00", owner: "Close crew", location: "Kitchen", notes: "Empty trash, take recycle as needed, sweep/mop, turn off gas, hood fans, lights, ovens, mixers, and coffee makers." },
+        ],
+      },
     },
     {
       id: "template_maintenance_ticker",
@@ -335,6 +420,16 @@ export function mergeSuiteSettings(value: Partial<SuiteSettings> | null | undefi
   const equipmentNames = new Set(savedEquipment.map((item) => item.toLowerCase()));
   const savedTemplates = Array.isArray(value?.operationsTemplates) ? value.operationsTemplates : [];
   const templateIds = new Set(savedTemplates.map((template) => template.id));
+  const mergedTemplates = savedTemplates.map((template) => {
+    const fallback = defaultSuiteSettings.operationsTemplates.find((defaultTemplate) => defaultTemplate.id === template.id);
+    return fallback
+      ? {
+          ...fallback,
+          ...template,
+          preset: template.preset ?? fallback.preset,
+        }
+      : template;
+  });
   return {
     ...defaultSuiteSettings,
     ...(value ?? {}),
@@ -347,8 +442,8 @@ export function mergeSuiteSettings(value: Partial<SuiteSettings> | null | undefi
       ...savedEquipment,
       ...defaultSuiteSettings.equipment.filter((item) => !equipmentNames.has(item.toLowerCase())),
     ] : defaultSuiteSettings.equipment,
-    operationsTemplates: savedTemplates.length ? [
-      ...savedTemplates,
+    operationsTemplates: mergedTemplates.length ? [
+      ...mergedTemplates,
       ...defaultSuiteSettings.operationsTemplates.filter((template) => !templateIds.has(template.id)),
     ] : defaultSuiteSettings.operationsTemplates,
     calendarSources: Array.isArray(value?.calendarSources) ? value.calendarSources : [],

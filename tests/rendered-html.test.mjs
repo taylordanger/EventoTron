@@ -216,6 +216,13 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(suiteSettings, /5 FT ROUND TABLE - 12 available/);
   assert.match(suiteSettings, /Facility rental rates and policies/);
   assert.match(suiteSettings, /Event insurance is required/);
+  assert.match(suiteSettings, /preset/);
+  assert.match(suiteSettings, /scheduleBlocks/);
+  assert.match(suiteSettings, /11:30 AM-1:00 PM/);
+  assert.match(suiteSettings, /template\.preset \?\? fallback\.preset/);
+  assert.match(homePage, /template\.preset\?\.event/);
+  assert.match(scheduluotron, /templateScheduleBlocks/);
+  assert.match(scheduluotron, /context\.operationsTemplateId/);
   assert.match(masterReport, /findRoomReference/);
   assert.match(masterReport, /Facility Reference/);
   assert.match(masterReport, /RENTAL NOTES/);

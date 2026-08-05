@@ -5,7 +5,7 @@ import { OperationsTicker } from "../OperationsTicker";
 import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
-import { loadSuiteSettings } from "../suite-settings";
+import { loadSuiteSettings, type OperationsTemplate } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 import { useEventLiveStatus } from "../use-event-live-status";
 import { useEffect, useMemo, useState } from "react";
@@ -51,6 +51,7 @@ const kinds: { id: BlockKind; label: string }[] = [
   { id: "teardown", label: "Teardown" },
   { id: "note", label: "Note" },
 ];
+const blockKindIds = new Set<BlockKind>(kinds.map((kind) => kind.id));
 
 const toMinutes = (value: string) => {
   const [h, m] = value.split(":").map(Number);
@@ -152,6 +153,58 @@ function initialPlan(): SchedulePlan {
   };
 }
 
+function eventBriefBlock(context: EventoEventContext): ScheduleBlock {
+  return {
+    id: uid(),
+    title: `${context.title} event brief`,
+    kind: "note",
+    start: "08:00",
+    end: "08:15",
+    owner: context.manager || "MOD",
+    location: context.space || "Event space",
+    notes: [context.description, context.planningNotes, `Manager: ${context.manager}`, context.mod]
+      .filter(Boolean)
+      .join("\n"),
+    done: false,
+  };
+}
+
+function templateScheduleBlocks(template: OperationsTemplate | undefined, context: EventoEventContext, owners: string[]) {
+  const presetBlocks = template?.preset?.scheduleBlocks ?? [];
+  if (!presetBlocks.length) return null;
+  return [
+    eventBriefBlock(context),
+    ...presetBlocks.map((block, index) => ({
+      id: uid(),
+      title: block.title,
+      kind: blockKindIds.has(block.kind as BlockKind) ? block.kind as BlockKind : "note",
+      start: block.start,
+      end: block.end,
+      owner: block.owner === "MOD" ? context.manager || owners[index % owners.length] || "MOD" : block.owner,
+      location: block.location || context.space,
+      notes: block.notes,
+      done: false,
+    })),
+  ];
+}
+
+function currentEventBriefBlocks(context: EventoEventContext) {
+  return initialPlan().blocks.map((block, index) =>
+    index === 0
+      ? {
+          ...block,
+          title: `${context.title} event brief`,
+          kind: "note" as BlockKind,
+          location: context.space,
+          owner: context.manager || block.owner,
+          notes: [context.description, context.planningNotes, `Manager: ${context.manager}`, context.mod]
+            .filter(Boolean)
+            .join("\n"),
+        }
+      : block,
+  );
+}
+
 export default function Scheduluotron() {
   const [plan, setPlan] = useState<SchedulePlan>(() => initialPlan());
   const [notice, setNotice] = useState("");
@@ -206,27 +259,25 @@ export default function Scheduluotron() {
       const context = readEventContext(eventId);
       if (!context) return;
       setActiveEvent(context);
+      const settings = await loadSuiteSettings();
+      const template = settings.operationsTemplates.find((item) => item.id === context.operationsTemplateId);
+      const owners = settings.staff.length ? settings.staff : ["Ops lead"];
       let saved: SchedulePlan | null = null;
       try {
         saved = await readSuiteAppletState<SchedulePlan>(context.id, "scheduluotron");
       } catch {}
+      const seededBlocks = saved && Array.isArray(saved.blocks)
+        ? saved.blocks
+        : templateScheduleBlocks(template, context, owners) ?? currentEventBriefBlocks(context);
       setPlan((current) => ({
         ...(saved && Array.isArray(saved.blocks) ? saved : current),
         eventName: context.title,
         date: context.date,
         venue: context.space,
-        blocks: (saved && Array.isArray(saved.blocks) ? saved.blocks : current.blocks).map((block, index) =>
-          index === 0
-            ? {
-                ...block,
-                title: `${context.title} event brief`,
-                location: context.space,
-                notes: [context.description, context.planningNotes, `Manager: ${context.manager}`, context.mod]
-                  .filter(Boolean)
-                  .join("\n"),
-              }
-            : block,
-        ),
+        dayStart: seededBlocks.reduce((earliest, block) => toMinutes(block.start) < toMinutes(earliest) ? block.start : earliest, saved?.dayStart ?? current.dayStart),
+        dayEnd: seededBlocks.reduce((latest, block) => toMinutes(block.end) > toMinutes(latest) ? block.end : latest, saved?.dayEnd ?? current.dayEnd),
+        activeId: saved?.activeId ?? seededBlocks[0]?.id ?? current.activeId,
+        blocks: seededBlocks,
       }));
     }, 0);
     return () => window.clearTimeout(timer);
