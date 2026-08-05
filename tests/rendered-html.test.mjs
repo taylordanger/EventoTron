@@ -221,6 +221,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(suiteSettings, /11:30 AM-1:00 PM/);
   assert.match(suiteSettings, /template\.preset \?\? fallback\.preset/);
   assert.match(homePage, /template\.preset\?\.event/);
+  assert.match(homePage, /selectedTemplate/);
+  assert.match(homePage, /OPERATIONS PRESET ACTIVE/);
+  assert.match(styles, /sheet-template-summary/);
   assert.match(scheduluotron, /templateScheduleBlocks/);
   assert.match(scheduluotron, /context\.operationsTemplateId/);
   assert.match(masterReport, /findRoomReference/);

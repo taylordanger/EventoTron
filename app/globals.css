@@ -1158,6 +1158,55 @@
   font-style: normal;
 }
 
+.sheet-template-summary {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid #75ff47;
+  background: linear-gradient(135deg, rgba(117, 255, 71, 0.1), rgba(7, 16, 9, 0.92));
+  box-shadow: inset 0 0 22px rgba(117, 255, 71, 0.08);
+}
+
+.sheet-template-summary.compact {
+  margin-top: 10px;
+}
+
+.sheet-template-summary small {
+  color: #75ff47;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sheet-template-summary b {
+  color: #e0f6db;
+  font-size: 14px;
+}
+
+.sheet-template-summary > span,
+.sheet-template-summary p {
+  margin: 0;
+  color: #a8c9a2;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.sheet-template-summary div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sheet-template-summary div span {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(117, 255, 71, 0.22);
+  background: #020804;
+  color: #dffad9;
+  font-size: 10px;
+}
+
 .sheet-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

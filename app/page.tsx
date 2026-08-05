@@ -273,6 +273,7 @@ export default function Home() {
   const inFlightEventsRef = useRef(new Set<string>());
   const selected = events.find((event) => event.id === selectedId) ?? emptySelectedEvent;
   const hasActiveEvent = Boolean(selected.id);
+  const selectedTemplate = settings.operationsTemplates.find((template) => template.id === selected.operationsTemplateId);
   const selectedIsLive = useEventLiveStatus(hasActiveEvent ? selected : null, settings.timezone);
 
   const commitServerEvent = useCallback((saved: EventoEvent, capturedFingerprint: string) => {
@@ -1127,6 +1128,13 @@ export default function Home() {
                 <div><small>CONTACT</small><b>{selected.contact || "Not entered"}</b></div>
                 <div><small>MANAGER</small><b>{selected.manager || "Not assigned"}</b></div>
               </div>
+              {selectedTemplate ? (
+                <div className="sheet-template-summary compact">
+                  <small>OPERATIONS PRESET</small>
+                  <b>{selectedTemplate.name}</b>
+                  <span>{selectedTemplate.preset?.event?.space || selected.space || "No room preset"} · {selectedTemplate.preset?.scheduleBlocks?.length ?? 0} Scheduluotron blocks</span>
+                </div>
+              ) : null}
               <p>{selected.description || "No event description entered."}</p>
               <em>Use EXPAND to edit the full information sheet.</em>
             </div>
@@ -1166,6 +1174,19 @@ export default function Home() {
                 <span>Calendar Source</span>
                 <b>{selected.calendarSourceName || "Connected calendar"}</b>
                 <small>Permanent EventoTron event file</small>
+              </div>
+            ) : null}
+            {selectedTemplate ? (
+              <div className="wide sheet-template-summary">
+                <small>OPERATIONS PRESET ACTIVE</small>
+                <b>{selectedTemplate.name}</b>
+                <div>
+                  <span>{selectedTemplate.preset?.event?.eventTime || selected.eventTime || "No event time preset"}</span>
+                  <span>{selectedTemplate.preset?.event?.space || selected.space || "No room preset"}</span>
+                  <span>{selectedTemplate.preset?.event?.manager || selected.manager || "No manager preset"}</span>
+                  <span>{selectedTemplate.preset?.scheduleBlocks?.length ?? 0} schedule blocks</span>
+                </div>
+                <p>{selectedTemplate.preset?.event?.requestedItems || selected.requestedItems || "No requested items preset."}</p>
               </div>
             ) : null}
             <label>
