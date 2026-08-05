@@ -237,6 +237,11 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(tabletron, /parseFurnitureDimensions/);
   assert.match(tabletron, /upper\.includes\("ROUND"\)/);
   assert.match(tabletron, /inchMatch/);
+  assert.match(tabletron, /normalizedTabletronRoomName/);
+  assert.match(tabletron, /operationsTemplate\?\.preset\?\.event/);
+  assert.match(tabletron, /timeRangeParts/);
+  assert.match(tabletron, /seedLayoutObjects/);
+  assert.match(tabletron, /shouldAutoPlaceTemplate/);
   assert.match(settingsPage, /Operations Library/);
   assert.match(settingsPage, /Reusable binder material/);
   assert.match(settingsPage, /updateOperationsTemplate/);
