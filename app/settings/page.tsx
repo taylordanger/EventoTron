@@ -136,6 +136,28 @@ function daysSince(value: string | null) {
   return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 86_400_000));
 }
 
+type TemplatePresetEvent = NonNullable<NonNullable<OperationsTemplate["preset"]>["event"]>;
+type TemplatePresetBlock = NonNullable<NonNullable<OperationsTemplate["preset"]>["scheduleBlocks"]>[number];
+const templateBlockKinds = new Set<TemplatePresetBlock["kind"]>(["setup", "delivery", "staff", "service", "guest", "teardown", "note"]);
+
+function formatTemplateScheduleBlocks(blocks: TemplatePresetBlock[] | undefined) {
+  return (blocks ?? [])
+    .map((block) => [block.start, block.end, block.kind, block.title, block.owner, block.location, block.notes].join("|"))
+    .join("\n");
+}
+
+function parseTemplateScheduleBlocks(value: string): TemplatePresetBlock[] {
+  return value
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [start = "09:00", end = "09:30", rawKind = "note", title = "Schedule block", owner = "", location = "", ...notes] = line.split("|").map((item) => item.trim());
+      const kind = templateBlockKinds.has(rawKind as TemplatePresetBlock["kind"]) ? rawKind as TemplatePresetBlock["kind"] : "note";
+      return { start, end, kind, title, owner, location, notes: notes.join("|") };
+    });
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("LOCAL READY");
@@ -343,6 +365,41 @@ export default function SettingsPage() {
     update({
       operationsTemplates: settings.operationsTemplates.map((template) =>
         template.id === id ? { ...template, ...patch } : template,
+      ),
+    });
+  }
+
+  function updateTemplatePresetEvent(id: string, patch: Partial<TemplatePresetEvent>) {
+    update({
+      operationsTemplates: settings.operationsTemplates.map((template) =>
+        template.id === id
+          ? {
+              ...template,
+              preset: {
+                ...(template.preset ?? {}),
+                event: {
+                  ...(template.preset?.event ?? {}),
+                  ...patch,
+                },
+              },
+            }
+          : template,
+      ),
+    });
+  }
+
+  function updateTemplatePresetBlocks(id: string, value: string) {
+    update({
+      operationsTemplates: settings.operationsTemplates.map((template) =>
+        template.id === id
+          ? {
+              ...template,
+              preset: {
+                ...(template.preset ?? {}),
+                scheduleBlocks: parseTemplateScheduleBlocks(value),
+              },
+            }
+          : template,
       ),
     });
   }
@@ -689,6 +746,22 @@ export default function SettingsPage() {
                   </div>
                   <label className="settings-field wide"><span>Summary</span><input value={template.summary} onChange={(event) => updateOperationsTemplate(template.id, { summary: event.target.value })} /></label>
                   <label className="settings-field wide"><span>Checklist items</span><textarea value={template.checklist.join("\n")} onChange={(event) => updateOperationsTemplate(template.id, { checklist: event.target.value.split(/\n+/).map((item) => item.trim()).filter(Boolean) })} /></label>
+                  <div className="template-preset-editor">
+                    <div className="template-preset-heading">
+                      <span>Event Preset</span>
+                      <small>Used when creating a new event or first opening Scheduluotron.</small>
+                    </div>
+                    <div className="template-preset-grid">
+                      <label className="settings-field"><span>Event time</span><input value={template.preset?.event?.eventTime ?? ""} onChange={(event) => updateTemplatePresetEvent(template.id, { eventTime: event.target.value })} placeholder="11:30 AM-1:00 PM" /></label>
+                      <label className="settings-field"><span>Rental time</span><input value={template.preset?.event?.rentalTime ?? ""} onChange={(event) => updateTemplatePresetEvent(template.id, { rentalTime: event.target.value })} placeholder="9:00 AM-2:00 PM" /></label>
+                      <label className="settings-field"><span>Main space</span><input value={template.preset?.event?.space ?? ""} onChange={(event) => updateTemplatePresetEvent(template.id, { space: event.target.value })} placeholder="Auditorium" /></label>
+                      <label className="settings-field"><span>Manager</span><input value={template.preset?.event?.manager ?? ""} onChange={(event) => updateTemplatePresetEvent(template.id, { manager: event.target.value })} placeholder="MOD name" /></label>
+                      <label className="settings-field"><span>Attendees</span><input type="number" min="0" value={template.preset?.event?.attendees ?? 0} onChange={(event) => updateTemplatePresetEvent(template.id, { attendees: Number(event.target.value) })} /></label>
+                      <label className="settings-field"><span>Deposit</span><input type="number" min="0" value={template.preset?.event?.deposit ?? 0} onChange={(event) => updateTemplatePresetEvent(template.id, { deposit: Number(event.target.value) })} /></label>
+                    </div>
+                    <label className="settings-field wide"><span>Requested items preset</span><input value={template.preset?.event?.requestedItems ?? ""} onChange={(event) => updateTemplatePresetEvent(template.id, { requestedItems: event.target.value })} placeholder="Tables, chairs, linens, hospitality, cash bags" /></label>
+                    <label className="settings-field wide"><span>Schedule preset blocks</span><textarea value={formatTemplateScheduleBlocks(template.preset?.scheduleBlocks)} onChange={(event) => updateTemplatePresetBlocks(template.id, event.target.value)} placeholder="09:00|10:15|setup|Set auditorium|Room crew|Auditorium|Round tables and black tablecloths" /></label>
+                  </div>
                 </article>
               ))}
             </div>

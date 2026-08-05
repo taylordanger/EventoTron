@@ -233,6 +233,10 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Operations Library/);
   assert.match(settingsPage, /Reusable binder material/);
   assert.match(settingsPage, /updateOperationsTemplate/);
+  assert.match(settingsPage, /updateTemplatePresetEvent/);
+  assert.match(settingsPage, /formatTemplateScheduleBlocks/);
+  assert.match(settingsPage, /Schedule preset blocks/);
+  assert.match(styles, /template-preset-editor/);
   assert.match(settingsPage, /Launch Readiness/);
   assert.match(settingsPage, /Local event suite/);
   assert.match(settingsPage, /importGoogleCalendarLink/);
