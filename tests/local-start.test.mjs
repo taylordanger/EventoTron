@@ -38,8 +38,12 @@ test("desktop launcher reuses the local backend and route tree", async () => {
   assert.match(launcher, /\/api\/health/);
   assert.match(launcher, /http:\/\/127\.0\.0\.1:\$\{port\}\//);
   assert.match(launcher, /Library\/Logs\/EventoTron/);
+  assert.match(launcher, /openSync/);
   assert.match(builder, /appName = "EventoTron Local"/);
   assert.match(builder, /\$\{appName\}\.app/);
+  assert.match(builder, /osacompile/);
+  assert.match(builder, /"-l", "JavaScript"/);
+  assert.match(builder, /Application\.currentApplication/);
   assert.match(builder, /desktop-launcher\.mjs/);
   assert.match(packageJson, /"desktop:mac": "node scripts\/build-macos-app\.mjs"/);
   assert.match(readme, /npm run desktop:mac/);

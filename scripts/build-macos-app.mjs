@@ -1,54 +1,64 @@
-import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
 const appName = "EventoTron Local";
 const bundleRoot = `${projectRoot}/build/macos/${appName}.app`;
-const contentsDir = `${bundleRoot}/Contents`;
-const macosDir = `${contentsDir}/MacOS`;
-const resourcesDir = `${contentsDir}/Resources`;
-const executablePath = `${macosDir}/EventoTron`;
+const logDir = "$HOME/Library/Logs/EventoTron";
+const nodePath = process.execPath;
 
-const plist = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleDisplayName</key>
-  <string>${appName}</string>
-  <key>CFBundleExecutable</key>
-  <string>EventoTron</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.sheppard.eventotron.local</string>
-  <key>CFBundleName</key>
-  <string>${appName}</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>0.1.0</string>
-  <key>CFBundleVersion</key>
-  <string>1</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
-  <key>NSHighResolutionCapable</key>
-  <true/>
-</dict>
-</plist>
-`;
+function shellQuote(value) {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
 
-const executable = `#!/bin/zsh
-set -euo pipefail
-export EVENTOTRON_DESKTOP=1
-cd "${projectRoot}"
-exec /usr/bin/env node "${projectRoot}/scripts/desktop-launcher.mjs"
+const launchCommand = [
+  `mkdir -p ${logDir}`,
+  `cd ${shellQuote(projectRoot)}`,
+  [
+    "EVENTOTRON_DESKTOP=1",
+    shellQuote(nodePath),
+    shellQuote(`${projectRoot}/scripts/desktop-launcher.mjs`),
+    `>> ${logDir}/desktop-app.log`,
+    "2>&1",
+    "&",
+  ].join(" "),
+].join("; ");
+
+const script = `const app = Application.currentApplication();
+app.includeStandardAdditions = true;
+app.doShellScript(${JSON.stringify(launchCommand)});
 `;
 
 await rm(bundleRoot, { recursive: true, force: true });
-await mkdir(macosDir, { recursive: true });
-await mkdir(resourcesDir, { recursive: true });
-await writeFile(`${contentsDir}/Info.plist`, plist);
-await writeFile(executablePath, executable);
-await chmod(executablePath, 0o755);
+await mkdir(`${projectRoot}/build/macos`, { recursive: true });
+
+const tempDir = await mkdtemp(join(tmpdir(), "eventotron-app-"));
+const sourcePath = join(tempDir, "EventoTron.js");
+const debugSourcePath = `${projectRoot}/build/macos/EventoTronLauncher.js`;
+await writeFile(sourcePath, script);
+await writeFile(debugSourcePath, script);
+
+const compiled = spawnSync("/usr/bin/osacompile", ["-l", "JavaScript", "-o", bundleRoot, sourcePath], {
+  cwd: projectRoot,
+  encoding: "utf8",
+});
+await rm(tempDir, { recursive: true, force: true });
+
+if (compiled.status !== 0) {
+  throw new Error(
+    [
+      "Could not create EventoTron Local.app with osacompile.",
+      compiled.stderr,
+      compiled.stdout,
+    ].filter(Boolean).join("\n"),
+  );
+}
 
 console.log(`Created ${bundleRoot}`);
 console.log("Double-click the app, or run:");
 console.log(`open "${bundleRoot}"`);
+console.log("Launcher log:");
+console.log("~/Library/Logs/EventoTron/desktop-app.log");

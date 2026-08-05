@@ -1,4 +1,4 @@
-import { createWriteStream } from "node:fs";
+import { closeSync, openSync } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -52,13 +52,13 @@ async function ensureBuilt() {
       access(`${projectRoot}dist/server/wrangler.json`),
     ]);
   } catch {
-    const buildLog = createWriteStream(`${logDir}/build.log`, { flags: "a" });
+    const buildLog = openSync(`${logDir}/build.log`, "a");
     const result = spawnSync("npm", ["run", "build"], {
       cwd: projectRoot,
       env: { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
       stdio: ["ignore", buildLog, buildLog],
     });
-    buildLog.end();
+    closeSync(buildLog);
     if (result.status !== 0) {
       throw new Error("EventoTron could not build. See ~/Library/Logs/EventoTron/build.log.");
     }
@@ -70,7 +70,7 @@ async function launchBrowser(port) {
 }
 
 async function startServer(port) {
-  const output = createWriteStream(`${logDir}/eventotron.log`, { flags: "a" });
+  const output = openSync(`${logDir}/eventotron.log`, "a");
   const child = spawn(process.execPath, ["scripts/start-local.mjs", String(port)], {
     cwd: projectRoot,
     detached: true,
@@ -78,22 +78,26 @@ async function startServer(port) {
     stdio: ["ignore", output, output],
   });
   child.unref();
+  closeSync(output);
   await writeFile(pidFile, String(child.pid));
   return child.pid;
 }
 
 async function main() {
   await mkdir(logDir, { recursive: true });
+  console.log(`[${new Date().toISOString()}] EventoTron desktop launcher starting.`);
 
   const existingPort = await existingEventoTronPort();
   if (existingPort) {
+    console.log(`EventoTron is already running on port ${existingPort}; opening it.`);
     await launchBrowser(existingPort);
     return;
   }
 
   await ensureBuilt();
   const port = await findAvailablePort(defaultPort);
-  await startServer(port);
+  const pid = await startServer(port);
+  console.log(`Started EventoTron backend process ${pid} on port ${port}.`);
   const health = await waitForHealth(port);
   if (!health) {
     const details = await readFile(`${logDir}/eventotron.log`, "utf8").catch(() => "");
@@ -101,6 +105,7 @@ async function main() {
       `EventoTron started but did not become ready on port ${port}.\n${details.slice(-1200)}`,
     );
   }
+  console.log(`EventoTron is ready on ${appUrl(port)}.`);
   await launchBrowser(port);
 }
 
