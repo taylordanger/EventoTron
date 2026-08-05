@@ -20,7 +20,8 @@ test("local production launcher rejects invalid ports", async () => {
 
 test("local production launcher uses the Workers runtime for D1", async () => {
   const source = await readFile(new URL("../scripts/start-local.mjs", import.meta.url), "utf8");
-  assert.match(source, /node_modules\/.bin\/wrangler/);
+  assert.match(source, /node_modules\/wrangler\/bin\/wrangler\.js/);
+  assert.match(source, /spawn\(process\.execPath/);
   assert.match(source, /dist\/server\/wrangler\.json/);
   assert.match(source, /\.wrangler\/state/);
   assert.doesNotMatch(source, /spawn\([^\n]+\["start"/);

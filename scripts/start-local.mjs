@@ -1,6 +1,7 @@
 import { access } from "node:fs/promises";
 import net from "node:net";
 import { spawn } from "node:child_process";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function isPortAvailable(port) {
@@ -46,8 +47,13 @@ async function start() {
   console.log(`EventoTron is starting at http://localhost:${port}`);
   console.log(`System status: http://localhost:${port}/api/health`);
 
-  const executable = fileURLToPath(new URL("../node_modules/.bin/wrangler", import.meta.url));
-  const child = spawn(executable, [
+  const wranglerScript = fileURLToPath(new URL("../node_modules/wrangler/bin/wrangler.js", import.meta.url));
+  const pathWithNode = [
+    dirname(process.execPath),
+    process.env.PATH,
+  ].filter(Boolean).join(":");
+  const child = spawn(process.execPath, [
+    wranglerScript,
     "dev",
     "--config",
     fileURLToPath(workerConfig),
@@ -60,7 +66,7 @@ async function start() {
     "false",
   ], {
     cwd: projectRoot,
-    env: { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
+    env: { ...process.env, PATH: pathWithNode, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
     stdio: "inherit",
   });
   for (const signal of ["SIGINT", "SIGTERM"]) {
