@@ -75,8 +75,10 @@ Exit criteria:
 Goal: package EventoTron as a desktop app using the same routes and backend.
 
 - Choose the desktop shell and local data directory.
+- Generate the local macOS pilot app with `npm run desktop:mac`; it starts the same local Workers backend and opens the existing suite routes.
 - Keep the existing routes: `/`, `/tabletron`, `/foodotron`, `/scheduluotron`, `/settings`, `/master-report`, and `/api`.
 - Package local runtime startup, shutdown, backups, and database location.
+- Decide whether the final production shell should remain a browser-opening launcher or move to a dedicated signed Electron/Tauri/native window.
 - Test printing and PDF saving from the packaged app.
 
 Exit criteria:

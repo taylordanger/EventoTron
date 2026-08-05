@@ -25,3 +25,23 @@ test("local production launcher uses the Workers runtime for D1", async () => {
   assert.match(source, /\.wrangler\/state/);
   assert.doesNotMatch(source, /spawn\([^\n]+\["start"/);
 });
+
+test("desktop launcher reuses the local backend and route tree", async () => {
+  const [launcher, builder, packageJson, readme] = await Promise.all([
+    readFile(new URL("../scripts/desktop-launcher.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/build-macos-app.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../README.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(launcher, /scripts\/start-local\.mjs/);
+  assert.match(launcher, /\/api\/health/);
+  assert.match(launcher, /http:\/\/127\.0\.0\.1:\$\{port\}\//);
+  assert.match(launcher, /Library\/Logs\/EventoTron/);
+  assert.match(builder, /appName = "EventoTron Local"/);
+  assert.match(builder, /\$\{appName\}\.app/);
+  assert.match(builder, /desktop-launcher\.mjs/);
+  assert.match(packageJson, /"desktop:mac": "node scripts\/build-macos-app\.mjs"/);
+  assert.match(readme, /npm run desktop:mac/);
+  assert.match(readme, /same local Workers backend/);
+});

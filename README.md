@@ -26,6 +26,17 @@ Event files use per-record server revisions. Independent staff edits merge when 
 
 The system-readiness response is available at `/api/health`. The same database and routes are intended to be reused when EventoTron is packaged as a desktop application.
 
+## Local Desktop App
+
+```bash
+npm run build
+npm run desktop:mac
+```
+
+This creates `build/macos/EventoTron Local.app`. Double-clicking it starts the same local Workers backend, reuses the same routes and D1 state, and opens EventoTron in the browser. Runtime logs are written to `~/Library/Logs/EventoTron`.
+
+This is the local pilot desktop package. A signed installer and dedicated app-window shell can be added after the local pilot workflow is stable.
+
 ## Workspace Recovery
 
 Use `Settings > Export Workspace` to download a complete version 2 backup. It contains events, applet state, rooms, layouts, furniture, meals, recipes, shopping items, schedules, calendar sources and their synced events, settings, and transfer links.
