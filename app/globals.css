@@ -2993,6 +2993,15 @@
   grid-row: span 2;
 }
 
+.settings-alpha-card {
+  grid-column: 1 / -1;
+  border-color: var(--p);
+  background:
+    linear-gradient(90deg, rgba(117, 255, 71, .12), transparent 48%),
+    #040b06;
+  box-shadow: inset 4px 0 0 var(--p), 0 0 24px rgba(117, 255, 71, .08);
+}
+
 .settings-health-card {
   grid-column: 1 / -1;
 }
@@ -3235,6 +3244,100 @@
   background: #071009;
   padding: 9px;
 }
+
+.alpha-overview {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.alpha-overview > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.alpha-overview small,
+.alpha-readiness-item small {
+  color: #82a77d;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.alpha-overview b {
+  color: var(--pb);
+  font-size: 28px;
+  line-height: 1;
+  text-shadow: 0 0 14px rgba(117, 255, 71, .22);
+}
+
+.alpha-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.alpha-actions button,
+.alpha-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid var(--p);
+  background: #0b1a0e;
+  color: var(--p);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.alpha-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.alpha-readiness-item {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  min-height: 64px;
+  align-content: space-between;
+  padding: 10px;
+  border: 1px solid #315b34;
+  background: #030805;
+  box-shadow: inset 0 3px 0 #315b34;
+}
+
+.alpha-readiness-item.ready {
+  border-color: var(--p);
+  box-shadow: inset 0 3px 0 var(--p);
+}
+
+.alpha-readiness-item.attention {
+  border-color: #d8a734;
+  box-shadow: inset 0 3px 0 #d8a734;
+}
+
+.alpha-readiness-item.pending {
+  border-color: #315b34;
+}
+
+.alpha-readiness-item b {
+  overflow-wrap: anywhere;
+  color: #dfffd9;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.alpha-readiness-item.ready b { color: var(--p); }
+.alpha-readiness-item.attention b { color: #ffd86d; }
 
 .settings-backup-card {
   grid-column: 1 / -1;
@@ -3708,6 +3811,19 @@
 
   .launch-readiness-list {
     grid-template-columns: 1fr;
+  }
+
+  .alpha-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .alpha-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alpha-readiness-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .operations-template-topline {

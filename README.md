@@ -45,6 +45,12 @@ Settings keeps a local backup checkpoint after a workspace export so staff can s
 
 Use `Settings > Restore` to merge a version 1 or version 2 backup into the current workspace. EventoTron validates table records before writing them, reports the restored event count, and rebuilds normalized applet records only for legacy version 1 files.
 
+## Private Alpha
+
+Use `Settings > Private Alpha` before entering real event data. It checks the local system, recent backup checkpoint, saved events, synced calendar records, audit history, and applet records.
+
+See [docs/PRIVATE_ALPHA_RUNBOOK.md](docs/PRIVATE_ALPHA_RUNBOOK.md) for the one-person real-event pilot workflow.
+
 ## Production Roadmap
 
 See [docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md) for the current local pilot, operations-template, calendar/account, desktop-packaging, and launch gates.

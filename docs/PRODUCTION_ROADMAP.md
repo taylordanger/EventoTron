@@ -25,6 +25,7 @@ It is about 60 percent ready for a broader production rollout with multiple user
 
 Goal: use EventoTron locally for real planning while keeping paper as backup.
 
+- Use the `Settings > Private Alpha` panel as the daily readiness check for one-operator real-event planning.
 - Confirm `Settings > Export Workspace` creates a readable backup, then use the review-first restore screen to inspect it without immediately changing the workspace.
 - Confirm Settings shows the latest backup checkpoint with export age, version, source, and record counts.
 - Plan one upcoming event using Calendar, Tabletron, Foodotron, and Scheduluotron.
@@ -38,6 +39,7 @@ Exit criteria:
 
 - One real event can be planned and printed without using URL-encoded transfer data or separate app windows.
 - The report is clear enough for setup, shopping, client conversation, and MOD use.
+- The private alpha runbook in `docs/PRIVATE_ALPHA_RUNBOOK.md` has been followed for at least one real event.
 
 ## Phase 2: Operations Templates
 

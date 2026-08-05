@@ -110,7 +110,7 @@ test("workspace backups can be reviewed before restore without writing data", as
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, privateAlphaRunbook, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -137,6 +137,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/suite-settings.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/settings/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../docs/PRODUCTION_ROADMAP.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/PRIVATE_ALPHA_RUNBOOK.md", import.meta.url), "utf8"),
     readFile(new URL("../README.md", import.meta.url), "utf8"),
   ]);
 
@@ -250,6 +251,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Schedule preset blocks/);
   assert.match(styles, /template-preset-editor/);
   assert.match(settingsPage, /Launch Readiness/);
+  assert.match(settingsPage, /Private Alpha/);
+  assert.match(settingsPage, /runAlphaCheck/);
+  assert.match(settingsPage, /EXPORT CHECKPOINT/);
   assert.match(settingsPage, /Local event suite/);
   assert.match(settingsPage, /importGoogleCalendarLink/);
   assert.match(settingsPage, /Paste Google Calendar link/);
@@ -312,14 +316,22 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(backupRoute, /openIds: \[\]/);
   assert.match(styles, /operations-template-list/);
   assert.match(styles, /launch-readiness-list/);
+  assert.match(styles, /settings-alpha-card/);
+  assert.match(styles, /alpha-readiness-grid/);
   assert.match(styles, /new-event-template/);
   assert.match(styles, /calendar-import-box/);
   assert.match(styles, /backup-review-panel/);
   assert.match(styles, /backup-status-banner/);
   assert.match(styles, /backup-checkpoint-grid/);
   assert.match(roadmap, /Phase 1: Local Pilot/);
+  assert.match(roadmap, /Settings > Private Alpha/);
   assert.match(roadmap, /Phase 4: Desktop App/);
   assert.match(roadmap, /80 percent ready for a local pilot/);
+  assert.match(privateAlphaRunbook, /one operator using EventoTron locally with real events/);
+  assert.match(privateAlphaRunbook, /Export Checkpoint/);
+  assert.match(privateAlphaRunbook, /Recovery Drill/);
+  assert.match(readme, /Private Alpha/);
+  assert.match(readme, /PRIVATE_ALPHA_RUNBOOK\.md/);
   assert.match(readme, /PRODUCTION_ROADMAP\.md/);
   assert.match(masterReport, /printReport\(`?\$\{event\.title\} Master Report/);
   assert.match(foodotron, /printReport\(`\$\{meal\.name\} Foodotron Shopping Report/);

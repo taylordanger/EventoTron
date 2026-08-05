@@ -64,6 +64,13 @@ type BackupCheckpoint = {
   counts: Record<string, number>;
 };
 
+type AlphaReadinessItem = {
+  key: string;
+  label: string;
+  state: "ready" | "attention" | "pending";
+  value: string;
+};
+
 type CalendarImportSummary = {
   sourceId: string;
   sourceName: string;
@@ -176,6 +183,60 @@ export default function SettingsPage() {
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
   const backupAgeDays = daysSince(backupCheckpoint?.exportedAt ?? null);
+  const alphaReadiness = useMemo<AlphaReadinessItem[]>(() => {
+    const syncedCalendarEvents = calendarImportHistory.reduce((total, source) => total + source.eventCount, 0);
+    const backupFresh = backupCheckpoint && backupAgeDays !== null && backupAgeDays <= 7;
+    const eventCount = health?.records?.events ?? 0;
+    const auditCount = health?.records?.eventAudit ?? 0;
+    const appletRecords = health?.records
+      ? health.records.appletStates + health.records.foodotronMeals + health.records.tabletronEvents + health.records.scheduleItems
+      : 0;
+    return [
+      {
+        key: "system",
+        label: "System",
+        state: health?.status === "ready" ? "ready" : healthChecking ? "pending" : "attention",
+        value: healthChecking ? "Checking" : health?.status === "ready" ? "Ready" : "Needs check",
+      },
+      {
+        key: "backup",
+        label: "Backup",
+        state: backupFresh ? "ready" : backupCheckpoint ? "attention" : "pending",
+        value: backupCheckpoint
+          ? backupAgeDays === 0
+            ? "Today"
+            : backupAgeDays === 1
+              ? "Yesterday"
+              : `${backupAgeDays ?? "Unknown"} days old`
+          : "Needed",
+      },
+      {
+        key: "events",
+        label: "Real events",
+        state: eventCount > 0 ? "ready" : "pending",
+        value: `${eventCount} saved`,
+      },
+      {
+        key: "calendar",
+        label: "Calendar",
+        state: syncedCalendarEvents > 0 ? "ready" : settings.calendarSources.length ? "attention" : "pending",
+        value: syncedCalendarEvents > 0 ? `${syncedCalendarEvents} synced` : settings.calendarSources.length ? "Sync due" : "Not connected",
+      },
+      {
+        key: "audit",
+        label: "History",
+        state: auditCount > 0 ? "ready" : "pending",
+        value: `${auditCount} entries`,
+      },
+      {
+        key: "applets",
+        label: "Applets",
+        state: appletRecords > 0 ? "ready" : eventCount > 0 ? "attention" : "pending",
+        value: `${appletRecords} records`,
+      },
+    ];
+  }, [backupAgeDays, backupCheckpoint, calendarImportHistory, health, healthChecking, settings.calendarSources.length]);
+  const alphaReadyCount = alphaReadiness.filter((item) => item.state === "ready").length;
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -283,6 +344,11 @@ export default function SettingsPage() {
     } finally {
       setActivityLoading(false);
     }
+  }
+
+  async function runAlphaCheck() {
+    setStatus("ALPHA CHECK");
+    await Promise.all([checkHealth(), loadActivity(), loadCalendarImportHistory()]);
   }
 
   function addRoom() {
@@ -630,6 +696,28 @@ export default function SettingsPage() {
         </header>
 
         <section className="settings-layout">
+          <section className="settings-card settings-alpha-card">
+            <div className="settings-card-heading"><span>00</span><h3>Private Alpha</h3><button onClick={() => void runAlphaCheck()}>RUN CHECK</button></div>
+            <div className="alpha-overview">
+              <div>
+                <small>ONE OPERATOR / REAL EVENTS</small>
+                <b>{alphaReadyCount} / {alphaReadiness.length} READY</b>
+              </div>
+              <div className="alpha-actions">
+                <button onClick={exportWorkspaceBackup}>EXPORT CHECKPOINT</button>
+                <a href="/master-report">MASTER REPORT</a>
+              </div>
+            </div>
+            <div className="alpha-readiness-grid">
+              {alphaReadiness.map((item) => (
+                <article className={`alpha-readiness-item ${item.state}`} key={item.key}>
+                  <small>{item.label}</small>
+                  <b>{item.value}</b>
+                </article>
+              ))}
+            </div>
+          </section>
+
           <section className="settings-card">
             <div className="settings-card-heading"><span>01</span><h3>Workspace</h3></div>
             <label className="settings-field wide"><span>Workspace name</span><input value={settings.workspaceName} onChange={(event) => update({ workspaceName: event.target.value })} /></label>
