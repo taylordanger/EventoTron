@@ -6,7 +6,7 @@ import { printReport, saveReportPdf } from "../print-mode";
 import { readSuiteEventBundle } from "../event-bundle";
 import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
-import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY, type SuiteRoomSetting, type SuiteSettings } from "../suite-settings";
+import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY, type OperationsTemplate, type SuiteRoomSetting, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 
 type RoomAssignment = {
@@ -76,6 +76,7 @@ type ReportRoomReference = Pick<SuiteRoomSetting, "seats" | "squareFeet" | "feat
 type ReportRoom = { name: string; details: string; checklist: string[]; layout?: ReportLayout; reference?: ReportRoomReference };
 type ReportData = {
   event: EventoEventContext;
+  operationsTemplate?: OperationsTemplate;
   tableEvent?: NonNullable<TableProject["events"]>[number];
   rooms: ReportRoom[];
   furniture: string[];
@@ -174,6 +175,7 @@ function buildReport(
   settings: SuiteSettings | null,
 ): ReportData {
   const tableEvent = table?.events?.find((item) => item.id === event.id);
+  const operationsTemplate = settings?.operationsTemplates.find((template) => template.id === event.operationsTemplateId);
   const roomRows: ReportRoom[] = (tableEvent?.rooms ?? []).map((assignment) => {
     const room = table?.rooms?.find((item) => item.id === assignment.roomId);
     const layout = room?.layouts?.find((item) => item.id === assignment.layoutId);
@@ -221,6 +223,7 @@ function buildReport(
   const linkedFood = tableEvent?.food;
   return {
     event,
+    operationsTemplate,
     tableEvent,
     rooms,
     furniture: furniture.length ? furniture : ["No custom furniture has been added yet."],
@@ -334,7 +337,48 @@ export default function MasterReportPage() {
       </section>
 
       <section className="master-report-section report-page-break">
-        <div className="master-report-section-heading"><span>02</span><h2>Room Setup Checklist</h2></div>
+        <div className="master-report-section-heading"><span>02</span><h2>Operations Playbook</h2></div>
+        {report.operationsTemplate ? (
+          <>
+            <div className="report-playbook-hero">
+              <div>
+                <small>ACTIVE TEMPLATE</small>
+                <b>{report.operationsTemplate.name}</b>
+                <p>{report.operationsTemplate.summary}</p>
+              </div>
+              <div>
+                <small>PRESET DEFAULTS</small>
+                <span>{report.operationsTemplate.preset?.event?.eventTime || event.eventTime || "Time not preset"}</span>
+                <span>{report.operationsTemplate.preset?.event?.space || event.space || "Room not preset"}</span>
+                <span>{report.operationsTemplate.preset?.event?.manager || event.manager || "Manager not preset"}</span>
+              </div>
+            </div>
+            <div className="report-playbook-checklist">
+              {report.operationsTemplate.checklist.map((item) => (
+                <p key={item}><span className="report-checkbox" />{item}</p>
+              ))}
+            </div>
+            {report.operationsTemplate.preset?.scheduleBlocks?.length ? (
+              <div className="report-playbook-schedule">
+                <h3>Preset Schedule Blocks</h3>
+                {report.operationsTemplate.preset.scheduleBlocks.map((block) => (
+                  <div key={`${block.start}-${block.title}`}>
+                    <strong>{formatRegularTime(block.start)}-{formatRegularTime(block.end)}</strong>
+                    <span>{block.kind.toUpperCase()}</span>
+                    <b>{block.title}</b>
+                    <small>{block.owner || "Unassigned"} · {block.location || "Location not set"}</small>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="report-callout">No operations template is attached to this event. Attach one from the event information sheet to add recurring checklist material here.</div>
+        )}
+      </section>
+
+      <section className="master-report-section report-page-break">
+        <div className="master-report-section-heading"><span>03</span><h2>Room Setup Checklist</h2></div>
         {report.rooms.map((room) => (
           <article className="report-room" key={room.name}>
             <h3><span className="report-checkbox" />{room.name}</h3>
@@ -403,7 +447,7 @@ export default function MasterReportPage() {
       </section>
 
       <section className="master-report-section report-page-break">
-        <div className="master-report-section-heading"><span>03</span><h2>Run of Show</h2></div>
+        <div className="master-report-section-heading"><span>04</span><h2>Run of Show</h2></div>
         {report.schedule.length ? (
           <div className="report-timeline">
             {report.schedule.map((block) => (
@@ -420,7 +464,7 @@ export default function MasterReportPage() {
       </section>
 
       <section className="master-report-section report-page-break">
-        <div className="master-report-section-heading"><span>04</span><h2>Food and Grocery Checklist</h2></div>
+        <div className="master-report-section-heading"><span>05</span><h2>Food and Grocery Checklist</h2></div>
         {report.meal ? <p className="report-lead"><b>{report.meal.name}</b> · {report.meal.guests} guests{report.meal.recipes.length ? ` · ${report.meal.recipes.join(", ")}` : ""}</p> : <div className="report-callout">No Foodotron meal is linked to this event yet.</div>}
         {report.groceries.length ? (
           <div className="report-shopping-list">

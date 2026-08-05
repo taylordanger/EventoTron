@@ -229,7 +229,11 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(masterReport, /findRoomReference/);
   assert.match(masterReport, /Facility Reference/);
   assert.match(masterReport, /RENTAL NOTES/);
+  assert.match(masterReport, /Operations Playbook/);
+  assert.match(masterReport, /report\.operationsTemplate/);
+  assert.match(masterReport, /Preset Schedule Blocks/);
   assert.match(styles, /report-room-reference/);
+  assert.match(styles, /report-playbook-hero/);
   assert.match(tabletron, /parseFurnitureDimensions/);
   assert.match(tabletron, /upper\.includes\("ROUND"\)/);
   assert.match(tabletron, /inchMatch/);

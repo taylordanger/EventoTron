@@ -2279,6 +2279,98 @@
   white-space: pre-wrap;
 }
 
+.report-playbook-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, .8fr);
+  gap: 12px;
+}
+
+.report-playbook-hero > div,
+.report-playbook-checklist,
+.report-playbook-schedule {
+  border: 1px solid #b5c7b5;
+  background: #f5f9f5;
+  padding: 13px 15px;
+}
+
+.report-playbook-hero small,
+.report-playbook-schedule h3 {
+  display: block;
+  margin: 0 0 7px;
+  color: #2e7c39;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.report-playbook-hero b {
+  display: block;
+  color: #172218;
+  font-size: 18px;
+}
+
+.report-playbook-hero p {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.report-playbook-hero span {
+  display: block;
+  padding: 7px 0;
+  border-top: 1px solid #d3dfd2;
+  color: #172218;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-playbook-checklist {
+  margin-top: 12px;
+}
+
+.report-playbook-checklist p {
+  display: flex;
+  gap: 9px;
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.report-playbook-schedule {
+  margin-top: 12px;
+}
+
+.report-playbook-schedule > div {
+  display: grid;
+  grid-template-columns: 92px 72px minmax(0, 1fr) minmax(160px, .7fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 1px solid #d3dfd2;
+}
+
+.report-playbook-schedule strong,
+.report-playbook-schedule span,
+.report-playbook-schedule small {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.report-playbook-schedule span {
+  color: #2e7c39;
+  font-weight: 900;
+}
+
+.report-playbook-schedule b {
+  color: #172218;
+  font-size: 13px;
+}
+
+.report-playbook-schedule small {
+  color: #466049;
+}
+
 .report-room {
   margin: 12px 0;
   padding: 14px 16px;
