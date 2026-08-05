@@ -10,6 +10,13 @@ This runbook is for one operator using EventoTron locally with real events while
 4. Use `Export Checkpoint` before entering or changing real event data.
 5. Confirm the backup file downloads and keep it somewhere easy to find.
 
+## End Of Day
+
+1. Use `Export Checkpoint` after real event data changes.
+2. Open `Settings`.
+3. Use `Quit App`.
+4. Restart later by double-clicking `build/macos/EventoTron Local.app`.
+
 ## Real Event Workflow
 
 1. Sync calendar sources from `Settings` when new calendar data is expected.

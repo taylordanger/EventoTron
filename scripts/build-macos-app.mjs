@@ -19,6 +19,7 @@ const launchCommand = [
   `cd ${shellQuote(projectRoot)}`,
   [
     "EVENTOTRON_DESKTOP=1",
+    "nohup",
     shellQuote(nodePath),
     shellQuote(`${projectRoot}/scripts/desktop-launcher.mjs`),
     `>> ${logDir}/desktop-app.log`,

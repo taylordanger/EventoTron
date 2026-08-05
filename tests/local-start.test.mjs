@@ -28,8 +28,9 @@ test("local production launcher uses the Workers runtime for D1", async () => {
 });
 
 test("desktop launcher reuses the local backend and route tree", async () => {
-  const [launcher, builder, packageJson, readme] = await Promise.all([
+  const [launcher, control, builder, packageJson, readme] = await Promise.all([
     readFile(new URL("../scripts/desktop-launcher.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/desktop-control.mjs", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-macos-app.mjs", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../README.md", import.meta.url), "utf8"),
@@ -40,11 +41,17 @@ test("desktop launcher reuses the local backend and route tree", async () => {
   assert.match(launcher, /http:\/\/127\.0\.0\.1:\$\{port\}\//);
   assert.match(launcher, /Library\/Logs\/EventoTron/);
   assert.match(launcher, /openSync/);
+  assert.match(launcher, /scripts\/desktop-control\.mjs/);
+  assert.match(control, /createServer/);
+  assert.match(control, /eventotron-desktop-control/);
+  assert.match(control, /\/quit/);
+  assert.match(control, /process\.kill\(pid, "SIGTERM"\)/);
   assert.match(builder, /appName = "EventoTron Local"/);
   assert.match(builder, /\$\{appName\}\.app/);
   assert.match(builder, /osacompile/);
   assert.match(builder, /"-l", "JavaScript"/);
   assert.match(builder, /Application\.currentApplication/);
+  assert.match(builder, /nohup/);
   assert.match(builder, /desktop-launcher\.mjs/);
   assert.match(packageJson, /"desktop:mac": "node scripts\/build-macos-app\.mjs"/);
   assert.match(readme, /npm run desktop:mac/);

@@ -8,6 +8,7 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const logDir = `${process.env.HOME}/Library/Logs/EventoTron`;
 const pidFile = `${logDir}/eventotron.pid`;
 const defaultPort = Number(process.env.EVENTOTRON_PORT ?? "3001");
+const controlPort = Number(process.env.EVENTOTRON_CONTROL_PORT ?? "3101");
 
 function healthUrl(port) {
   return `http://127.0.0.1:${port}/api/health`;
@@ -83,6 +84,29 @@ async function startServer(port) {
   return child.pid;
 }
 
+async function fetchControlStatus() {
+  try {
+    const response = await fetch(`http://127.0.0.1:${controlPort}/status`, { cache: "no-store" });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function startControlServer(port) {
+  if (await fetchControlStatus()) return;
+  const output = openSync(`${logDir}/desktop-control.log`, "a");
+  const child = spawn(process.execPath, ["scripts/desktop-control.mjs", String(port)], {
+    cwd: projectRoot,
+    detached: true,
+    env: { ...process.env, EVENTOTRON_PORT: String(port), EVENTOTRON_CONTROL_PORT: String(controlPort) },
+    stdio: ["ignore", output, output],
+  });
+  child.unref();
+  closeSync(output);
+  console.log(`Started EventoTron desktop control process ${child.pid} on port ${controlPort}.`);
+}
+
 async function main() {
   await mkdir(logDir, { recursive: true });
   console.log(`[${new Date().toISOString()}] EventoTron desktop launcher starting.`);
@@ -91,6 +115,7 @@ async function main() {
   if (existingPort) {
     console.log(`EventoTron is already running on port ${existingPort}; opening it.`);
     await launchBrowser(existingPort);
+    await startControlServer(existingPort);
     return;
   }
 
@@ -107,6 +132,7 @@ async function main() {
   }
   console.log(`EventoTron is ready on ${appUrl(port)}.`);
   await launchBrowser(port);
+  await startControlServer(port);
 }
 
 main().catch((error) => {

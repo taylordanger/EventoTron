@@ -2704,7 +2704,7 @@
 
 .settings-page-header {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) repeat(5, max-content);
+  grid-template-columns: minmax(240px, 1fr) repeat(6, max-content);
   gap: 8px;
   align-items: center;
   padding: 0 0 16px;
@@ -2743,6 +2743,34 @@
   background: var(--p);
   color: #041004;
   border-color: var(--p);
+}
+
+.settings-page-header button.danger {
+  color: #ffb2a5;
+  border-color: #74352f;
+  background: #170806;
+}
+
+.settings-page-header button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.eventotron-quitting::before {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #dfffd9;
+  background: rgba(2, 5, 3, 0.92);
+  content: "EventoTron is quitting. Double-click the app to restart.";
+  font-size: 18px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .settings-applet .settings-layout {
@@ -3879,7 +3907,7 @@
 
 @media(max-width:1100px) and (min-width:781px) {
   .settings-page-header {
-    grid-template-columns: repeat(5, max-content);
+    grid-template-columns: repeat(6, max-content);
     justify-content: start;
   }
 

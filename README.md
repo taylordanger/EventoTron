@@ -35,6 +35,8 @@ npm run desktop:mac
 
 This creates `build/macos/EventoTron Local.app`. Double-clicking it starts the same local Workers backend, reuses the same routes and D1 state, and opens EventoTron in the browser. Runtime logs are written to `~/Library/Logs/EventoTron`.
 
+Use `Settings > Quit App` to quit EventoTron from the browser. This is the local Quit EventoTron control. Double-click `build/macos/EventoTron Local.app` again to restart it.
+
 This is the local pilot desktop package. A signed installer and dedicated app-window shell can be added after the local pilot workflow is stable.
 
 ## Workspace Recovery

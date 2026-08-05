@@ -180,6 +180,7 @@ export default function SettingsPage() {
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null);
   const [backupCheckpoint, setBackupCheckpoint] = useState<BackupCheckpoint | null>(null);
   const [restoreInProgress, setRestoreInProgress] = useState(false);
+  const [quitting, setQuitting] = useState(false);
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
   const backupAgeDays = daysSince(backupCheckpoint?.exportedAt ?? null);
@@ -349,6 +350,30 @@ export default function SettingsPage() {
   async function runAlphaCheck() {
     setStatus("ALPHA CHECK");
     await Promise.all([checkHealth(), loadActivity(), loadCalendarImportHistory()]);
+  }
+
+  async function quitEventoTron() {
+    if (quitting) return;
+    const confirmed = window.confirm("Quit EventoTron local backend? Double-click the app to restart.");
+    if (!confirmed) return;
+    setQuitting(true);
+    setStatus("QUITTING");
+    try {
+      const response = await fetch("/api/local-runtime", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "quit" }),
+      });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Quit failed");
+      setStatus("QUIT REQUESTED");
+      window.setTimeout(() => {
+        document.body.classList.add("eventotron-quitting");
+      }, 50);
+    } catch {
+      setStatus("QUIT FAILED");
+      setQuitting(false);
+    }
   }
 
   function addRoom() {
@@ -693,6 +718,7 @@ export default function SettingsPage() {
           <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Review EventoTron workspace backup before restoring" onChange={(event) => void reviewWorkspaceBackup(event.target.files?.[0])} />
           <button onClick={exportSettings}>EXPORT</button>
           <button className="primary" onClick={() => update(defaultSuiteSettings)}>RESET DEFAULTS</button>
+          <button className="danger" onClick={() => void quitEventoTron()} disabled={quitting}>{quitting ? "QUITTING" : "QUIT APP"}</button>
         </header>
 
         <section className="settings-layout">

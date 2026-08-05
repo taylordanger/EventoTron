@@ -79,6 +79,7 @@ test("API routes reject incomplete writes before touching storage", async () => 
     ["/api/meal-transfers", "POST", {}, 400, /requires a meal/i],
     ["/api/workspace-backup", "POST", {}, 400, /not recognized/i],
     ["/api/workspace-backup", "POST", { format: "eventotron-workspace-backup", version: 2, exportedAt: new Date().toISOString(), data: { events: [{ title: "Missing ID" }] } }, 400, /not recognized/i],
+    ["/api/local-runtime", "POST", {}, 400, /must be `quit`/i],
     ["/api/calendar-sources", "POST", { url: "calendar.example.test" }, 400, /must begin with http/i],
     ["/api/calendar-sources", "PUT", { source: { name: "Missing ID" } }, 400, /connection is incomplete/i],
   ];
@@ -110,7 +111,7 @@ test("workspace backups can be reviewed before restore without writing data", as
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, privateAlphaRunbook, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, localRuntimeRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, privateAlphaRunbook, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -126,6 +127,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../drizzle/0005_event_audit_history.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/local-runtime/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/master-report/page.tsx", import.meta.url), "utf8"),
@@ -186,6 +188,10 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(backupRoute, /validateBackup/);
   assert.match(backupRoute, /searchParams\.get\("mode"\) === "validate"/);
   assert.match(backupRoute, /function backupPreview/);
+  assert.match(localRuntimeRoute, /isLocalRequest/);
+  assert.match(localRuntimeRoute, /action !== "quit"/);
+  assert.match(localRuntimeRoute, /eventotron-desktop-control/);
+  assert.match(localRuntimeRoute, /CONTROL_PORT = 3101/);
   for (const reportSource of [masterReport, foodotron, tabletron, scheduluotron]) {
     assert.match(reportSource, /SHEPPARD SEMICONDUCTOR SYSTEMS/);
   }
@@ -254,12 +260,16 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(settingsPage, /Private Alpha/);
   assert.match(settingsPage, /runAlphaCheck/);
   assert.match(settingsPage, /EXPORT CHECKPOINT/);
+  assert.match(settingsPage, /quitEventoTron/);
+  assert.match(settingsPage, /QUIT APP/);
   assert.match(settingsPage, /Local event suite/);
   assert.match(settingsPage, /importGoogleCalendarLink/);
   assert.match(settingsPage, /Paste Google Calendar link/);
   assert.match(settingsPage, /CalendarImportSummary/);
   assert.match(settingsPage, /Recent imported events/);
   assert.match(styles, /calendar-import-history/);
+  assert.match(styles, /button\.danger/);
+  assert.match(readme, /Quit EventoTron/);
   assert.match(homePage, /operationsTemplateId/);
   assert.match(homePage, /applyOperationsTemplate/);
   assert.match(homePage, /operationsTemplatePatch/);
