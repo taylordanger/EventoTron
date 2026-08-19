@@ -944,3 +944,377 @@
     break-inside: avoid;
   }
 }
+
+/* ---- Row seating sections ------------------------------------------ */
+
+/* The wrapper spans the canvas but stays transparent to the pointer, so
+   tables underneath remain grabbable. Seats re-enable pointer events and
+   bubble their drag up to the wrapper, which moves the bank as a unit. */
+.tabletron-applet .seating-section {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tabletron-applet .seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  border: 1px solid #b4d5b0;
+  border-radius: 2px;
+  background: #071009;
+  box-shadow: inset 0 0 5px #52bf40;
+  pointer-events: auto;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.tabletron-applet .seat:active {
+  cursor: grabbing;
+}
+
+.tabletron-applet .seat span {
+  font-size: 6px;
+  line-height: 1;
+  color: var(--pb);
+  white-space: nowrap;
+}
+
+.tabletron-applet .seating-section.selected .seat {
+  border-color: var(--p);
+  box-shadow: inset 0 0 8px #45bd38, 0 0 6px #69ff4f;
+}
+
+.tabletron-applet .seat-row-tag,
+.tabletron-applet .seating-tag {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 7px;
+  color: var(--p);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tabletron-applet .seating-tag {
+  transform: translate(0, -50%);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.tabletron-applet .seating-section.selected .seating-tag {
+  color: var(--pb);
+  text-shadow: 0 0 8px #69ff4f88;
+}
+
+/* ---- Section inspector --------------------------------------------- */
+
+.tabletron-applet .field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tabletron-applet .field select {
+  background: #071009;
+  border: 1px solid #315b34;
+  color: #e0f6db;
+  padding: 8px;
+  outline: 0;
+}
+
+.tabletron-applet .field.checkbox {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #315b34;
+  padding: 0 9px;
+  height: 35px;
+  align-self: end;
+  margin-bottom: 12px;
+}
+
+.tabletron-applet .field.checkbox input {
+  width: auto;
+  accent-color: var(--p);
+}
+
+.tabletron-applet .label-preview {
+  border: 1px solid #466d28;
+  background: #0c1608;
+  padding: 9px;
+  margin-bottom: 12px;
+}
+
+.tabletron-applet .label-preview small {
+  font-size: 7px;
+  color: #71936c;
+}
+
+.tabletron-applet .label-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.tabletron-applet .label-preview-chips b {
+  background: #16290f;
+  border: 1px solid #3d6b2c;
+  color: var(--p);
+  font-size: 9px;
+  padding: 3px 5px;
+}
+
+.tabletron-applet .label-preview-chips i {
+  color: #71936c;
+  font-style: normal;
+  font-size: 9px;
+  align-self: center;
+}
+
+.tabletron-applet .bulk-row-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.tabletron-applet .bulk-row-controls button {
+  font-size: 8px;
+  padding: 7px 4px;
+}
+
+.tabletron-applet .seat-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.tabletron-applet .seat-row-item {
+  border: 1px solid #1d3b21;
+  padding: 7px;
+}
+
+.tabletron-applet .seat-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tabletron-applet .seat-row-head b {
+  font-size: 9px;
+  color: var(--p);
+}
+
+.tabletron-applet .seat-stepper {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tabletron-applet .seat-stepper button {
+  padding: 3px 7px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.tabletron-applet .seat-stepper input {
+  width: 44px;
+  background: #071009;
+  border: 1px solid #315b34;
+  color: #e0f6db;
+  padding: 4px;
+  text-align: center;
+  outline: 0;
+}
+
+.tabletron-applet .seat-stepper .row-delete {
+  color: #ff7888;
+  border-color: #782a34;
+}
+
+.tabletron-applet .seat-row-overrides {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.tabletron-applet .seat-row-overrides input {
+  background: #071009;
+  border: 1px solid #26482a;
+  color: #e0f6db;
+  padding: 5px;
+  font-size: 8px;
+  outline: 0;
+}
+
+.tabletron-applet .seat-row-overrides input:focus {
+  border-color: var(--p);
+}
+
+.tabletron-applet .add-row {
+  width: 100%;
+  margin-top: 9px;
+  border-style: dashed;
+  color: var(--p);
+}
+
+.tabletron-applet .seating-editor > .primary {
+  width: 100%;
+  margin-top: 9px;
+}
+
+/* ---- Printable label sheet ----------------------------------------- */
+
+.tabletron-applet .label-sheet-modal {
+  width: min(900px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabletron-applet .label-sheet {
+  overflow-y: auto;
+  padding: 18px;
+  background: #fff;
+  color: #101a10;
+}
+
+.tabletron-applet .label-sheet-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 2px solid #101a10;
+  padding-bottom: 9px;
+  margin-bottom: 14px;
+}
+
+.tabletron-applet .label-sheet-title b {
+  font-size: 16px;
+  letter-spacing: 0.06em;
+}
+
+.tabletron-applet .label-sheet-title span {
+  font-size: 9px;
+  color: #4a5a4a;
+}
+
+.tabletron-applet .label-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
+}
+
+.tabletron-applet .label-card {
+  border: 1px dashed #6d7c6d;
+  padding: 12px 5px;
+  text-align: center;
+  break-inside: avoid;
+}
+
+.tabletron-applet .label-card b {
+  display: block;
+  font-size: 21px;
+  letter-spacing: 0.05em;
+}
+
+.tabletron-applet .label-card small {
+  display: block;
+  margin-top: 4px;
+  font-size: 7px;
+  color: #5d6c5d;
+  text-transform: uppercase;
+}
+
+.tabletron-applet .label-reference {
+  margin-top: 20px;
+  border-top: 1px solid #101a10;
+  padding-top: 11px;
+  break-before: auto;
+}
+
+.tabletron-applet .label-reference > b {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.tabletron-applet .label-reference-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr auto;
+  gap: 10px;
+  font-size: 10px;
+  padding: 5px 0;
+  border-bottom: 1px dotted #9aa79a;
+}
+
+.tabletron-applet .label-reference-row i,
+.tabletron-applet .label-reference-row em {
+  font-style: normal;
+  color: #3f4e3f;
+}
+
+.tabletron-applet .label-reference-row em {
+  text-align: right;
+  color: #6d7c6d;
+}
+
+@media print {
+  /* With the sheet open it becomes the whole printed document, replacing
+     the room-plan print view. */
+  .tabletron-applet .no-print {
+    display: none !important;
+  }
+
+  .tabletron-applet:has(.label-sheet-backdrop) .topbar,
+  .tabletron-applet:has(.label-sheet-backdrop) .workspace,
+  .tabletron-applet:has(.label-sheet-backdrop) .statusbar,
+  .tabletron-applet:has(.label-sheet-backdrop) .toast {
+    display: none !important;
+  }
+
+  .tabletron-applet .label-sheet-backdrop {
+    position: static;
+    display: block;
+    padding: 0;
+    background: #fff;
+  }
+
+  .tabletron-applet .label-sheet-modal {
+    width: 100%;
+    max-height: none;
+    border: 0;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .tabletron-applet .label-sheet {
+    overflow: visible;
+    padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .tabletron-applet .label-card b {
+    font-size: 20px;
+  }
+}
+
+/* The side panels are grid items, whose default `min-height: auto` lets tall
+   content stretch the whole workspace row instead of scrolling. The seating
+   editor is long enough to hit this, which pushed the room canvas off-screen.
+   `.rooms` already asks to scroll; both need the min-height override for that
+   to actually take effect. */
+.tabletron-applet .inspector {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.tabletron-applet .rooms {
+  min-height: 0;
+}
