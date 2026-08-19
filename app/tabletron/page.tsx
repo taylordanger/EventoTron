@@ -8,6 +8,18 @@ import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 import { useEventLiveStatus } from "../use-event-live-status";
+import {
+  makeSeatRow,
+  makeSeatingSection,
+  sectionFootprint,
+  sectionRowSummaries,
+  sectionSeatCount,
+  sectionSeatLabels,
+  type LabelOrder,
+  type LabelStyle,
+  type SeatNumbering,
+  type SeatingSection,
+} from "./seat-labels";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TableItem = { id: string; x: number; y: number };
@@ -34,6 +46,8 @@ type Layout = {
   name: string;
   tables: TableItem[];
   objects: PlacedItem[];
+  /** Row seating banks. Absent on layouts saved before this feature existed. */
+  seating: SeatingSection[];
 };
 type Wall = "top" | "right" | "bottom" | "left";
 type Entrance = {
@@ -105,7 +119,7 @@ type Project = {
   activeEventId: string;
 };
 type Drag = {
-  kind: "table" | "object" | "entrance";
+  kind: "table" | "object" | "entrance" | "seating";
   id: string;
   dx: number;
   dy: number;
@@ -135,6 +149,7 @@ const makeLayout = (
     id: uid(),
     name,
     objects: [],
+    seating: [],
     tables: [
       makeTable(insetX, insetY),
       makeTable(width - insetX, insetY),
@@ -452,6 +467,22 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
   };
 }
 
+/**
+ * Guards a restored seating section, since backups and hand-edited files can
+ * carry partial records. Anything unusable is dropped rather than crashing the
+ * whole project load.
+ */
+function isSeatingSection(value: unknown): value is SeatingSection {
+  const candidate = value as Partial<SeatingSection> | null;
+  return Boolean(
+    candidate &&
+      typeof candidate.id === "string" &&
+      Number.isFinite(candidate.x) &&
+      Number.isFinite(candidate.y) &&
+      Array.isArray(candidate.rows),
+  );
+}
+
 function normalizeProject(value: unknown): Project {
   if (!value || typeof value !== "object") throw new Error("Invalid project");
   const candidate = value as Partial<Project>;
@@ -470,6 +501,11 @@ function normalizeProject(value: unknown): Project {
       ),
   ).map((room) => ({
     ...room,
+    // Layouts saved before seating sections existed have no `seating` array.
+    layouts: room.layouts.map((layout) => ({
+      ...layout,
+      seating: Array.isArray(layout.seating) ? layout.seating.filter(isSeatingSection) : [],
+    })),
     entrances:
       Array.isArray((room as Room & { entrances?: Entrance[] }).entrances) &&
       (room as Room & { entrances?: Entrance[] }).entrances!.length
@@ -636,9 +672,10 @@ function ReportLayoutMap({
 export default function Home() {
   const [project, setProject] = useState<Project>(() => defaultProject());
   const [selected, setSelected] = useState<{
-    kind: "table" | "object" | "entrance";
+    kind: "table" | "object" | "entrance" | "seating";
     id: string;
   } | null>(null);
+  const [labelSheet, setLabelSheet] = useState(false);
   const [drag, setDrag] = useState<Drag>(null);
   const [roomModal, setRoomModal] = useState<"add" | "edit" | null>(null);
   const [roomDraft, setRoomDraft] = useState({
@@ -990,6 +1027,11 @@ export default function Home() {
       name: `Layout ${room.layouts.length + 1}`,
       tables: layout.tables.map((t) => ({ ...t, id: uid() })),
       objects: layout.objects.map((o) => ({ ...o, id: uid() })),
+      seating: layout.seating.map((section) => ({
+        ...section,
+        id: uid(),
+        rows: section.rows.map((row) => ({ ...row, id: uid() })),
+      })),
     };
     updateRoom((r) => ({
       ...r,
@@ -1133,6 +1175,14 @@ export default function Home() {
       setSelected(null);
       return;
     }
+    if (selected.kind === "seating") {
+      updateLayout((l) => ({
+        ...l,
+        seating: l.seating.filter((section) => section.id !== selected.id),
+      }));
+      setSelected(null);
+      return;
+    }
     updateLayout((l) =>
       selected.kind === "table"
         ? { ...l, tables: l.tables.filter((t) => t.id !== selected.id) }
@@ -1141,9 +1191,111 @@ export default function Home() {
     setSelected(null);
   }
 
+  /** Seats from row seating banks, on top of the six seats per round table. */
+  const rowSeatCount = layout.seating.reduce(
+    (total, section) => total + sectionSeatCount(section),
+    0,
+  );
+  const totalSeatCount = layout.tables.length * 6 + rowSeatCount;
+
+  /** The section currently being edited in the inspector, if any. */
+  const activeSection =
+    selected?.kind === "seating"
+      ? layout.seating.find((section) => section.id === selected.id) ?? null
+      : null;
+
+  function addSeatingSection() {
+    // Drop it clear of the left wall so the row labels have room to render.
+    const section = makeSeatingSection(
+      Math.max(3, Math.round(room.width / 2) - 8),
+      Math.max(3, Math.round(room.height / 3)),
+    );
+    updateLayout((l) => ({ ...l, seating: [...l.seating, section] }));
+    setSelected({ kind: "seating", id: section.id });
+    setNotice(
+      `SEATING SECTION ADDED · ${sectionSeatCount(section)} SEATS · ${section.rows.length} ROWS`,
+    );
+  }
+
+  function updateSection(id: string, patch: Partial<SeatingSection>) {
+    updateLayout((l) => ({
+      ...l,
+      seating: l.seating.map((section) =>
+        section.id === id ? { ...section, ...patch } : section,
+      ),
+    }));
+  }
+
+  function updateSectionRow(
+    sectionId: string,
+    rowId: string,
+    patch: Partial<SeatingSection["rows"][number]>,
+  ) {
+    updateLayout((l) => ({
+      ...l,
+      seating: l.seating.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              rows: section.rows.map((row) =>
+                row.id === rowId ? { ...row, ...patch } : row,
+              ),
+            }
+          : section,
+      ),
+    }));
+  }
+
+  /** Adds a row, copying the seat count of the last row so banks stay even. */
+  function addSectionRow(sectionId: string) {
+    updateLayout((l) => ({
+      ...l,
+      seating: l.seating.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              rows: [
+                ...section.rows,
+                makeSeatRow(section.rows[section.rows.length - 1]?.seats ?? 10),
+              ],
+            }
+          : section,
+      ),
+    }));
+  }
+
+  function removeSectionRow(sectionId: string, rowId: string) {
+    updateLayout((l) => ({
+      ...l,
+      seating: l.seating.map((section) =>
+        section.id === sectionId
+          ? { ...section, rows: section.rows.filter((row) => row.id !== rowId) }
+          : section,
+      ),
+    }));
+  }
+
+  /** Bulk seat nudge, so "+1 seat to every row" is one click rather than N. */
+  function nudgeAllRows(sectionId: string, delta: number) {
+    updateLayout((l) => ({
+      ...l,
+      seating: l.seating.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              rows: section.rows.map((row) => ({
+                ...row,
+                seats: clamp(row.seats + delta, 0, 200),
+              })),
+            }
+          : section,
+      ),
+    }));
+  }
+
   function startDrag(
     e: React.PointerEvent,
-    kind: "table" | "object",
+    kind: "table" | "object" | "seating",
     id: string,
     x: number,
     y: number,
@@ -1193,6 +1345,17 @@ export default function Home() {
           ? clamp(x / room.width, 0.04, 0.96)
           : clamp(y / room.height, 0.04, 0.96);
       updateEntrance(drag.id, { wall, offset });
+      return;
+    }
+    if (drag.kind === "seating") {
+      // Keep the whole bank inside the room by clamping against its footprint.
+      const section = layout.seating.find((entry) => entry.id === drag.id);
+      if (!section) return;
+      const footprint = sectionFootprint(section);
+      updateSection(drag.id, {
+        x: clamp(x, 0, Math.max(0, room.width - footprint.width)),
+        y: clamp(y, 0, Math.max(0, room.height - footprint.height)),
+      });
       return;
     }
     updateLayout((l) =>
@@ -1564,6 +1727,7 @@ export default function Home() {
             </div>
             <button onClick={addLayout}>＋ DUPLICATE LAYOUT</button>
             <button onClick={addEntrance}>＋ ENTRANCE</button>
+            <button onClick={addSeatingSection}>＋ SEATING ROWS</button>
             <button className="primary" onClick={() => setAutoModal(true)}>
               ⚙ AUTO LAYOUT
             </button>
@@ -1634,6 +1798,65 @@ export default function Home() {
                       ))}
                     </div>
                     <label>{t.name}</label>
+                  </div>
+                );
+              })}
+              {layout.seating.map((section) => {
+                const seats = sectionSeatLabels(section);
+                const isSelected =
+                  selected?.kind === "seating" && selected.id === section.id;
+                // Hide seat text once seats get too small to read, so a big
+                // bank stays legible as a shape instead of a smear of glyphs.
+                const seatWidthPercent = (section.seatSpacing / room.width) * 100;
+                const showSeatLabels = seatWidthPercent > 2.2;
+                return (
+                  <div
+                    key={section.id}
+                    className={`seating-section ${isSelected ? "selected" : ""}`}
+                    onPointerDown={(e) =>
+                      startDrag(e, "seating", section.id, section.x, section.y)
+                    }
+                  >
+                    {seats.map((seat) => (
+                      <div
+                        key={seat.seatId}
+                        className="seat"
+                        style={{
+                          left: `${(seat.x / room.width) * 100}%`,
+                          top: `${(seat.y / room.height) * 100}%`,
+                          width: `${((section.seatSpacing * 0.8) / room.width) * 100}%`,
+                          height: `${((section.rowSpacing * 0.62) / room.height) * 100}%`,
+                        }}
+                        title={`${section.name} · ${seat.label}`}
+                      >
+                        {showSeatLabels ? <span>{seat.label}</span> : null}
+                      </div>
+                    ))}
+                    {section.rows.map((row, rowIndex) => {
+                      const first = seats.find((seat) => seat.rowId === row.id);
+                      if (!first) return null;
+                      return (
+                        <div
+                          key={`${row.id}-tag`}
+                          className="seat-row-tag"
+                          style={{
+                            left: `${(Math.max(0, section.x + (row.offset ?? 0) - section.seatSpacing) / room.width) * 100}%`,
+                            top: `${((section.y + rowIndex * section.rowSpacing) / room.height) * 100}%`,
+                          }}
+                        >
+                          {first.rowLabel}
+                        </div>
+                      );
+                    })}
+                    <div
+                      className="seating-tag"
+                      style={{
+                        left: `${(section.x / room.width) * 100}%`,
+                        top: `${(Math.max(0, section.y - section.rowSpacing * 0.85) / room.height) * 100}%`,
+                      }}
+                    >
+                      {section.name} · {seats.length} SEATS
+                    </div>
                   </div>
                 );
               })}
@@ -1735,6 +1958,295 @@ export default function Home() {
               </label>
             </div>
           )}
+          {activeSection && (
+            <div className="seating-editor">
+              <div className="panel-heading subsection">
+                <span>SEATING SECTION</span>
+                <b>{sectionSeatCount(activeSection)} SEATS</b>
+              </div>
+
+              <label className="field">
+                <span>SECTION NAME</span>
+                <input
+                  value={activeSection.name}
+                  onChange={(e) =>
+                    updateSection(activeSection.id, { name: e.target.value })
+                  }
+                />
+              </label>
+
+              {/* Live sample so the scheme is obvious before anything is printed. */}
+              <div className="label-preview">
+                <small>LABEL PREVIEW</small>
+                <div className="label-preview-chips">
+                  {sectionSeatLabels(activeSection)
+                    .slice(0, 8)
+                    .map((seat) => (
+                      <b key={seat.seatId}>{seat.label}</b>
+                    ))}
+                  {sectionSeatCount(activeSection) > 8 ? <i>…</i> : null}
+                </div>
+              </div>
+
+              <div className="field-pair">
+                <label className="field">
+                  <span>ROWS ARE</span>
+                  <select
+                    value={activeSection.rowStyle}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        rowStyle: e.target.value as LabelStyle,
+                        rowStart: e.target.value === "letters" ? "A" : "1",
+                      })
+                    }
+                  >
+                    <option value="letters">Letters</option>
+                    <option value="numbers">Numbers</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>FIRST ROW</span>
+                  <input
+                    value={activeSection.rowStart}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, { rowStart: e.target.value })
+                    }
+                    placeholder={activeSection.rowStyle === "letters" ? "A" : "1"}
+                  />
+                </label>
+              </div>
+
+              <div className="field-pair">
+                <label className="field">
+                  <span>SEATS ARE</span>
+                  <select
+                    value={activeSection.seatStyle}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        seatStyle: e.target.value as LabelStyle,
+                        seatStart: e.target.value === "letters" ? "A" : "1",
+                      })
+                    }
+                  >
+                    <option value="letters">Letters</option>
+                    <option value="numbers">Numbers</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>FIRST SEAT</span>
+                  <input
+                    value={activeSection.seatStart}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, { seatStart: e.target.value })
+                    }
+                    placeholder={activeSection.seatStyle === "letters" ? "A" : "1"}
+                  />
+                </label>
+              </div>
+
+              <label className="field">
+                <span>SEAT NUMBERING</span>
+                <select
+                  value={activeSection.numbering}
+                  onChange={(e) =>
+                    updateSection(activeSection.id, {
+                      numbering: e.target.value as SeatNumbering,
+                    })
+                  }
+                >
+                  <option value="per-row">Restart each row (A1, B1, C1)</option>
+                  <option value="continuous">Continuous through section</option>
+                  <option value="odd-even">Odd / even from centre aisle</option>
+                </select>
+              </label>
+
+              <div className="field-pair">
+                <label className="field">
+                  <span>LABEL ORDER</span>
+                  <select
+                    value={activeSection.order}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        order: e.target.value as LabelOrder,
+                      })
+                    }
+                  >
+                    <option value="row-seat">Row then seat</option>
+                    <option value="seat-row">Seat then row</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>SEPARATOR</span>
+                  <input
+                    value={activeSection.separator}
+                    maxLength={3}
+                    placeholder="none"
+                    onChange={(e) =>
+                      updateSection(activeSection.id, { separator: e.target.value })
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="field-pair">
+                <label className="field">
+                  <span>COUNT FROM</span>
+                  <select
+                    value={activeSection.seatDirection}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        seatDirection: e.target.value as "ltr" | "rtl",
+                      })
+                    }
+                  >
+                    <option value="ltr">Left to right</option>
+                    <option value="rtl">Right to left</option>
+                  </select>
+                </label>
+                <label className="field checkbox">
+                  <span>SKIP I / O</span>
+                  <input
+                    type="checkbox"
+                    checked={activeSection.skipAmbiguousLetters}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        skipAmbiguousLetters: e.target.checked,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="field-pair">
+                <label className="field">
+                  <span>SEAT SPACING (FT)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={0.5}
+                    value={activeSection.seatSpacing}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        seatSpacing: clamp(Number(e.target.value) || 1, 0.5, 12),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>ROW SPACING (FT)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={0.5}
+                    value={activeSection.rowSpacing}
+                    onChange={(e) =>
+                      updateSection(activeSection.id, {
+                        rowSpacing: clamp(Number(e.target.value) || 1, 0.5, 12),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="panel-heading subsection">
+                <span>ROWS</span>
+                <b>{activeSection.rows.length}</b>
+              </div>
+              <div className="bulk-row-controls">
+                <button onClick={() => nudgeAllRows(activeSection.id, 1)}>
+                  ＋1 SEAT ALL ROWS
+                </button>
+                <button onClick={() => nudgeAllRows(activeSection.id, -1)}>
+                  −1 SEAT ALL ROWS
+                </button>
+              </div>
+
+              <div className="seat-row-list">
+                {activeSection.rows.map((row) => {
+                  const rowLabel =
+                    row.labelOverride?.trim() ||
+                    sectionSeatLabels(activeSection).find(
+                      (seat) => seat.rowId === row.id,
+                    )?.rowLabel ||
+                    "—";
+                  return (
+                    <div className="seat-row-item" key={row.id}>
+                      <div className="seat-row-head">
+                        <b>ROW {rowLabel}</b>
+                        <div className="seat-stepper">
+                          <button
+                            onClick={() =>
+                              updateSectionRow(activeSection.id, row.id, {
+                                seats: clamp(row.seats - 1, 0, 200),
+                              })
+                            }
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            value={row.seats}
+                            onChange={(e) =>
+                              updateSectionRow(activeSection.id, row.id, {
+                                seats: clamp(Number(e.target.value) || 0, 0, 200),
+                              })
+                            }
+                          />
+                          <button
+                            onClick={() =>
+                              updateSectionRow(activeSection.id, row.id, {
+                                seats: clamp(row.seats + 1, 0, 200),
+                              })
+                            }
+                          >
+                            ＋
+                          </button>
+                          <button
+                            className="row-delete"
+                            title="Remove this row"
+                            onClick={() => removeSectionRow(activeSection.id, row.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                      {/* Overrides exist for charts that do not follow the pattern. */}
+                      <div className="seat-row-overrides">
+                        <input
+                          value={row.labelOverride ?? ""}
+                          placeholder={`Row name (auto: ${rowLabel})`}
+                          onChange={(e) =>
+                            updateSectionRow(activeSection.id, row.id, {
+                              labelOverride: e.target.value,
+                            })
+                          }
+                        />
+                        <input
+                          value={row.seatStartOverride ?? ""}
+                          placeholder="Start at"
+                          onChange={(e) =>
+                            updateSectionRow(activeSection.id, row.id, {
+                              seatStartOverride: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                className="add-row"
+                onClick={() => addSectionRow(activeSection.id)}
+              >
+                ＋ ADD ROW
+              </button>
+              <button className="primary" onClick={() => setLabelSheet(true)}>
+                ▤ PRINT SEAT LABELS
+              </button>
+            </div>
+          )}
           {selected && (
             <button className="delete" onClick={removeSelected}>
               × DELETE SELECTED
@@ -1750,7 +2262,14 @@ export default function Home() {
           </div>
           <div className="summary-row">
             <span>Seats</span>
-            <b>{layout.tables.length * 6}</b>
+            <b>{totalSeatCount}</b>
+          </div>
+          <div className="summary-row">
+            <span>Seating rows</span>
+            <b>
+              {layout.seating.reduce((total, s) => total + s.rows.length, 0)}
+              {rowSeatCount ? ` / ${rowSeatCount} seats` : ""}
+            </b>
           </div>
           <div className="summary-row">
             <span>Custom items</span>
@@ -1778,7 +2297,7 @@ export default function Home() {
       <footer className="statusbar">
         <div>
           <small>TOTAL SEATING</small>
-          <b>{layout.tables.length * 6}</b>
+          <b>{totalSeatCount}</b>
           <span>PEOPLE</span>
         </div>
         <div>
@@ -2028,6 +2547,64 @@ export default function Home() {
               <button onClick={() => setFurnitureModal(false)}>CANCEL</button>
               <button className="primary" onClick={saveFurniture}>
                 SAVE TO LIBRARY
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+      {labelSheet && activeSection && (
+        <div className="modal-backdrop label-sheet-backdrop">
+          <section className="modal label-sheet-modal">
+            <header className="no-print">
+              <span>SEAT LABELS // {activeSection.name.toUpperCase()}</span>
+              <button onClick={() => setLabelSheet(false)}>×</button>
+            </header>
+            {/* This block is what the printer sees. */}
+            <div className="label-sheet" id="tabletron-label-sheet">
+              <div className="label-sheet-title">
+                <b>{activeSection.name}</b>
+                <span>
+                  {room.name} · {layout.name} · {sectionSeatCount(activeSection)} seats ·{" "}
+                  {activeSection.rows.length} rows
+                </span>
+              </div>
+              <div className="label-card-grid">
+                {sectionSeatLabels(activeSection).map((seat) => (
+                  <div className="label-card" key={seat.seatId}>
+                    <b>{seat.label}</b>
+                    <small>{activeSection.name}</small>
+                  </div>
+                ))}
+              </div>
+              <div className="label-reference">
+                <b>REFERENCE LIST</b>
+                {sectionRowSummaries(activeSection).map((summary) => (
+                  <div className="label-reference-row" key={summary.rowId}>
+                    <span>Row {summary.rowLabel}</span>
+                    <i>
+                      {summary.labels.length
+                        ? `${summary.labels[0]}–${summary.labels[summary.labels.length - 1]}`
+                        : "empty"}
+                    </i>
+                    <em>{summary.labels.length} seats</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <footer className="no-print">
+              <button onClick={() => setLabelSheet(false)}>CLOSE</button>
+              <button
+                onClick={() =>
+                  saveReportPdf(`${activeSection.name} Seat Labels`)
+                }
+              >
+                SAVE PDF
+              </button>
+              <button
+                className="primary"
+                onClick={() => printReport(`${activeSection.name} Seat Labels`)}
+              >
+                PRINT LABELS
               </button>
             </footer>
           </section>
