@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildLaunchScript, buildLauncherSource } from "../scripts/build-macos-app.mjs";
@@ -16,8 +16,13 @@ import { buildLaunchScript, buildLauncherSource } from "../scripts/build-macos-a
 
 const script = buildLaunchScript("/tmp/eventotron-test-root");
 
-/** Runs the launch script with the background launch replaced by an echo. */
+/**
+ * Runs the launch script with the background launch replaced by an echo, in a
+ * throwaway HOME. The script appends to $HOME/Library/Logs/EventoTron, so a
+ * real HOME would leave test output in the user's actual launcher log.
+ */
 function runResolution({ env = {}, replaceCandidates = {} } = {}) {
+  const fakeHome = mkdtempSync(join(tmpdir(), "eventotron-home-"));
   let body = script.replace(/^nohup .*$/m, 'echo "RESOLVED:$NODE"');
   for (const [from, to] of Object.entries(replaceCandidates)) {
     body = body.split(from).join(to);
@@ -30,7 +35,7 @@ function runResolution({ env = {}, replaceCandidates = {} } = {}) {
   try {
     const stdout = execFileSync("/bin/sh", [path], {
       encoding: "utf8",
-      env: { HOME: process.env.HOME ?? "/tmp", PATH: "/usr/bin:/bin:/usr/sbin:/sbin", ...env },
+      env: { HOME: fakeHome, PATH: "/usr/bin:/bin:/usr/sbin:/sbin", ...env },
     });
     return { ok: true, resolved: (stdout.match(/RESOLVED:(.*)/) ?? [])[1]?.trim() ?? "" };
   } catch (error) {
@@ -60,17 +65,28 @@ test("Node is resolved at click time under a Finder-style minimal PATH", () => {
 });
 
 test("an interpreter older than the engines floor is skipped", () => {
-  const dir = mkdtempSync(join(tmpdir(), "eventotron-oldnode-"));
-  mkdirSync(join(dir, "bin"), { recursive: true });
-  const fake = join(dir, "bin", "node");
-  writeFileSync(fake, "#!/bin/sh\necho 18.20.0\n");
-  chmodSync(fake, 0o755);
+  // Hermetic: plant a too-old interpreter ahead of a new-enough one and assert
+  // the version gate picks the second. Relying on whatever is installed on the
+  // machine would make this pass or fail for the wrong reasons.
+  const dir = mkdtempSync(join(tmpdir(), "eventotron-nodes-"));
+  const stub = (name, version) => {
+    const path = join(dir, name);
+    writeFileSync(path, `#!/bin/sh\necho ${version}\n`);
+    chmodSync(path, 0o755);
+    return path;
+  };
+  const tooOld = stub("old-node", "18.20.0");
+  const newEnough = stub("new-node", "22.13.0");
 
   const result = runResolution({
-    replaceCandidates: { "/opt/homebrew/bin/node": fake },
+    replaceCandidates: {
+      "/opt/homebrew/bin/node": tooOld,
+      "/usr/local/bin/node": newEnough,
+    },
   });
   assert.equal(result.ok, true, `resolution failed: ${result.stderr ?? ""}`);
-  assert.notEqual(result.resolved, fake, "a Node below the engines floor was accepted");
+  assert.notEqual(result.resolved, tooOld, "a Node below the engines floor was accepted");
+  assert.equal(result.resolved, newEnough, "did not fall through to the usable interpreter");
 });
 
 test("a missing Node fails loudly instead of silently doing nothing", () => {
