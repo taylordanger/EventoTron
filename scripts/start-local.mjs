@@ -60,6 +60,10 @@ async function start() {
     "--local",
     "--persist-to",
     ".wrangler/state",
+    // This runtime is genuinely local, so it opts into the implicit admin
+    // operator. A deployed Worker is never started this way and never gets it.
+    "--var",
+    "EVENTOTRON_LOCAL_MODE:1",
     "--port",
     String(port),
     "--show-interactive-dev-session",
