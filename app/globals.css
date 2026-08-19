@@ -455,6 +455,32 @@
   font-size: 8px;
 }
 
+.suite-identity-badge {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  color: #a9cba3;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.suite-identity-label {
+  color: #668d61;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.suite-identity-badge strong {
+  color: var(--p);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .eventotron-ribbon button {
   align-self: center;
   color: #b9ddb3;
@@ -2939,6 +2965,60 @@
   font-weight: 900;
 }
 
+.settings-user-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 100px 96px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(117, 255, 71, 0.22);
+  background: #030e07;
+}
+
+.settings-user-row .settings-user-email {
+  color: #dfffd9;
+  font-weight: 800;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-user-row select {
+  color: #dfffd9;
+  border: 1px solid #2d7538;
+  background: #020804;
+  padding: 8px;
+  font-weight: 800;
+  font-size: 10px;
+}
+
+.settings-user-status {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-align: center;
+  padding: 6px;
+  border: 1px solid #305b34;
+}
+
+.settings-user-status.revoked {
+  color: #ff8f6b;
+  border-color: #7a3a24;
+}
+
+.settings-user-status.active {
+  color: var(--p);
+}
+
+.settings-user-row button {
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  padding: 10px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
 .settings-backdrop {
   position: fixed;
   z-index: 20;
@@ -3486,6 +3566,60 @@
   font-size: 9px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.calendar-oauth-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #224926;
+  background: #020704;
+}
+
+.calendar-oauth-connect-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.calendar-oauth-connect-row a {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--p);
+  background: #0b1a0e;
+  color: var(--p);
+  font-size: 9px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.calendar-oauth-connect-row a:hover {
+  background: #0f2412;
+}
+
+.calendar-oauth-account-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(117, 255, 71, 0.22);
+  background: #030e07;
+  font-size: 10px;
+  color: #dfffd9;
+}
+
+.calendar-oauth-account-row button {
+  color: #b9ddb3;
+  border: 1px solid #305b34;
+  background: #061008;
+  padding: 8px;
+  font-size: 9px;
+  font-weight: 900;
 }
 
 .calendar-source-topline {

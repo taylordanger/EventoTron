@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { foodotronMeals, mealTransfers } from "@/db/schema";
+import { withRole } from "../../_lib/auth";
 import { getLocalTransfer } from "../local-store";
 
 function cors(request: Request) {
@@ -18,10 +19,11 @@ export function OPTIONS(request: Request) {
   return new Response(null, { headers: cors(request) });
 }
 
-export async function GET(
+export const GET = withRole("staff", async (
   request: Request,
+  _identity,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   try {
     const db = await getDb();
@@ -85,4 +87,4 @@ export async function GET(
       { status: 500, headers: cors(request) },
     );
   }
-}
+});

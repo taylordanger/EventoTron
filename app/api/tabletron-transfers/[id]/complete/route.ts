@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { foodotronMeals, mealTransfers, tabletronEvents } from "@/db/schema";
+import { withRole } from "../../../_lib/auth";
 import { completeLocalTransfer } from "../../local-store";
 
 type EventPayload = {
@@ -25,10 +26,11 @@ export function OPTIONS(request: Request) {
   return new Response(null, { headers: cors(request) });
 }
 
-export async function POST(
+export const POST = withRole("staff", async (
   request: Request,
+  _identity,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     event?: EventPayload;
@@ -124,4 +126,4 @@ export async function POST(
       { status: 500, headers: cors(request) },
     );
   }
-}
+});

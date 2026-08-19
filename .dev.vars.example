@@ -1,0 +1,41 @@
+# Copy this file to `.dev.vars` (gitignored) and fill in real values for local dev.
+# Production values are injected by whatever deploys this app — not managed here.
+
+# Grants the implicit single-operator admin used by the local desktop app.
+# `npm run dev` and `npm start` set this for you; it is listed here only so the
+# flag is discoverable. NEVER set it on a deployment — it bypasses sign-in
+# entirely. `npm run deploy` refuses to run if it is present in the shell.
+EVENTOTRON_LOCAL_MODE=1
+
+# The D1 database a deployment writes to. Create one with:
+#   npx wrangler d1 create eventotron
+# Local development uses a placeholder id and does not need this set.
+EVENTOTRON_D1_DATABASE_ID=
+
+# Cloudflare Access (Zero Trust) — create an Access application for this app's
+# hostname in the Cloudflare Zero Trust dashboard first. CF_ACCESS_TEAM_DOMAIN
+# is the <team> in https://<team>.cloudflareaccess.com. CF_ACCESS_AUD is the
+# Access application's "Audience" (AUD) tag, shown on the application's overview page.
+CF_ACCESS_TEAM_DOMAIN=your-team
+CF_ACCESS_AUD=
+
+# The email that should be auto-provisioned as the first admin the first time
+# it's seen behind Cloudflare Access. Every other new email is provisioned as staff.
+INITIAL_ADMIN_EMAIL=you@example.com
+
+# Symmetric keys used only by this app. Generate with: openssl rand -base64 32
+TOKEN_ENCRYPTION_KEY=
+OAUTH_STATE_SECRET=
+
+# Google Cloud Console > APIs & Services > Credentials > OAuth client ID (Web application).
+# Authorized redirect URI: https://<your-domain>/api/calendar-oauth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Microsoft Entra ID > App registrations > New registration.
+# Redirect URI (Web): https://<your-domain>/api/calendar-oauth/microsoft/callback
+# TENANT is usually "common" (personal + work/school accounts) unless you want
+# to restrict sign-in to a single Microsoft 365 tenant.
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_TENANT=common

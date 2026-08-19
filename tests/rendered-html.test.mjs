@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+// These tests drive the built Worker as if it were the local desktop runtime,
+// which is the context where a single operator is implicitly an admin. Outside
+// workerd the app reads its configuration from process.env, so set the opt-in
+// here rather than weakening the check itself.
+process.env.EVENTOTRON_LOCAL_MODE = "1";
+
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
 workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
 const { default: worker } = await import(workerUrl.href);
@@ -111,7 +117,7 @@ test("workspace backups can be reviewed before restore without writing data", as
 });
 
 test("production data contracts keep IDs, migrations, event ownership, and complete backups explicit", async () => {
-  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, calendarRoute, backupRoute, localRuntimeRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, privateAlphaRunbook, readme] = await Promise.all([
+  const [schema, transfers, chrome, projections, records, eventsRoute, eventHistoryRoute, eventConcurrency, liveTicker, operationsTicker, migration, calendarMigration, auditMigration, accessOAuthMigration, calendarRoute, backupRoute, localRuntimeRoute, database, homePage, masterReport, foodotron, tabletron, scheduluotron, styles, printMode, suiteSettings, settingsPage, roadmap, privateAlphaRunbook, readme] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/meal-transfers/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SuiteChrome.tsx", import.meta.url), "utf8"),
@@ -125,6 +131,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../drizzle/0003_suite_integrity_indexes.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_calendar_sync_records.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0005_event_audit_history.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0006_access_and_oauth.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/calendar-sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace-backup/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/local-runtime/route.ts", import.meta.url), "utf8"),
@@ -169,18 +176,23 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarMigration, /CREATE UNIQUE INDEX `idx_suite_calendar_events_source_external`/);
   assert.match(auditMigration, /CREATE TABLE `suite_event_audit`/);
   assert.match(auditMigration, /idx_suite_event_audit_event_created/);
+  assert.match(accessOAuthMigration, /CREATE TABLE `suite_users`/);
+  assert.match(accessOAuthMigration, /CREATE UNIQUE INDEX `idx_suite_users_email`/);
+  assert.match(accessOAuthMigration, /CREATE TABLE `suite_calendar_oauth_accounts`/);
+  assert.match(schema, /suiteUsers/);
+  assert.match(schema, /suiteCalendarOAuthAccounts/);
   assert.match(calendarRoute, /permanentCalendarEventId/);
   assert.match(calendarRoute, /expandRecurringEvent/);
   assert.match(calendarRoute, /maxRecurringOccurrences/);
   assert.match(calendarRoute, /#\$\{dateKey\}-\$\{index\}/);
-  assert.match(calendarRoute, /export async function GET/);
-  assert.match(calendarRoute, /export async function PUT/);
-  assert.match(calendarRoute, /export async function DELETE/);
+  assert.match(calendarRoute, /export const GET = withRole\("staff"/);
+  assert.match(calendarRoute, /export const PUT = withRole\("admin"/);
+  assert.match(calendarRoute, /export const DELETE = withRole\("admin"/);
   assert.match(calendarRoute, /extractGoogleCalendarIds/);
   assert.match(calendarRoute, /googleCalendarFeedUrl/);
   assert.match(calendarRoute, /function importSummaryForSource/);
   assert.match(calendarRoute, /importHistory/);
-  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0005_event_audit_history"/);
+  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0006_access_and_oauth"/);
   for (const table of ["eventAudit", "rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
   }
@@ -285,7 +297,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(eventsRoute, /event_revision_conflict/);
   assert.match(eventsRoute, /expectedUpdatedAt/);
   assert.match(eventsRoute, /recordEventAudit/);
-  assert.match(eventsRoute, /cf-access-authenticated-user-email/);
+  assert.match(eventsRoute, /identity\.email/);
   assert.match(eventsRoute, /existing \? "updated" : "created"/);
   assert.match(eventsRoute, /"deleted"/);
   assert.match(eventHistoryRoute, /suiteEventAudit/);

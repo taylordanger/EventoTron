@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteSettings } from "@/db/schema";
+import { withRole } from "../_lib/auth";
 import { readLocalSettings, writeLocalSettings } from "./local-store";
 
 function dbUnavailable(error: unknown) {
@@ -8,7 +9,7 @@ function dbUnavailable(error: unknown) {
   return detail.includes("cloudflare:");
 }
 
-export async function GET() {
+export const GET = withRole("staff", async () => {
   try {
     const db = await getDb();
     const settings = await db
@@ -36,9 +37,9 @@ export async function GET() {
     }
     return Response.json({ ...local, source: "local-dev" });
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withRole("admin", async (request: Request) => {
   const body = (await request.json().catch(() => ({}))) as { payload?: unknown };
   if (body.payload === undefined) {
     return Response.json({ error: "Saving settings requires a payload." }, { status: 400 });
@@ -72,4 +73,4 @@ export async function PUT(request: Request) {
     const local = writeLocalSettings(body.payload);
     return Response.json({ ...local, savedAt: local.updatedAt, source: "local-dev" });
   }
-}
+});

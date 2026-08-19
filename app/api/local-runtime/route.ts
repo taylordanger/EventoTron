@@ -1,10 +1,7 @@
+import { isLocalRequest, runtimeEnv, type LocalModeEnv } from "../_lib/auth";
+
 const CONTROL_PORT = 3101;
 const CONTROL_BASE = `http://127.0.0.1:${CONTROL_PORT}`;
-
-function isLocalRequest(request: Request) {
-  const hostname = new URL(request.url).hostname.toLowerCase();
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-}
 
 async function readControlStatus() {
   try {
@@ -21,8 +18,12 @@ async function readControlStatus() {
   }
 }
 
+async function localMode(request: Request) {
+  return isLocalRequest(request, (await runtimeEnv()) as LocalModeEnv);
+}
+
 async function runtimeCapabilities(request: Request) {
-  const local = isLocalRequest(request);
+  const local = await localMode(request);
   const control = local ? await readControlStatus() : null;
   return {
     local,
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isLocalRequest(request)) {
+  if (!(await localMode(request))) {
     return Response.json(
       { error: "EventoTron can only be quit from a local desktop session." },
       { status: 403, headers: { "Cache-Control": "no-store" } },

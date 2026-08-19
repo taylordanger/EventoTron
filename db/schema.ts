@@ -251,6 +251,45 @@ export const suiteAppletStates = sqliteTable(
   ],
 );
 
+export const suiteUsers = sqliteTable(
+  "suite_users",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    role: text("role").notNull().default("staff"),
+    status: text("status").notNull().default("active"),
+    lastSeenAt: text("last_seen_at"),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_suite_users_email").on(table.email),
+    index("idx_suite_users_role").on(table.role),
+  ],
+);
+
+export const suiteCalendarOAuthAccounts = sqliteTable(
+  "suite_calendar_oauth_accounts",
+  {
+    id: text("id").primaryKey(),
+    provider: text("provider").notNull(),
+    connectedByEmail: text("connected_by_email").notNull(),
+    accountEmail: text("account_email").notNull().default(""),
+    accessTokenCiphertext: text("access_token_ciphertext").notNull().default(""),
+    refreshTokenCiphertext: text("refresh_token_ciphertext").notNull().default(""),
+    tokenIv: text("token_iv").notNull().default(""),
+    scope: text("scope").notNull().default(""),
+    expiresAt: text("expires_at"),
+    payload: text("payload", { mode: "json" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_suite_calendar_oauth_accounts_provider").on(table.provider),
+  ],
+);
+
 export const mealTransfers = sqliteTable(
   "meal_transfers",
   {

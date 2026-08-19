@@ -1,5 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
+import { withRole } from "../_lib/auth";
 import {
   foodotronMeals,
   suiteLayoutItems,
@@ -15,7 +16,7 @@ function databaseUnavailable(error: unknown) {
   return detail.includes("cloudflare:");
 }
 
-export async function GET(request: Request) {
+export const GET = withRole("staff", async (request: Request) => {
   const eventId = new URL(request.url).searchParams.get("eventId") ?? "";
   if (!eventId) {
     return Response.json({ error: "Event records require an event ID." }, { status: 400 });
@@ -77,4 +78,4 @@ export async function GET(request: Request) {
       source: "local-dev",
     });
   }
-}
+});

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { eventTabHref } from "./event-context";
 import { ClockDisplay } from "./ClockDisplay";
+import { SuiteIdentityBadge } from "./SuiteIdentityBadge";
 
 type SuiteArea = "calendar" | "tabletron" | "foodotron" | "scheduluotron" | "settings";
 
@@ -44,6 +45,7 @@ export function SuiteChrome({ active, eventId }: { active: SuiteArea; eventId?: 
       >
         MASTER REPORT
       </Link>
+      <SuiteIdentityBadge />
       <ClockDisplay />
     </header>
   );

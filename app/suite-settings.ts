@@ -11,6 +11,7 @@ export type CalendarSource = {
   lastSynced?: string;
   lastError?: string;
   eventCount?: number;
+  oauthAccountId?: string;
 };
 
 export type OperationsTemplate = {

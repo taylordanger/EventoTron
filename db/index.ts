@@ -3,7 +3,7 @@ import * as schema from "./schema";
 
 let schemaReady: Promise<void> | null = null;
 
-export const EXPECTED_SCHEMA_MIGRATION = "0005_event_audit_history";
+export const EXPECTED_SCHEMA_MIGRATION = "0006_access_and_oauth";
 
 async function getD1() {
   const { env } = await import("cloudflare:workers");
@@ -130,6 +130,21 @@ export async function ensureSuiteSchema() {
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_suite_applet_states_event_app ON suite_applet_states (event_id, app_name)",
       ),
       db.prepare(
+        "CREATE TABLE IF NOT EXISTS suite_users (id text PRIMARY KEY NOT NULL, email text NOT NULL, role text DEFAULT 'staff' NOT NULL, status text DEFAULT 'active' NOT NULL, last_seen_at text, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
+      ),
+      db.prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_suite_users_email ON suite_users (email)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_users_role ON suite_users (role)",
+      ),
+      db.prepare(
+        "CREATE TABLE IF NOT EXISTS suite_calendar_oauth_accounts (id text PRIMARY KEY NOT NULL, provider text NOT NULL, connected_by_email text NOT NULL, account_email text DEFAULT '' NOT NULL, access_token_ciphertext text DEFAULT '' NOT NULL, refresh_token_ciphertext text DEFAULT '' NOT NULL, token_iv text DEFAULT '' NOT NULL, scope text DEFAULT '' NOT NULL, expires_at text, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
+      ),
+      db.prepare(
+        "CREATE INDEX IF NOT EXISTS idx_suite_calendar_oauth_accounts_provider ON suite_calendar_oauth_accounts (provider)",
+      ),
+      db.prepare(
         "CREATE TABLE IF NOT EXISTS meal_transfers (id text PRIMARY KEY NOT NULL, foodotron_meal_id text NOT NULL, tabletron_event_id text, status text DEFAULT 'pending' NOT NULL, created_at text NOT NULL, claimed_at text)",
       ),
       db.prepare(
@@ -142,7 +157,7 @@ export async function ensureSuiteSchema() {
         "CREATE INDEX IF NOT EXISTS idx_meal_transfers_status_created_at ON meal_transfers (status, created_at)",
       ),
       db.prepare(
-        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
+        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('0004_calendar_sync_records', datetime('now')), ('0005_event_audit_history', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
       ),
     ]).then(() => undefined),
   );

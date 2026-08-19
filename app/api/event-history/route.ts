@@ -1,13 +1,14 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteEventAudit } from "@/db/schema";
+import { withRole } from "../_lib/auth";
 
 function databaseUnavailable(error: unknown) {
   const detail = error instanceof Error ? error.message : String(error);
   return detail.includes("cloudflare:");
 }
 
-export async function GET(request: Request) {
+export const GET = withRole("staff", async (request: Request) => {
   const url = new URL(request.url);
   const eventId = url.searchParams.get("eventId")?.trim();
   const requestedLimit = Number(url.searchParams.get("limit") ?? 50);
@@ -48,4 +49,4 @@ export async function GET(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   }
-}
+});

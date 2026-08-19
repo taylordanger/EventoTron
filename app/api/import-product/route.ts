@@ -1,3 +1,5 @@
+import { withRole } from "../_lib/auth";
+
 type JsonValue=Record<string,unknown>|unknown[]|string|number|boolean|null;
 
 function blocked(hostname:string){const host=hostname.toLowerCase().replace(/^\[|\]$/g,"");return host==="localhost"||host.endsWith(".local")||host==="0.0.0.0"||host==="::1"||host.startsWith("127.")||host.startsWith("10.")||host.startsWith("192.168.")||/^172\.(1[6-9]|2\d|3[01])\./.test(host)||host.startsWith("169.254.")}
@@ -6,7 +8,7 @@ function clean(value:unknown){return typeof value==="string"?value.replace(/<[^>
 function meta(html:string,key:string){const escaped=key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");const a=html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`,`i`));const b=html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`,`i`));return clean(a?.[1]??b?.[1])}
 function packageSize(value:string){const matches=[...value.matchAll(/(\d+(?:\.\d+)?)\s*(fluid ounces?|fl\.?\s*oz\.?|ounces?|oz\.?|pounds?|lbs?\.?|teaspoons?|tsp\.?|tablespoons?|tbsp?\.?|cups?|pints?|pt\.?|quarts?|qt\.?|gallons?|gal\.?|dozens?)(?:\b|$)/gi)];const match=matches.at(-1);if(!match)return null;const raw=match[2].toLowerCase();let unit="each";if(/^fl|fluid/.test(raw))unit="fl oz";else if(/^oz|ounce/.test(raw))unit="oz";else if(/^lb|pound/.test(raw))unit="lb";else if(/^tsp|teaspoon/.test(raw))unit="tsp";else if(/^tbsp|tablespoon/.test(raw))unit="tbsp";else if(/^cup/.test(raw))unit="cup";else if(/^pt|pint/.test(raw))unit="pt";else if(/^qt|quart/.test(raw))unit="qt";else if(/^gal/.test(raw))unit="gal";else if(/^dozen/.test(raw))unit="dozen";return{packageQty:Number(match[1]),packageUnit:unit}}
 
-export async function POST(request:Request){
+export const POST=withRole("staff", async (request:Request)=>{
   try{
     const body=await request.json() as {url?:string};let target=new URL(String(body.url??""));
     if(!["http:","https:"].includes(target.protocol)||blocked(target.hostname))return Response.json({error:"Enter a public product link."},{status:400});
@@ -22,4 +24,4 @@ export async function POST(request:Request){
     if(!price&&!size)return Response.json({error:"Foodotron found the page, but it did not expose a price or package size. Enter them manually."},{status:422});
     return Response.json({name,store,price:Number.isFinite(price)?price:0,...size,url:target.toString()});
   }catch{return Response.json({error:"Foodotron could not read that product link."},{status:400})}
-}
+});

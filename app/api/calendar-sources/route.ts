@@ -2,6 +2,10 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteCalendarEvents, suiteCalendarSources } from "@/db/schema";
 import { extractGoogleCalendarIds, googleCalendarFeedUrl } from "@/app/suite-settings";
+import { withRole } from "../_lib/auth";
+import { getValidAccessToken, type TokenEnv } from "../_lib/calendar-oauth-accounts";
+import { fetchGoogleCalendarEvents } from "../_lib/google-oauth";
+import { fetchMicrosoftCalendarEvents } from "../_lib/microsoft-oauth";
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
 
@@ -16,9 +20,10 @@ type CalendarSourceInput = {
   lastSynced?: string;
   lastError?: string;
   eventCount?: number;
+  oauthAccountId?: string;
 };
 
-type ParsedCalendarEvent = {
+export type ParsedCalendarEvent = {
   externalId: string;
   title: string;
   date: string;
@@ -81,6 +86,7 @@ function normalizeSource(value: unknown): CalendarSourceInput | null {
     lastSynced: typeof source.lastSynced === "string" ? source.lastSynced : undefined,
     lastError: typeof source.lastError === "string" ? source.lastError : undefined,
     eventCount: Number.isFinite(Number(source.eventCount)) ? Number(source.eventCount) : undefined,
+    oauthAccountId: typeof source.oauthAccountId === "string" && source.oauthAccountId ? source.oauthAccountId : undefined,
   };
 }
 
@@ -406,7 +412,7 @@ async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEv
   };
 }
 
-export async function GET() {
+export const GET = withRole("staff", async () => {
   try {
     const db = await getDb();
     const [sourceRows, eventRows] = await Promise.all([
@@ -441,9 +447,9 @@ export async function GET() {
       detail: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withRole("admin", async (request: Request) => {
   const body = record(await request.json().catch(() => null));
   const source = normalizeSource(body?.source ?? body);
   if (!source) return Response.json({ error: "Calendar connection is incomplete." }, { status: 400 });
@@ -456,11 +462,33 @@ export async function PUT(request: Request) {
       detail: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
+});
+
+async function syncOAuthSource(source: CalendarSourceInput, env: TokenEnv) {
+  try {
+    const accessToken = await getValidAccessToken(source.oauthAccountId!, env);
+    const events = source.provider === "outlook"
+      ? await fetchMicrosoftCalendarEvents(accessToken)
+      : await fetchGoogleCalendarEvents(accessToken, source.url || "primary");
+    const persisted = await persistSync(source, events);
+    return Response.json({ ...persisted, persisted: true });
+  } catch (error) {
+    const failedSource = { ...source, lastError: error instanceof Error ? error.message : "Calendar sync failed" };
+    await upsertSource(failedSource, new Date().toISOString()).catch(() => undefined);
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Calendar sync failed" },
+      { status: 502 },
+    );
+  }
 }
 
-export async function POST(request: Request) {
+export const POST = withRole("admin", async (request: Request) => {
   const body = record(await request.json().catch(() => null));
   const source = normalizeSource(body?.source);
+  if (source?.oauthAccountId) {
+    const { env } = await import("cloudflare:workers");
+    return syncOAuthSource(source, env as TokenEnv);
+  }
   const rawUrl = String(body?.url ?? source?.url ?? "").trim();
   let url: string;
   try {
@@ -488,9 +516,9 @@ export async function POST(request: Request) {
     }
     return Response.json({ error: error instanceof Error ? error.message : "Calendar feed could not be read" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = withRole("admin", async (request: Request) => {
   const sourceId = new URL(request.url).searchParams.get("sourceId")?.trim() ?? "";
   if (!sourceId) return Response.json({ error: "Calendar source ID is required." }, { status: 400 });
   try {
@@ -504,4 +532,4 @@ export async function DELETE(request: Request) {
       detail: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
-}
+});

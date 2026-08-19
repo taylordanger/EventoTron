@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SuiteChrome } from "../SuiteChrome";
 import { OperationsTicker } from "../OperationsTicker";
+import type { SuiteRole, SuiteUser, SuiteUserStatus } from "../api/_lib/users";
+import type { OAuthAccountSummary } from "../api/_lib/calendar-oauth-accounts";
 import {
   SETTINGS_STORE_KEY,
   calendarProviderLabels,
@@ -36,6 +38,12 @@ type SystemHealth = {
     calendarEvents: number;
     settings: number;
   } | null;
+};
+
+type Session = {
+  email: string;
+  role: SuiteRole;
+  source: "access" | "local";
 };
 
 type ActivityEntry = {
@@ -111,13 +119,13 @@ const launchReadiness = [
   },
   {
     area: "Calendar integrations",
-    status: "IN PROGRESS",
-    detail: "ICS feed sync exists; Google and Outlook account sign-in/OAuth still need production setup.",
+    status: "PILOT READY",
+    detail: "ICS feed sync, plus real Google and Microsoft account OAuth connections, are both available from Calendar Connections.",
   },
   {
     area: "Production accounts",
-    status: "NEEDS DECISION",
-    detail: "Before wider use, choose user accounts, permissions, backup owner, and where the production database will live.",
+    status: "IN PROGRESS",
+    detail: "Staff sign in and get admin/staff roles through Cloudflare Access, managed from Access & Users. Still to decide: production database location and who owns backups.",
   },
   {
     area: "Desktop packaging",
@@ -181,6 +189,14 @@ export default function SettingsPage() {
   const [backupCheckpoint, setBackupCheckpoint] = useState<BackupCheckpoint | null>(null);
   const [restoreInProgress, setRestoreInProgress] = useState(false);
   const [quitting, setQuitting] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [users, setUsers] = useState<SuiteUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userActionPending, setUserActionPending] = useState<Record<string, boolean>>({});
+  const [oauthAccounts, setOauthAccounts] = useState<OAuthAccountSummary[]>([]);
+  const [oauthNotice, setOauthNotice] = useState<string | null>(null);
+  const [oauthDisconnecting, setOauthDisconnecting] = useState<Record<string, boolean>>({});
+  const isEffectiveAdmin = session?.source === "local" || session?.role === "admin";
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
   const backupAgeDays = daysSince(backupCheckpoint?.exportedAt ?? null);
@@ -284,6 +300,47 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/session", { cache: "no-store" });
+        setSession(response.ok ? await response.json() : null);
+      } catch {
+        setSession(null);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (session?.source === "access" && session.role === "admin") void loadUsers();
+  }, [session]);
+
+  useEffect(() => {
+    if (session && isEffectiveAdmin) void loadOAuthAccounts();
+  }, [session, isEffectiveAdmin]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const connected = params.get("oauthConnected");
+      const error = params.get("oauthError");
+      const accountId = params.get("accountId");
+      if (!connected && !error) return;
+      if (connected) {
+        setOauthNotice(`${connected === "microsoft" ? "Microsoft" : "Google"} Calendar connected.`);
+        if (accountId) void addSourceForOAuthAccount(accountId);
+        void loadOAuthAccounts();
+      } else if (error) {
+        setOauthNotice(`Calendar connection failed (${error}). Check that OAuth credentials are configured.`);
+      }
+      const url = new URL(window.location.href);
+      url.search = "";
+      window.history.replaceState(null, "", url.toString());
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (!loaded) return;
     localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(settings));
     const timer = window.setTimeout(() => {
@@ -344,6 +401,90 @@ export default function SettingsPage() {
       setActivity([]);
     } finally {
       setActivityLoading(false);
+    }
+  }
+
+  async function loadUsers() {
+    setUsersLoading(true);
+    try {
+      const response = await fetch("/api/users", { cache: "no-store" });
+      if (!response.ok) throw new Error("Users read failed");
+      const result = await response.json() as { users?: SuiteUser[] };
+      setUsers(Array.isArray(result.users) ? result.users : []);
+    } catch {
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  async function updateUserRoleOrStatus(id: string, patch: { role?: SuiteRole; status?: SuiteUserStatus }) {
+    setUserActionPending((current) => ({ ...current, [id]: true }));
+    try {
+      const response = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      const result = await response.json().catch(() => ({})) as { user?: SuiteUser; error?: string };
+      if (!response.ok) throw new Error(result.error || "User update failed");
+      if (result.user) setUsers((current) => current.map((user) => user.id === id ? result.user! : user));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "User update failed");
+    } finally {
+      setUserActionPending((current) => ({ ...current, [id]: false }));
+    }
+  }
+
+  async function loadOAuthAccounts() {
+    try {
+      const response = await fetch("/api/calendar-oauth/accounts", { cache: "no-store" });
+      if (!response.ok) return;
+      const result = await response.json() as { accounts?: OAuthAccountSummary[] };
+      setOauthAccounts(Array.isArray(result.accounts) ? result.accounts : []);
+    } catch {}
+  }
+
+  async function addSourceForOAuthAccount(accountId: string) {
+    if (settings.calendarSources.some((source) => source.oauthAccountId === accountId)) return;
+    try {
+      const response = await fetch("/api/calendar-oauth/accounts", { cache: "no-store" });
+      const result = await response.json().catch(() => ({})) as { accounts?: OAuthAccountSummary[] };
+      const account = result.accounts?.find((item) => item.id === accountId);
+      if (!account) return;
+      update({
+        calendarSources: [
+          ...settings.calendarSources,
+          {
+            id: `calendar_${uid()}`,
+            name: account.accountEmail || `${account.provider === "microsoft" ? "Outlook" : "Google"} Calendar`,
+            provider: account.provider === "microsoft" ? "outlook" : "google",
+            url: "",
+            enabled: true,
+            color: account.provider === "microsoft" ? "#45caff" : "#75ff47",
+            syncMinutes: 15,
+            oauthAccountId: account.id,
+          },
+        ],
+      });
+    } catch {}
+  }
+
+  async function disconnectOAuthAccount(id: string) {
+    setOauthDisconnecting((current) => ({ ...current, [id]: true }));
+    try {
+      const response = await fetch(`/api/calendar-oauth/accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Disconnect failed");
+      setOauthAccounts((current) => current.filter((account) => account.id !== id));
+      update({
+        calendarSources: settings.calendarSources.map((source) =>
+          source.oauthAccountId === id ? { ...source, oauthAccountId: undefined } : source
+        ),
+      });
+    } catch {
+      setOauthNotice("Could not disconnect that calendar account.");
+    } finally {
+      setOauthDisconnecting((current) => ({ ...current, [id]: false }));
     }
   }
 
@@ -500,7 +641,7 @@ export default function SettingsPage() {
   }
 
   async function syncCalendarSource(source: SuiteSettings["calendarSources"][number]) {
-    if (!source.url.trim()) {
+    if (!source.oauthAccountId && !source.url.trim()) {
       updateCalendarSource(source.id, { lastError: "Add a feed URL first." });
       return;
     }
@@ -777,7 +918,7 @@ export default function SettingsPage() {
 
           <section className="settings-card settings-calendar-card">
             <div className="settings-card-heading"><span>04</span><h3>Calendar Connections</h3><button onClick={addCalendarSource}>+ ADD CALENDAR</button></div>
-            <p className="settings-note">Paste a Google Calendar link with one or more calendar IDs, or add an ICS feed manually. Private Google calendars may still require OAuth before they can sync events.</p>
+            <p className="settings-note">Paste a Google Calendar link with one or more calendar IDs, or add an ICS feed manually. Connect a Google or Microsoft account below to sync private calendars without a public feed link.</p>
             <div className="calendar-import-box">
               <label className="settings-field wide">
                 <span>Paste Google Calendar link</span>
@@ -789,6 +930,31 @@ export default function SettingsPage() {
               </label>
               <button onClick={importGoogleCalendarLink}>IMPORT LINK</button>
             </div>
+            {isEffectiveAdmin ? (
+              <div className="calendar-oauth-box">
+                {oauthNotice ? <p className="settings-note">{oauthNotice}</p> : null}
+                <div className="calendar-oauth-connect-row">
+                  <a href="/api/calendar-oauth/google/start">CONNECT GOOGLE</a>
+                  <a href="/api/calendar-oauth/microsoft/start">CONNECT MICROSOFT</a>
+                </div>
+                {oauthAccounts.length ? (
+                  <div className="settings-list">
+                    {oauthAccounts.map((account) => (
+                      <div className="calendar-oauth-account-row" key={account.id}>
+                        <span>{account.provider === "microsoft" ? "OUTLOOK" : "GOOGLE"}</span>
+                        <span>{account.accountEmail || "Connected account"}</span>
+                        <button
+                          disabled={Boolean(oauthDisconnecting[account.id])}
+                          onClick={() => void disconnectOAuthAccount(account.id)}
+                        >
+                          {oauthDisconnecting[account.id] ? "DISCONNECTING" : "DISCONNECT"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {settings.calendarSources.length ? settings.calendarSources.map((source) => {
               const history = calendarImportHistory.find((item) => item.sourceId === source.id);
               return (
@@ -803,7 +969,11 @@ export default function SettingsPage() {
                     <label className="settings-field"><span>Provider</span><select value={source.provider} onChange={(event) => updateCalendarSource(source.id, { provider: event.target.value as CalendarProvider })}>{Object.entries(calendarProviderLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
                     <label className="settings-field"><span>Color</span><input type="color" value={source.color} onChange={(event) => updateCalendarSource(source.id, { color: event.target.value })} /></label>
                   </div>
-                  <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
+                  {source.oauthAccountId ? (
+                    <p className="settings-note">Connected via OAuth — {oauthAccounts.find((account) => account.id === source.oauthAccountId)?.accountEmail || "linked account"}.</p>
+                  ) : (
+                    <label className="settings-field wide"><span>Feed URL or account</span><input value={source.url} onChange={(event) => updateCalendarSource(source.id, { url: event.target.value })} /></label>
+                  )}
                   <div className="calendar-source-footer">
                     <span>{calendarProviderLabels[source.provider]}</span>
                     <span>{source.lastError || (source.eventCount !== undefined ? `${source.eventCount} EVENTS` : source.url ? "READY TO SYNC" : "SETUP NEEDED")}</span>
@@ -946,6 +1116,44 @@ export default function SettingsPage() {
                 </article>
               ))}
             </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-heading"><span>11</span><h3>Access &amp; Users</h3>{session?.source === "access" && session.role === "admin" ? <button onClick={() => void loadUsers()} disabled={usersLoading}>{usersLoading ? "LOADING" : "REFRESH"}</button> : null}</div>
+            {!session ? (
+              <div className="settings-empty">Checking session.</div>
+            ) : session.source === "local" ? (
+              <p className="settings-note">Local desktop mode runs as a single admin operator. User management applies to hosted deployments protected by Cloudflare Access.</p>
+            ) : session.role !== "admin" ? (
+              <p className="settings-note">Signed in as {session.email} (STAFF). Only admins can view and manage staff access.</p>
+            ) : (
+              <>
+                <p className="settings-note">Signed in as {session.email} (ADMIN). Staff are provisioned automatically the first time they sign in through Cloudflare Access.</p>
+                <div className="settings-list">
+                  {users.length ? users.map((user) => (
+                    <div className="settings-user-row" key={user.id}>
+                      <span className="settings-user-email">{user.email}</span>
+                      <select
+                        aria-label={`Role for ${user.email}`}
+                        value={user.role}
+                        disabled={Boolean(userActionPending[user.id])}
+                        onChange={(event) => void updateUserRoleOrStatus(user.id, { role: event.target.value as SuiteRole })}
+                      >
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                      <span className={`settings-user-status ${user.status}`}>{user.status.toUpperCase()}</span>
+                      <button
+                        disabled={Boolean(userActionPending[user.id])}
+                        onClick={() => void updateUserRoleOrStatus(user.id, { status: user.status === "revoked" ? "active" : "revoked" })}
+                      >
+                        {user.status === "revoked" ? "REINSTATE" : "REMOVE"}
+                      </button>
+                    </div>
+                  )) : <div className="settings-empty">{usersLoading ? "Loading users." : "No staff have signed in yet."}</div>}
+                </div>
+              </>
+            )}
           </section>
         </section>
       </main>

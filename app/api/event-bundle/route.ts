@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteAppletStates, suiteEvents, suiteSettings } from "@/db/schema";
+import { withRole } from "../_lib/auth";
 import { readLocalAppletState } from "../event-app-state/local-store";
 import { readLocalEvents } from "../events/local-store";
 import { readLocalSettings } from "../settings/local-store";
@@ -51,7 +52,7 @@ function appletPayloads(
   );
 }
 
-export async function GET(request: Request) {
+export const GET = withRole("staff", async (request: Request) => {
   const eventId = new URL(request.url).searchParams.get("eventId") ?? "";
   if (!eventId) {
     return Response.json({ error: "An event bundle requires an event ID." }, { status: 400 });
@@ -111,4 +112,4 @@ export async function GET(request: Request) {
       source: "local-dev",
     });
   }
-}
+});

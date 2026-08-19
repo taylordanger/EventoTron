@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteAppletStates, suiteEvents } from "@/db/schema";
+import { withRole } from "../_lib/auth";
 import { deleteLocalAppletState, readLocalAppletState, writeLocalAppletState } from "./local-store";
 import { projectAppletState, removeAppletProjection } from "./projections";
 
@@ -24,7 +25,7 @@ function validate(eventId: string, appName: string) {
   return "";
 }
 
-export async function GET(request: Request) {
+export const GET = withRole("staff", async (request) => {
   const { eventId, appName } = getParams(request);
   const error = validate(eventId, appName);
   if (error) return Response.json({ error }, { status: 400 });
@@ -61,9 +62,9 @@ export async function GET(request: Request) {
     }
     return Response.json({ ...local, source: "local-dev" });
   }
-}
+});
 
-export async function PUT(request: Request) {
+export const PUT = withRole("staff", async (request) => {
   const { eventId, appName } = getParams(request);
   const error = validate(eventId, appName);
   if (error) return Response.json({ error }, { status: 400 });
@@ -118,9 +119,9 @@ export async function PUT(request: Request) {
     const local = writeLocalAppletState(eventId, appName, body.payload);
     return Response.json({ ...local, savedAt: local.updatedAt, source: "local-dev" });
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = withRole("staff", async (request) => {
   const { eventId, appName } = getParams(request);
   const error = validate(eventId, appName);
   if (error) return Response.json({ error }, { status: 400 });
@@ -150,4 +151,4 @@ export async function DELETE(request: Request) {
     deleteLocalAppletState(eventId, appName);
     return Response.json({ eventId, appName, deleted: true, source: "local-dev" });
   }
-}
+});

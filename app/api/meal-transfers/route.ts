@@ -1,5 +1,6 @@
 import { getDb } from "@/db";
 import { foodotronMeals, mealTransfers } from "@/db/schema";
+import { withRole } from "../_lib/auth";
 import { putLocalTransfer } from "../tabletron-transfers/local-store";
 
 type TransferMeal = {
@@ -32,7 +33,7 @@ function dbId(prefix: string, existing?: string) {
     : shortId(prefix);
 }
 
-export async function POST(request: Request) {
+export const POST = withRole("staff", async (request: Request) => {
   try {
     const body = (await request.json()) as {
       meal?: TransferMeal;
@@ -125,4 +126,4 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-}
+});

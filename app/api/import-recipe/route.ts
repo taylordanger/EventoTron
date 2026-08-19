@@ -1,3 +1,5 @@
+import { withRole } from "../_lib/auth";
+
 type JsonValue=Record<string,unknown>|unknown[]|string|number|boolean|null;
 
 function isBlockedHost(hostname:string){
@@ -17,7 +19,7 @@ function findRecipe(value:JsonValue):Record<string,unknown>|null{
 
 function text(value:unknown){return typeof value==="string"?value.replace(/<[^>]+>/g," ").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/\s+/g," ").trim():""}
 
-export async function POST(request:Request){
+export const POST=withRole("staff", async (request:Request)=>{
   try{
     const body=await request.json() as {url?:string};
     let target=new URL(String(body.url??""));
@@ -40,4 +42,4 @@ export async function POST(request:Request){
     if(!ingredients.length)return Response.json({error:"The page did not include an ingredient list."},{status:422});
     return Response.json({name:text(recipe.name)||"Imported Recipe",servings:Math.max(1,servings),ingredients,source:target.toString()});
   }catch{return Response.json({error:"Foodotron could not read that recipe link."},{status:400})}
-}
+});

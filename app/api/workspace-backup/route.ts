@@ -1,4 +1,5 @@
 import { getDb } from "@/db";
+import { withRole } from "../_lib/auth";
 import {
   foodotronMeals,
   mealTransfers,
@@ -121,7 +122,7 @@ function validateBackup(value: unknown): WorkspaceBackup | null {
   return backup as WorkspaceBackup;
 }
 
-export async function GET() {
+export const GET = withRole("staff", async () => {
   try {
     const db = await getDb();
     const [
@@ -215,7 +216,7 @@ export async function GET() {
       "local-dev",
     );
   }
-}
+});
 
 async function restoreDatabase(backup: WorkspaceBackup) {
   const db = await getDb();
@@ -318,7 +319,7 @@ function restoreLocal(backup: WorkspaceBackup) {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = withRole("admin", async (request: Request) => {
   const backup = validateBackup(await request.json().catch(() => null));
   if (!backup) {
     return Response.json({ error: "Workspace backup file is not recognized." }, { status: 400 });
@@ -356,4 +357,4 @@ export async function POST(request: Request) {
       counts: backupCounts(backup.data),
     });
   }
-}
+});

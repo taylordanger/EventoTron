@@ -61,11 +61,11 @@ Goal: make the database, users, and calendar sources dependable.
 
 - Decide where the production database lives.
 - Decide who owns backups and how often they are exported.
-- Add user identity and role rules for staff access.
+- Add user identity and role rules for staff access. Complete: staff sign in through Cloudflare Access, are auto-provisioned as staff (or admin, for the configured initial-admin email) on first sign-in, and admins manage roles from `Settings > Access & Users`. Sensitive routes (settings, calendar connections, workspace restore, user management) require the admin role; everything else requires any signed-in staff account. Local desktop mode is unaffected and still runs as a single implicit admin operator. Configuring the actual Cloudflare Access application (team domain, policy, audience tag) is an operational step outside this repo — see `.dev.vars.example` for the required secrets.
 - Keep conflict-aware event revisions enabled so simultaneous staff edits cannot silently overwrite one another.
 - Review the durable event audit history during recovery drills; Settings now exposes the recent staff-facing activity view.
 - Review calendar import health from Settings; each source now shows last sync, errors, imported event count, date range, and recent imported events.
-- Add Google Calendar and Outlook OAuth connections.
+- Add Google Calendar and Outlook OAuth connections. Complete: admins can connect a Google or Microsoft account from `Settings > Calendar Connections`; connected sources sync via the real Calendar API/Graph API instead of a public ICS feed, with tokens encrypted at rest and refreshed automatically.
 - Expand the current calendar-source health view into account-based sync logs after OAuth is connected.
 
 Exit criteria:
