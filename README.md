@@ -53,6 +53,18 @@ Use `Settings > Private Alpha` before entering real event data. It checks the lo
 
 See [docs/PRIVATE_ALPHA_RUNBOOK.md](docs/PRIVATE_ALPHA_RUNBOOK.md) for the one-person real-event pilot workflow.
 
+## Hosted Deployment
+
+```bash
+npm run deploy:check
+```
+
+Builds and validates a deployable bundle without uploading anything. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the account setup EventoTron needs
+before its first real deploy: the D1 database, Cloudflare Access with Microsoft
+sign-in, and the secrets. `npm run deploy` refuses to run until the database is
+configured, and can never ship the local single-operator admin mode.
+
 ## Production Roadmap
 
 See [docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md) for the current local pilot, operations-template, calendar/account, desktop-packaging, and launch gates.

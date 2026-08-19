@@ -81,3 +81,22 @@ test("local mode is opted into explicitly by each local runtime", async () => {
   // Local production runtime passes it as an explicit Wrangler var.
   assert.match(startLocal, /"EVENTOTRON_LOCAL_MODE:1"/);
 });
+
+test("deploy preflight blocks the dangerous mistakes", async () => {
+  const { preflightProblems, PLACEHOLDER_DATABASE_ID } = await import(
+    new URL("../scripts/preflight-deploy.mjs", import.meta.url).href
+  );
+  // Shipping against the placeholder means the app quietly is not your data.
+  assert.equal(preflightProblems({}).length, 1);
+  assert.match(preflightProblems({}).join(), /EVENTOTRON_D1_DATABASE_ID is not set/);
+  assert.match(
+    preflightProblems({ EVENTOTRON_D1_DATABASE_ID: PLACEHOLDER_DATABASE_ID }).join(),
+    /still the placeholder/,
+  );
+  // Shipping with local mode on would grant admin to anyone.
+  assert.match(
+    preflightProblems({ EVENTOTRON_D1_DATABASE_ID: "real-id", EVENTOTRON_LOCAL_MODE: "1" }).join(),
+    /grants admin with no sign-in/,
+  );
+  assert.deepEqual(preflightProblems({ EVENTOTRON_D1_DATABASE_ID: "real-id" }), []);
+});

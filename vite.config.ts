@@ -3,8 +3,14 @@ import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
+// A real deployment must point at a real D1 database. The placeholder keeps
+// local development working without an account; `wrangler d1 create` prints the
+// id to put in EVENTOTRON_D1_DATABASE_ID for anything that actually ships.
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
+const D1_DATABASE_ID =
+  process.env.EVENTOTRON_D1_DATABASE_ID || SITE_CREATOR_PLACEHOLDER_DATABASE_ID;
+const D1_DATABASE_NAME = process.env.EVENTOTRON_D1_DATABASE_NAME || "site-creator-d1";
 
 const { d1, r2 } = hostingConfig;
 
@@ -18,8 +24,8 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: D1_DATABASE_NAME,
+          database_id: D1_DATABASE_ID,
         },
       ]
     : [],
@@ -33,7 +39,7 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ command }) => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
@@ -52,7 +58,16 @@ export default defineConfig(async () => {
       sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        config: localBindingConfig,
+        config: {
+          ...localBindingConfig,
+          // Local mode grants the implicit single-operator admin, so it is
+          // enabled ONLY while serving from a dev machine. `command` is
+          // "build" for the bundle that gets deployed, which therefore never
+          // carries this var and can never fall into local mode.
+          ...(command === "serve"
+            ? { vars: { EVENTOTRON_LOCAL_MODE: "1" } }
+            : {}),
+        },
       }),
     ],
   };
