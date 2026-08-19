@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build output at any depth. The `--ignore-pattern dist` flag on the lint
+    // script resolves relative to the working directory, so it only catches
+    // the top-level copy; a nested one, such as a git worktree under
+    // .claude/, would otherwise be linted as source.
+    "**/dist/**",
+    "**/.wrangler/**",
+    ".claude/**",
   ]),
 ]);
 
