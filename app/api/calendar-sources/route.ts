@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq, gte } from "drizzle-orm";
 import { getDb } from "@/db";
 import { suiteCalendarEvents, suiteCalendarSources } from "@/db/schema";
 import { extractGoogleCalendarIds, googleCalendarFeedUrl } from "@/app/suite-settings";
@@ -412,12 +412,34 @@ async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEv
   };
 }
 
-export const GET = withRole("staff", async () => {
+/** Hard ceiling on a bounded read, so one request can never scan the table. */
+const MAX_UPCOMING_EVENTS = 200;
+
+export const GET = withRole("staff", async (request: Request) => {
   try {
     const db = await getDb();
+
+    // The operations ticker only ever shows what is live, today, or next, but
+    // it polls on a timer from every open tab. Reading the whole calendar for
+    // that dominates database cost, so callers can ask for just the next N
+    // events from a date instead. Uses idx_suite_calendar_events_date, so the
+    // scan is bounded by `limit` rather than by table size.
+    const params = new URL(request.url).searchParams;
+    const from = params.get("from")?.trim();
+    const requestedLimit = Number.parseInt(params.get("limit") ?? "", 10);
+    const bounded = Boolean(from) && Number.isFinite(requestedLimit) && requestedLimit > 0;
+    const limit = Math.min(requestedLimit, MAX_UPCOMING_EVENTS);
+
     const [sourceRows, eventRows] = await Promise.all([
       db.select().from(suiteCalendarSources),
-      db.select().from(suiteCalendarEvents),
+      bounded
+        ? db
+            .select()
+            .from(suiteCalendarEvents)
+            .where(gte(suiteCalendarEvents.date, from!))
+            .orderBy(asc(suiteCalendarEvents.date))
+            .limit(limit)
+        : db.select().from(suiteCalendarEvents),
     ]);
     const sources = sourceRows.map((row) => normalizeSource({
       ...(record(row.payload) ?? {}),
@@ -430,12 +452,18 @@ export const GET = withRole("staff", async () => {
       syncMinutes: row.syncMinutes,
       lastSynced: row.lastSynced ?? undefined,
       lastError: row.lastError ?? undefined,
-      eventCount: eventRows.filter((event) => event.sourceId === row.id).length,
+      eventCount: bounded
+        ? undefined
+        : eventRows.filter((event) => event.sourceId === row.id).length,
     })).filter((source): source is CalendarSourceInput => source !== null);
     const sourceById = new Map(sources.map((source) => [source.id, source]));
     return Response.json({
       sources,
-      importHistory: sources.map((source) => importSummaryForSource(source, eventRows)),
+      // A bounded read cannot describe import history, so it is omitted rather
+      // than computed from a partial set.
+      importHistory: bounded
+        ? []
+        : sources.map((source) => importSummaryForSource(source, eventRows)),
       events: eventRows.flatMap((event) => {
         const source = sourceById.get(event.sourceId);
         return source ? [eventForClient(event, source)] : [];

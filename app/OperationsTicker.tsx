@@ -61,6 +61,19 @@ function formatTickerDate(value: string, status: LiveTickerItem["status"]) {
   });
 }
 
+/** Enough upcoming events to fill the ticker, even across a quiet stretch. */
+const TICKER_EVENT_LIMIT = 50;
+
+/**
+ * Start of the ticker's window: yesterday, so an event that began late and is
+ * still running counts as live.
+ */
+function tickerWindowStart() {
+  const start = new Date();
+  start.setDate(start.getDate() - 1);
+  return start.toISOString().slice(0, 10);
+}
+
 function tickerHref(active: TickerSuiteArea, item: LiveTickerItem) {
   if (item.external) {
     const params = new URLSearchParams({ calendarEvent: item.id });
@@ -83,7 +96,13 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
       try {
         const [eventResponse, calendarResponse, settings] = await Promise.all([
           fetch("/api/events", { cache: "no-store" }),
-          fetch("/api/calendar-sources", { cache: "no-store" }),
+          // The ticker shows what is live, today, or next, so it asks for the
+          // next few events from yesterday onward rather than the whole
+          // calendar. Reading every row here on a timer, from every open tab,
+          // was by far the largest database cost in the app.
+          fetch(`/api/calendar-sources?from=${tickerWindowStart()}&limit=${TICKER_EVENT_LIMIT}`, {
+            cache: "no-store",
+          }),
           loadSuiteSettings(),
         ]);
         if (!eventResponse.ok || !calendarResponse.ok) return;
@@ -126,11 +145,25 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
         setFetchedTimezone(settings.timezone);
       } catch {}
     };
+    // Repeatedly polling a hidden tab only costs money — left open overnight
+    // the old loop billed as much as a full working day. Skip the *repeat*
+    // while hidden, never the first load: a tab opened in the background must
+    // still have data, or the ticker claims there are no events when there are.
+    const refreshIfVisible = () => {
+      if (document.hidden) return;
+      void refresh();
+    };
+    const onVisibilityChange = () => {
+      if (!document.hidden) void refresh();
+    };
+
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 60_000);
+    const timer = window.setInterval(refreshIfVisible, 60_000);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [sources]);
 
