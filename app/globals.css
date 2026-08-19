@@ -526,6 +526,45 @@
   opacity: 1 !important;
 }
 
+/* The indicator is styled by severity, never by assumption. It previously
+   rendered every state in the success green, so a save that never reached the
+   server looked identical to one that did — the failure staff most need to
+   notice was the one they could not see. */
+.save-state[data-tone="working"],
+.save-state-action[data-tone="working"] {
+  border-color: rgba(182, 255, 157, 0.35) !important;
+  color: #9dc297 !important;
+  background: rgba(10, 30, 14, 0.72) !important;
+  box-shadow: none;
+}
+
+.save-state[data-tone="warning"],
+.save-state-action[data-tone="warning"] {
+  border-color: var(--red) !important;
+  color: #ffd7dd !important;
+  background: rgba(70, 12, 20, 0.85) !important;
+  box-shadow: inset 0 0 18px rgba(255, 77, 101, 0.22), 0 0 10px rgba(255, 77, 101, 0.25);
+  font-weight: 700;
+}
+
+/* Draws the eye without becoming a distraction during an event. */
+@media (prefers-reduced-motion: no-preference) {
+  .save-state[data-tone="warning"],
+  .save-state-action[data-tone="warning"] {
+    animation: eventotron-save-warning 1.6s ease-in-out 3;
+  }
+}
+
+@keyframes eventotron-save-warning {
+  0%, 100% { box-shadow: inset 0 0 18px rgba(255, 77, 101, 0.22), 0 0 10px rgba(255, 77, 101, 0.25); }
+  50%      { box-shadow: inset 0 0 22px rgba(255, 77, 101, 0.40), 0 0 18px rgba(255, 77, 101, 0.55); }
+}
+
+/* The calendar's save control is clickable, so it keeps its affordance. */
+.save-state-action[data-tone="warning"] {
+  cursor: pointer;
+}
+
 .eventotron-workbench {
   position: relative;
   min-height: 0;

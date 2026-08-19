@@ -18,6 +18,7 @@ import {
 } from "./suite-settings";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
+import { saveStatusHint, saveStatusTone } from "./save-status";
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
 type EventoEvent = {
@@ -267,7 +268,7 @@ export default function Home() {
   const [calendarImportUrl, setCalendarImportUrl] = useState("");
   const [calendarFeedEvents, setCalendarFeedEvents] = useState<ImportedCalendarEvent[]>([]);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
-  const [eventSaveStatus, setEventSaveStatus] = useState("LOCAL READY");
+  const [eventSaveStatus, setEventSaveStatus] = useState("READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
   const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
   const inFlightEventsRef = useRef(new Set<string>());
@@ -329,7 +330,7 @@ export default function Home() {
       commitServerEvent(result.event, capturedFingerprint);
       return "saved";
     } catch {
-      setEventSaveStatus("LOCAL ONLY");
+      setEventSaveStatus("NOT ON SERVER");
       return "error";
     } finally {
       inFlightEventsRef.current.delete(event.id);
@@ -919,7 +920,7 @@ export default function Home() {
     <main className="eventotron-desktop">
       <div className="eventotron-ribbon-row">
         <SuiteChrome active="calendar" eventId={hasActiveEvent ? selected.id : undefined} />
-        <button onClick={() => void save()}>{eventSaveStatus}</button>
+        <button className="save-state-action" data-tone={saveStatusTone(eventSaveStatus)} title={saveStatusHint(eventSaveStatus)} onClick={() => void save()}>{eventSaveStatus}</button>
         <label className="new-event-template">
           <span>START FROM</span>
           <select value={newEventTemplateId} onChange={(event) => setNewEventTemplateId(event.target.value)}>

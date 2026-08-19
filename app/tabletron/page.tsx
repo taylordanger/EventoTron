@@ -22,6 +22,7 @@ import {
 } from "./seat-labels";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { saveStatusHint, saveStatusTone } from "../save-status";
 type TableItem = { id: string; x: number; y: number };
 type ShapeKind = "rect" | "circle" | "oval" | "triangle";
 type Piece = {
@@ -698,7 +699,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [appletSaveStatus, setAppletSaveStatus] = useState("LOCAL READY");
+  const [appletSaveStatus, setAppletSaveStatus] = useState("READY");
   const [linkedSuiteEventId, setLinkedSuiteEventId] = useState("");
   const [linkedSuiteEvent, setLinkedSuiteEvent] = useState<EventoEventContext | null>(null);
   const [timezone, setTimezone] = useState("America/Los_Angeles");
@@ -851,8 +852,8 @@ export default function Home() {
         localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
         setAppletSaveStatus("SAVING");
         void saveSuiteAppletState(project.activeEventId, "tabletron", project)
-          .then(() => setAppletSaveStatus("SAVED"))
-          .catch(() => setAppletSaveStatus("LOCAL ONLY"));
+          .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
+          .catch(() => setAppletSaveStatus("NOT ON SERVER"));
         setSavedAt(new Date());
       } catch {
         setNotice("AUTO-SAVE FAILED · DOWNLOAD A BACKUP");
@@ -884,8 +885,8 @@ export default function Home() {
       localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
       setAppletSaveStatus("SAVING");
       void saveSuiteAppletState(project.activeEventId, "tabletron", project)
-        .then(() => setAppletSaveStatus("SAVED"))
-        .catch(() => setAppletSaveStatus("LOCAL ONLY"));
+        .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
+        .catch(() => setAppletSaveStatus("NOT ON SERVER"));
       setSavedAt(new Date());
       setNotice("PROJECT SAVED ON THIS DEVICE");
     } catch {
@@ -1588,7 +1589,7 @@ export default function Home() {
           <button onClick={save} title={savedAt ? `Last saved ${savedAt.toLocaleTimeString()}` : "Save project"}>
             {savedAt ? "✓ SAVED" : "▣ SAVE"}
           </button>
-          <button className="save-state" disabled>{appletSaveStatus}</button>
+          <button className="save-state" data-tone={saveStatusTone(appletSaveStatus)} title={saveStatusHint(appletSaveStatus)} disabled>{appletSaveStatus}</button>
           <button onClick={exportBackup}>⇩ BACKUP</button>
           <button onClick={() => importRef.current?.click()}>⇧ RESTORE</button>
           <input

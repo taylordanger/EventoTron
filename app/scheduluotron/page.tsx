@@ -10,6 +10,7 @@ import { formatRegularTime } from "../time-format";
 import { useEventLiveStatus } from "../use-event-live-status";
 import { useEffect, useMemo, useState } from "react";
 
+import { saveStatusHint, saveStatusTone } from "../save-status";
 type BlockKind =
   | "setup"
   | "delivery"
@@ -209,7 +210,7 @@ export default function Scheduluotron() {
   const [plan, setPlan] = useState<SchedulePlan>(() => initialPlan());
   const [notice, setNotice] = useState("");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
-  const [appletSaveStatus, setAppletSaveStatus] = useState("LOCAL READY");
+  const [appletSaveStatus, setAppletSaveStatus] = useState("READY");
   const [timezone, setTimezone] = useState("America/Los_Angeles");
   const eventIsLive = useEventLiveStatus(activeEvent, timezone);
   const active =
@@ -289,8 +290,8 @@ export default function Scheduluotron() {
       localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
       setAppletSaveStatus("SAVING");
       void saveSuiteAppletState(activeEvent.id, "scheduluotron", plan)
-        .then(() => setAppletSaveStatus("SAVED"))
-        .catch(() => setAppletSaveStatus("LOCAL ONLY"));
+        .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
+        .catch(() => setAppletSaveStatus("NOT ON SERVER"));
     }, 500);
     return () => window.clearTimeout(timer);
   }, [activeEvent, plan]);
@@ -366,8 +367,8 @@ export default function Scheduluotron() {
     localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
     setAppletSaveStatus("SAVING");
     void saveSuiteAppletState(activeEvent?.id, "scheduluotron", plan)
-      .then(() => setAppletSaveStatus("SAVED"))
-      .catch(() => setAppletSaveStatus("LOCAL ONLY"));
+      .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
+      .catch(() => setAppletSaveStatus("NOT ON SERVER"));
     setNotice("SCHEDULUOTRON SAVED");
   }
 
@@ -395,7 +396,7 @@ export default function Scheduluotron() {
           />
         </div>
         <button onClick={save}>SAVE</button>
-        <button className="save-state" disabled>{appletSaveStatus}</button>
+        <button className="save-state" data-tone={saveStatusTone(appletSaveStatus)} title={saveStatusHint(appletSaveStatus)} disabled>{appletSaveStatus}</button>
         <button onClick={exportSchedule}>EXPORT</button>
         <button className="primary" onClick={() => printReport(`${plan.eventName} Scheduluotron Day Sheet`)}>
           PRINT DAY SHEET

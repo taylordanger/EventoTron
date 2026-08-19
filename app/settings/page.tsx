@@ -5,6 +5,7 @@ import { SuiteChrome } from "../SuiteChrome";
 import { OperationsTicker } from "../OperationsTicker";
 import type { SuiteRole, SuiteUser, SuiteUserStatus } from "../api/_lib/users";
 import type { OAuthAccountSummary } from "../api/_lib/calendar-oauth-accounts";
+import { saveStatusHint, saveStatusTone } from "../save-status";
 import {
   SETTINGS_STORE_KEY,
   calendarProviderLabels,
@@ -175,7 +176,7 @@ function parseTemplateScheduleBlocks(value: string): TemplatePresetBlock[] {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
-  const [status, setStatus] = useState("LOCAL READY");
+  const [status, setStatus] = useState("READY");
   const [loaded, setLoaded] = useState(false);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthChecking, setHealthChecking] = useState(true);
@@ -361,7 +362,7 @@ export default function SettingsPage() {
           })));
           setStatus("SAVED");
         })
-        .catch(() => setStatus("LOCAL ONLY"));
+        .catch(() => setStatus("NOT ON SERVER"));
     }, 500);
     return () => window.clearTimeout(timer);
   }, [settings, loaded]);
@@ -853,7 +854,7 @@ export default function SettingsPage() {
             <small>EVENTOTRON // CONTROL PANEL</small>
             <h1>Settings</h1>
           </div>
-          <button className="save-state" disabled>{status}</button>
+          <button className="save-state" data-tone={saveStatusTone(status)} title={saveStatusHint(status)} disabled>{status}</button>
           <button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button>
           <button onClick={() => backupInput.current?.click()}>RESTORE</button>
           <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Review EventoTron workspace backup before restoring" onChange={(event) => void reviewWorkspaceBackup(event.target.files?.[0])} />
