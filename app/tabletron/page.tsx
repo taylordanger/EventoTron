@@ -2949,7 +2949,9 @@ export default function Home() {
                       "tabletron-project-v2",
                       JSON.stringify(project),
                     );
-                    setNotice("EVENT SAVED · OPENING FOODOTRON");
+                    // Only the browser copy is written here, so do not call
+                    // it saved outright.
+                    setNotice("KEPT ON THIS COMPUTER · OPENING FOODOTRON");
                   }}
                 >
                   OPEN FOODOTRON ↗

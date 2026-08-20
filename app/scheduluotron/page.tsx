@@ -366,10 +366,21 @@ export default function Scheduluotron() {
   function save() {
     localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
     setAppletSaveStatus("SAVING");
+    // The toast used to fire here, before the save resolved, so a failed save
+    // still announced success. It now reports what actually happened.
     void saveSuiteAppletState(activeEvent?.id, "scheduluotron", plan)
-      .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
-      .catch(() => setAppletSaveStatus("NOT ON SERVER"));
-    setNotice("SCHEDULUOTRON SAVED");
+      .then((stored) => {
+        setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE");
+        setNotice(
+          stored
+            ? "SCHEDULUOTRON SAVED"
+            : "KEPT ON THIS COMPUTER · OPEN AN EVENT FILE TO SHARE IT",
+        );
+      })
+      .catch(() => {
+        setAppletSaveStatus("NOT ON SERVER");
+        setNotice("SAVE FAILED · KEPT ON THIS COMPUTER ONLY");
+      });
   }
 
   function exportSchedule() {

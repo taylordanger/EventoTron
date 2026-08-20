@@ -102,3 +102,34 @@ test("a save that sent nothing is not reported as saved", async () => {
     assert.match(source, /NO EVENT FILE/, `${file} never reports the not-linked state`);
   }
 });
+
+test("a success toast is never raised before the save resolves", async () => {
+  // These fired synchronously alongside the request, so a failed save still
+  // announced "SAVED" while the indicator later flipped to NOT ON SERVER.
+  const { readFile } = await import("node:fs/promises");
+  for (const file of ["app/scheduluotron/page.tsx", "app/foodotron/page.tsx"]) {
+    const source = await readFile(new URL(`../${file}`, import.meta.url), "utf8");
+    const saveFn = source.slice(source.indexOf("saveSuiteAppletState"));
+    const toastAt = saveFn.indexOf("SAVED");
+    const catchAt = saveFn.indexOf(".catch(");
+    assert.ok(toastAt !== -1 && catchAt !== -1, `${file}: could not locate the save path`);
+    // The success wording must sit inside the resolution, before the catch.
+    assert.ok(
+      toastAt < catchAt,
+      `${file} announces success outside the promise that decides it`,
+    );
+    assert.match(source, /SAVE FAILED · KEPT ON THIS COMPUTER ONLY/, `${file} has no failure toast`);
+  }
+});
+
+test("a local-only write is not announced as a save", async () => {
+  // This wrote to localStorage and nothing else, then said "EVENT SAVED".
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(
+    source,
+    /setNotice\("EVENT SAVED · OPENING FOODOTRON"\)/,
+    "a browser-only write still claims the event was saved",
+  );
+  assert.match(source, /KEPT ON THIS COMPUTER · OPENING FOODOTRON/, "the honest wording is missing");
+});
