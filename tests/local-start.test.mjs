@@ -57,3 +57,42 @@ test("desktop launcher reuses the local backend and route tree", async () => {
   assert.match(readme, /npm run desktop:mac/);
   assert.match(readme, /same local Workers backend/);
 });
+
+test("the local backend restarts itself instead of dying on a transient crash", async () => {
+  // Wrangler watches the built output and hot-reloads. Rebuilding while the app
+  // is running makes it reload against a half-written bundle and exit, which
+  // previously left staff with a dead browser tab and nothing to act on.
+  const source = await readFile(new URL("../scripts/start-local.mjs", import.meta.url), "utf8");
+  assert.match(source, /function launchWrangler\(/, "there is no supervisor around the backend");
+  assert.match(source, /setTimeout\(launchWrangler, RESTART_DELAY_MS\)/, "a crash is never retried");
+  assert.match(source, /stopping/, "a deliberate stop is not distinguished from a crash");
+});
+
+test("a deliberate quit does not trigger a restart", async () => {
+  // Settings > Quit App signals this process; restarting there would make the
+  // app impossible to close.
+  const source = await readFile(new URL("../scripts/start-local.mjs", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /process\.on\(signal, \(\) => \{\s*stopping = true;/,
+    "SIGINT/SIGTERM do not mark the shutdown as deliberate",
+  );
+  assert.match(
+    source,
+    /if \(stopping\) \{[\s\S]{0,160}?return;/,
+    "the exit handler restarts even after a deliberate stop",
+  );
+});
+
+test("a crash loop gives up rather than restarting forever", async () => {
+  const { MAX_RESTARTS, RESTART_WINDOW_MS, RESTART_DELAY_MS } = await import(
+    new URL("../scripts/start-local.mjs", import.meta.url).href
+  );
+  assert.ok(Number.isInteger(MAX_RESTARTS) && MAX_RESTARTS > 0 && MAX_RESTARTS <= 20, "implausible restart cap");
+  assert.ok(RESTART_WINDOW_MS >= 10_000, "the restart window is too short to detect a loop");
+  assert.ok(RESTART_DELAY_MS >= 250, "restarting this fast would spin the CPU");
+
+  const source = await readFile(new URL("../scripts/start-local.mjs", import.meta.url), "utf8");
+  assert.match(source, /restarts\.length > MAX_RESTARTS/, "the cap is never enforced");
+  assert.match(source, /will not restart again/, "giving up is not explained to the operator");
+});

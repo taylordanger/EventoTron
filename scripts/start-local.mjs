@@ -4,6 +4,11 @@ import { spawn } from "node:child_process";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** Restart policy for the local backend. See launchWrangler below. */
+export const RESTART_DELAY_MS = 1500;
+export const RESTART_WINDOW_MS = 60_000;
+export const MAX_RESTARTS = 5;
+
 export function isPortAvailable(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -52,7 +57,7 @@ async function start() {
     dirname(process.execPath),
     process.env.PATH,
   ].filter(Boolean).join(":");
-  const child = spawn(process.execPath, [
+  const wranglerArgs = [
     wranglerScript,
     "dev",
     "--config",
@@ -68,17 +73,60 @@ async function start() {
     String(port),
     "--show-interactive-dev-session",
     "false",
-  ], {
-    cwd: projectRoot,
-    env: { ...process.env, PATH: pathWithNode, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
-    stdio: "inherit",
-  });
-  for (const signal of ["SIGINT", "SIGTERM"]) {
-    process.on(signal, () => child.kill(signal));
+  ];
+
+  // Wrangler watches the built output and hot-reloads. Rebuilding while the app
+  // is running makes it reload against a half-written bundle
+  // ("No such module __vite_rsc_assets_manifest.js"), and it exits. Staff would
+  // see a dead browser tab with nothing to act on, so bring it back rather than
+  // leaving the venue without its run sheets mid-event.
+  let child = null;
+  let stopping = false;
+  const restarts = [];
+
+  function launchWrangler() {
+    child = spawn(process.execPath, wranglerArgs, {
+      cwd: projectRoot,
+      env: { ...process.env, PATH: pathWithNode, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
+      stdio: "inherit",
+    });
+
+    child.once("exit", (code, signal) => {
+      if (stopping) {
+        process.exitCode = code ?? (signal ? 1 : 0);
+        return;
+      }
+
+      const now = Date.now();
+      restarts.push(now);
+      while (restarts.length && now - restarts[0] > RESTART_WINDOW_MS) restarts.shift();
+
+      // A crash loop means something is actually broken; restarting forever
+      // would only bury the reason.
+      if (restarts.length > MAX_RESTARTS) {
+        console.error(
+          `EventoTron stopped ${restarts.length} times in under ${Math.round(RESTART_WINDOW_MS / 1000)}s and will not restart again.`,
+        );
+        console.error("Check the output above, then start EventoTron again.");
+        process.exitCode = code ?? 1;
+        return;
+      }
+
+      console.log(
+        `EventoTron stopped unexpectedly (${signal ?? `exit ${code}`}). Restarting in ${RESTART_DELAY_MS}ms — attempt ${restarts.length} of ${MAX_RESTARTS}.`,
+      );
+      setTimeout(launchWrangler, RESTART_DELAY_MS);
+    });
   }
-  child.once("exit", (code, signal) => {
-    process.exitCode = code ?? (signal ? 1 : 0);
-  });
+
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    process.on(signal, () => {
+      stopping = true;
+      child?.kill(signal);
+    });
+  }
+
+  launchWrangler();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
