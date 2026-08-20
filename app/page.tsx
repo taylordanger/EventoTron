@@ -530,6 +530,99 @@ export default function Home() {
     [settings.calendarSources],
   );
 
+  /**
+   * Honour the per-source sync interval.
+   *
+   * The UI has always offered "SYNC every 5/15/30/60 MIN", but nothing acted on
+   * it: feeds refreshed only when somebody pressed SYNC NOW. A workspace could
+   * therefore show a fortnight-old schedule while the control implied fifteen
+   * minutes, with no error recorded and nothing on screen to suggest the data
+   * was stale.
+   *
+   * Kept deliberately conservative: only enabled sources, only when actually
+   * due, only one at a time, and never from a hidden tab — a background tab
+   * calling out to Google every quarter of an hour helps nobody.
+   */
+  const autoSyncRef = useRef<{
+    sync: (source: CalendarSource) => Promise<void>;
+    syncing: Record<string, boolean>;
+    sources: CalendarSource[];
+  }>({ sync: async () => {}, syncing: {}, sources: [] });
+  // Refreshed after each render rather than during it: writing a ref while
+  // rendering is unsafe under concurrent rendering.
+  useEffect(() => {
+    autoSyncRef.current = {
+      sync: syncCalendarSource,
+      syncing: calendarSyncing,
+      sources: visibleCalendarSources,
+    };
+  });
+
+  /** Stable identity for the set of feeds, so the sync effect can depend on it. */
+  const calendarSourceKey = useMemo(
+    () => visibleCalendarSources.map((source) => source.id).join(","),
+    [visibleCalendarSources],
+  );
+
+  /**
+   * When each feed was last refreshed *by this session*.
+   *
+   * Calendar sources are persisted twice — inside the settings payload and in
+   * the calendar-sources table — and the two drift: a sync advances the table
+   * while the settings copy keeps its old timestamp. Trusting the settings copy
+   * alone would make every feed look permanently overdue and re-sync on a
+   * timer forever, so the interval is measured against whichever record is
+   * more recent.
+   */
+  const lastSyncAttemptRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const isDue = (source: CalendarSource) => {
+      if (!source.url) return false;
+      const everyMs = Math.max(5, Number(source.syncMinutes) || 15) * 60_000;
+      const stored = source.lastSynced ? new Date(source.lastSynced).getTime() : 0;
+      const attempted = lastSyncAttemptRef.current[source.id] ?? 0;
+      const last = Math.max(Number.isFinite(stored) ? stored : 0, attempted);
+      if (!last) return true;
+      return Date.now() - last >= everyMs;
+    };
+
+    const runDueSyncs = async (skipWhenHidden = true) => {
+      // The recurring pass skips hidden tabs, but opening the app always
+      // refreshes stale feeds — otherwise a tab that starts in the background
+      // never syncs at all, which is the behaviour this replaced.
+      if (skipWhenHidden && document.hidden) return;
+      const { sync, syncing, sources } = autoSyncRef.current;
+      for (const source of sources) {
+        if (cancelled) return;
+        if (syncing[source.id] || !isDue(source)) continue;
+        // Recorded before the call so a failing feed is retried on the normal
+        // interval rather than on every pass.
+        lastSyncAttemptRef.current[source.id] = Date.now();
+        // Sequential: two feeds refreshing at once buys nothing and doubles
+        // the chance of tripping a rate limit.
+        await sync(source);
+      }
+    };
+
+    void runDueSyncs(false);
+    const timer = window.setInterval(() => void runDueSyncs(), 60_000);
+    const onVisible = () => {
+      if (!document.hidden) void runDueSyncs();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // Keyed to the source list: settings load after mount, so an effect that
+    // ran only once would find no sources and then skip every later pass in a
+    // background tab, syncing nothing at all.
+  }, [calendarSourceKey]);
+
   const linkedCalendarEventIds = useMemo(
     () => new Set(events.flatMap((event) => event.calendarEventId ? [event.calendarEventId] : [])),
     [events],
