@@ -185,3 +185,41 @@ test("joinLabel respects order and separator", () => {
   assert.equal(joinLabel("A", "1", "row-seat", ""), "A1");
   assert.equal(joinLabel("A", "1", "seat-row", "-"), "1-A");
 });
+
+test("the layout advisory answers whether everyone has a seat", async () => {
+  // Tabletron's advisory judged only spacing, so a room one seat short still
+  // reported "LAYOUT COMFORTABLE" — a green tick while a guest stands. Seating
+  // the guests is the first question a room plan has to answer, so a shortfall
+  // has to outrank clearance rather than sit behind it.
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /const seatShortfall\s*=/, "capacity is never compared against the guest count");
+  assert.match(source, /event\?\.guestCount/, "the linked event's guest count is not consulted");
+
+  // The shortfall branch must be evaluated before the clearance branches.
+  const advisory = source.slice(source.indexOf("SYSTEM ADVISORY"));
+  const shortfallAt = advisory.indexOf("seatShortfall > 0");
+  const collisionAt = advisory.indexOf('score.state === "COLLISION"');
+  assert.ok(shortfallAt !== -1, "the advisory ignores a seat shortfall");
+  assert.ok(
+    shortfallAt < collisionAt,
+    "clearance is reported ahead of guests having nowhere to sit",
+  );
+
+  assert.match(source, /WITHOUT A SEAT/, "the shortfall is not stated in the advisory");
+  assert.match(source, /"GUEST" : "GUESTS"/, "the shortfall wording is not singular-aware");
+  assert.match(source, /expected, \$\{totalSeatCount\} seated/, "the advisory does not show the numbers");
+});
+
+test("no linked event means no false capacity warning", async () => {
+  // Tabletron is usable without an event file; a missing guest count must not
+  // read as "0 guests expected" and warn about nothing.
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /expectedGuests > 0 \? expectedGuests - totalSeatCount : 0/,
+    "a layout with no linked event could report a shortfall",
+  );
+});

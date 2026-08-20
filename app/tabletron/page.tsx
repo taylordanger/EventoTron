@@ -1199,6 +1199,15 @@ export default function Home() {
   );
   const totalSeatCount = layout.tables.length * 6 + rowSeatCount;
 
+  /**
+   * Whether the layout actually seats the people coming. The movement score
+   * only judges spacing, so a room that was one seat short still reported
+   * "LAYOUT COMFORTABLE" — a green tick while a guest stands. For a venue this
+   * is the first question a room plan has to answer, so it outranks clearance.
+   */
+  const expectedGuests = Math.max(0, Math.round(event?.guestCount ?? 0));
+  const seatShortfall = expectedGuests > 0 ? expectedGuests - totalSeatCount : 0;
+
   /** The section currently being edited in the inspector, if any. */
   const activeSection =
     selected?.kind === "seating"
@@ -2318,16 +2327,22 @@ export default function Home() {
           <b>{score.min < 0 ? "0′" : feet(score.min)}</b>
           <span>ESTIMATED</span>
         </div>
-        <div className="warning">
+        <div className={seatShortfall > 0 ? "warning collision" : "warning"}>
           <small>SYSTEM ADVISORY</small>
           <b>
-            {score.state === "COLLISION"
-              ? "⚠ COLLISION DETECTED"
-              : score.state === "TIGHT"
-                ? "△ TIGHT CLEARANCE"
-                : "✓ LAYOUT COMFORTABLE"}
+            {seatShortfall > 0
+              ? `⚠ ${seatShortfall} ${seatShortfall === 1 ? "GUEST" : "GUESTS"} WITHOUT A SEAT`
+              : score.state === "COLLISION"
+                ? "⚠ COLLISION DETECTED"
+                : score.state === "TIGHT"
+                  ? "△ TIGHT CLEARANCE"
+                  : "✓ LAYOUT COMFORTABLE"}
           </b>
-          <span>Drag furniture to compare arrangements.</span>
+          <span>
+            {seatShortfall > 0
+              ? `${expectedGuests} expected, ${totalSeatCount} seated. Add tables or seating rows.`
+              : "Drag furniture to compare arrangements."}
+          </span>
         </div>
       </footer>
 
