@@ -43,7 +43,14 @@ type FurnitureTemplate = {
   clearance: number;
   pieces: Piece[];
 };
-type PlacedItem = { id: string; templateId: string; x: number; y: number };
+/** `rotation` is clockwise degrees; absent on items placed before it existed. */
+type PlacedItem = {
+  id: string;
+  templateId: string;
+  x: number;
+  y: number;
+  rotation?: number;
+};
 type Layout = {
   id: string;
   name: string;
@@ -128,6 +135,16 @@ type Drag = {
   dy: number;
 } | null;
 type AutoMode = "comfortable" | "balanced" | "maximum";
+
+/**
+ * Rotation kept in 0–359 clockwise degrees. A rectangular table or a ramp is
+ * useless at a fixed orientation, and a hallway is mostly things turned to sit
+ * along a wall.
+ */
+const normalizeRotation = (value: number | undefined) => {
+  const degrees = Math.round(Number(value) || 0);
+  return ((degrees % 360) + 360) % 360;
+};
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (n: number, min: number, max: number) =>
@@ -654,6 +671,7 @@ function ReportLayoutMap({
                 top: `${(object.y / room.height) * 100}%`,
                 width: `${(template.width / room.width) * 100}%`,
                 height: `${(template.height / room.height) * 100}%`,
+                transform: `translate(-50%, -50%) rotate(${normalizeRotation(object.rotation)}deg)`,
               }}
             >
               {template.name}
@@ -1287,6 +1305,21 @@ export default function Home() {
       ? layout.seating.find((section) => section.id === selected.id) ?? null
       : null;
 
+  function setObjectRotation(id: string, rotation: number) {
+    updateLayout((l) => ({
+      ...l,
+      objects: l.objects.map((item) =>
+        item.id === id ? { ...item, rotation: normalizeRotation(rotation) } : item,
+      ),
+    }));
+  }
+
+  function nudgeObjectRotation(id: string, delta: number) {
+    const current = layout.objects.find((item) => item.id === id);
+    if (!current) return;
+    setObjectRotation(id, normalizeRotation(current.rotation) + delta);
+  }
+
   function addSeatingSection() {
     // Drop it clear of the left wall so the row labels have room to render.
     const section = makeSeatingSection(
@@ -1630,6 +1663,11 @@ export default function Home() {
       ? room.entrances.find((entrance) => entrance.id === selected.id)
       : undefined;
 
+  const selectedObject =
+    selected?.kind === "object"
+      ? layout.objects.find((item) => item.id === selected.id)
+      : undefined;
+
   return (
     <div className="suite-frame"><SuiteChrome active="tabletron" eventId={linkedSuiteEventId || undefined} /><OperationsTicker active="tabletron" /><main className={`tabletron-applet app-shell ${opsReport ? "printing-report" : ""}`}>
       <header className="topbar">
@@ -1882,6 +1920,9 @@ export default function Home() {
                       top: `${(o.y / room.height) * 100}%`,
                       width: `${((t.width + t.clearance * 2) / room.width) * 100}%`,
                       height: `${((t.height + t.clearance * 2) / room.height) * 100}%`,
+                      // The class already centres the item on its point; the
+                      // rotation has to be composed with that, not replace it.
+                      transform: `translate(-50%, -50%) rotate(${normalizeRotation(o.rotation)}deg)`,
                     }}
                     onPointerDown={(e) =>
                       startDrag(e, "object", o.id, o.x, o.y)
@@ -1901,7 +1942,14 @@ export default function Home() {
                         <Shape piece={p} key={p.id} />
                       ))}
                     </div>
-                    <label>{t.name}</label>
+                    {/* Names stay horizontal so a turned item is still readable. */}
+                    <label
+                      style={{
+                        transform: `translate(-50%, -50%) rotate(${-normalizeRotation(o.rotation)}deg)`,
+                      }}
+                    >
+                      {t.name}
+                    </label>
                   </div>
                 );
               })}
@@ -2003,6 +2051,39 @@ export default function Home() {
               <b>{selectedLabel}</b>
             </span>
           </div>
+          {selectedObject && (
+            <div className="rotation-controls">
+              <span className="rotation-label">ROTATION</span>
+              <div className="rotation-row">
+                <button
+                  title="Turn 90° anticlockwise"
+                  onClick={() => nudgeObjectRotation(selectedObject.id, -90)}
+                >
+                  ⟲ 90°
+                </button>
+                <input
+                  type="number"
+                  step={15}
+                  value={normalizeRotation(selectedObject.rotation)}
+                  onChange={(e) =>
+                    setObjectRotation(selectedObject.id, Number(e.target.value) || 0)
+                  }
+                  aria-label="Rotation in degrees"
+                />
+                <button
+                  title="Turn 90° clockwise"
+                  onClick={() => nudgeObjectRotation(selectedObject.id, 90)}
+                >
+                  ⟳ 90°
+                </button>
+              </div>
+              <div className="rotation-row">
+                <button onClick={() => nudgeObjectRotation(selectedObject.id, -15)}>−15°</button>
+                <button onClick={() => setObjectRotation(selectedObject.id, 0)}>RESET</button>
+                <button onClick={() => nudgeObjectRotation(selectedObject.id, 15)}>+15°</button>
+              </div>
+            </div>
+          )}
           {selectedEntrance && (
             <div className="entrance-controls">
               <label className="field">

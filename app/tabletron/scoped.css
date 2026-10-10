@@ -1318,3 +1318,49 @@
 .tabletron-applet .rooms {
   min-height: 0;
 }
+
+/* ---- Object rotation ------------------------------------------------ */
+
+.tabletron-applet .rotation-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.tabletron-applet .rotation-label {
+  font-size: 8px;
+  color: #71936c;
+  letter-spacing: 0.08em;
+}
+
+.tabletron-applet .rotation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+}
+
+.tabletron-applet .rotation-row button {
+  font-size: 9px;
+  padding: 6px 2px;
+}
+
+.tabletron-applet .rotation-row input {
+  background: #071009;
+  border: 1px solid #315b34;
+  color: #e0f6db;
+  padding: 5px;
+  text-align: center;
+  outline: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabletron-applet .rotation-row input:focus {
+  border-color: var(--p);
+}
+
+/* Rotation must not fight the centring the class already applies. */
+.tabletron-applet .placed-object,
+.tabletron-applet .ops-map-object {
+  transform-origin: center;
+}
