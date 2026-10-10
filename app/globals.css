@@ -940,7 +940,8 @@
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(112px, 1fr));
-  grid-auto-rows: minmax(112px, 1fr);
+  grid-auto-rows: minmax(132px, auto);
+  align-content: start;
   overflow: auto;
   border-left: 1px solid #1f3f23;
 }
@@ -965,7 +966,7 @@
   border-right: 1px solid #18371d;
   border-bottom: 1px solid #18371d;
   background: #040a06;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .day-cell:not(.blank):hover {
@@ -975,6 +976,18 @@
 
 .day-cell.blank {
   background: #030704;
+}
+
+.day-cell.today {
+  background: #061209;
+  box-shadow: inset 0 0 0 1px #75ff4770, inset 0 0 18px #75ff4714;
+}
+
+.day-cell.today .day-number {
+  background: #123118;
+  border-color: var(--p);
+  color: #e8ffe2;
+  box-shadow: 0 0 12px #75ff4730;
 }
 
 .day-number {
@@ -999,15 +1012,15 @@
 
 .calendar-event {
   width: 100%;
-  min-height: 34px;
+  min-height: 28px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   border: 1px solid #254a2a;
   border-left-width: 4px;
   background: #071009;
   text-align: left;
-  padding: 4px 6px;
+  padding: 3px 6px;
   cursor: pointer;
   transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
 }
@@ -1019,11 +1032,11 @@
 
 .calendar-event b {
   color: currentColor;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.15;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .calendar-event small {

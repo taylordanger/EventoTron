@@ -187,6 +187,22 @@ const monthNames = [
 ];
 const monthShortNames = monthNames.map((month) => month.slice(0, 3).toUpperCase());
 
+function localDayParts(date = new Date()) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  return {
+    year,
+    month,
+    day,
+    key: `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+  };
+}
+
+function firstEventOnDate(events: EventoEvent[], date: string) {
+  return events.find((event) => event.date === date);
+}
+
 function eventSeed(
   id: string,
   title: string,
@@ -253,12 +269,13 @@ const emptySelectedEvent: EventoEvent = {
 };
 
 export default function Home() {
+  const initialDay = localDayParts();
   const [events, setEvents] = useState<EventoEvent[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [calendarYear, setCalendarYear] = useState(2026);
-  const [calendarMonth, setCalendarMonth] = useState(7);
+  const [calendarYear, setCalendarYear] = useState(initialDay.year);
+  const [calendarMonth, setCalendarMonth] = useState(initialDay.month);
   const [infoExpanded, setInfoExpanded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<EventoSettings>(defaultSettings);
@@ -270,6 +287,7 @@ export default function Home() {
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [eventSaveStatus, setEventSaveStatus] = useState("READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
+  const startupDayRef = useRef(initialDay);
   const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
   const inFlightEventsRef = useRef(new Set<string>());
   const selected = events.find((event) => event.id === selectedId) ?? emptySelectedEvent;
@@ -353,18 +371,20 @@ export default function Home() {
             ...event,
             requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
           }));
+          const startupDay = startupDayRef.current;
+          const todayEvent = firstEventOnDate(restoredEvents, startupDay.key);
           setEvents(restoredEvents);
-          const nextSelectedId = restored.selectedId && restoredEvents.some((event) => event.id === restored.selectedId)
-            ? restored.selectedId
-            : "";
-          setSelectedId(nextSelectedId);
-          setOpenIds(Array.isArray(restored.openIds)
+          const nextSelectedId = todayEvent?.id
+            ?? (restored.selectedId && restoredEvents.some((event) => event.id === restored.selectedId) ? restored.selectedId : "");
+          const restoredOpenIds = Array.isArray(restored.openIds)
             ? restored.openIds.filter((id) => restoredEvents.some((event) => event.id === id))
-            : nextSelectedId ? [nextSelectedId] : []);
-          const restoredSelected = restoredEvents.find((event) => event.id === nextSelectedId);
-          const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
-          setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
-          setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
+            : [];
+          setSelectedId(nextSelectedId);
+          setOpenIds(nextSelectedId
+            ? [nextSelectedId, ...restoredOpenIds.filter((id) => id !== nextSelectedId)].slice(0, 8)
+            : restoredOpenIds);
+          setCalendarYear(startupDay.year);
+          setCalendarMonth(startupDay.month);
         }
         setLoaded(true);
       } catch {}
@@ -426,22 +446,25 @@ export default function Home() {
         ]));
         setEvents(restoredEvents);
         const restoredEventIds = new Set(restoredEvents.map((event) => event.id));
+        const startupDay = startupDayRef.current;
+        const todayEvent = firstEventOnDate(restoredEvents, startupDay.key);
         setSelectedId((current) => {
-          return current && restoredEventIds.has(current)
+          return todayEvent?.id
+            ?? (current && restoredEventIds.has(current)
             ? current
-            : restored.selectedId && restoredEventIds.has(restored.selectedId) ? restored.selectedId : "";
+            : restored.selectedId && restoredEventIds.has(restored.selectedId) ? restored.selectedId : "");
         });
         setOpenIds((current) => {
           const currentOpenIds = current.filter((id) => restoredEventIds.has(id));
-          if (currentOpenIds.length || Array.isArray(restored.openIds)) {
-            return currentOpenIds.length ? currentOpenIds : restored.openIds?.filter((id) => restoredEventIds.has(id)) ?? [];
-          }
-          return [];
+          const restoredOpenIds = currentOpenIds.length
+            ? currentOpenIds
+            : restored.openIds?.filter((id) => restoredEventIds.has(id)) ?? [];
+          return todayEvent
+            ? [todayEvent.id, ...restoredOpenIds.filter((id) => id !== todayEvent.id)].slice(0, 8)
+            : restoredOpenIds;
         });
-        const restoredSelected = restoredEvents.find((event) => event.id === restored.selectedId);
-        const restoredDate = restoredSelected?.date.split("-").map(Number) ?? [];
-        setCalendarYear(restored.calendarYear ?? restoredDate[0] ?? 2026);
-        setCalendarMonth(restored.calendarMonth ?? ((restoredDate[1] ?? 8) - 1));
+        setCalendarYear(startupDay.year);
+        setCalendarMonth(startupDay.month);
         setEventSaveStatus(restoredEvents.length ? "DATABASE READY" : "NO EVENT FILES");
       })
       .catch(() => {})
@@ -524,6 +547,18 @@ export default function Home() {
     while (cells.length % 7) cells.push(null);
     return cells;
   }, [calendarYear, calendarMonth]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const timer = window.setTimeout(() => {
+      document.querySelector(".month-tab.active")?.scrollIntoView({ block: "nearest", inline: "center" });
+      const today = startupDayRef.current;
+      if (calendarYear === today.year && calendarMonth === today.month) {
+        document.querySelector(".day-cell.today")?.scrollIntoView({ block: "center", inline: "nearest" });
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [calendarFeedEvents.length, calendarMonth, calendarYear, events.length, loaded]);
 
   const visibleCalendarSources = useMemo(
     () => settings.calendarSources.filter((source) => source.enabled),
@@ -672,6 +707,7 @@ export default function Home() {
   const visibleExternalEventCount = calendarSourceDiagnostics.reduce((total, source) => total + source.visibleThisMonth, 0);
   const totalSyncedExternalEventCount = calendarSourceDiagnostics.reduce((total, source) => total + source.syncedCount, 0);
   const calendarErrorCount = calendarSourceDiagnostics.filter((source) => source.lastError).length;
+  const today = startupDayRef.current;
 
   const eventsByDay = useMemo(() => {
     const map = new Map<number, Array<EventoEvent | ImportedCalendarEvent>>();
@@ -1188,7 +1224,7 @@ export default function Home() {
               </div>
             ))}
             {days.map((day, index) => (
-              <div className={`day-cell ${day ? "" : "blank"}`} key={`${day}-${index}`}>
+              <div className={`day-cell ${day ? "" : "blank"} ${day === today.day && calendarMonth === today.month && calendarYear === today.year ? "today" : ""}`} key={`${day}-${index}`}>
                 {day && (
                   <>
                     <button className="day-number" onClick={() => addEvent(day)}>
