@@ -256,7 +256,9 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(tabletron, /parseFurnitureDimensions/);
   assert.match(tabletron, /upper\.includes\("ROUND"\)/);
   assert.match(tabletron, /inchMatch/);
-  assert.match(tabletron, /normalizedTabletronRoomName/);
+  // Room-name matching moved into app/tabletron/room-names.ts so the rules
+  // that resolve a calendar's wording to a configured room can be tested.
+  assert.match(tabletron, /roomNamesMatch/);
   assert.match(tabletron, /operationsTemplate\?\.preset\?\.event/);
   assert.match(tabletron, /timeRangeParts/);
   assert.match(tabletron, /seedLayoutObjects/);

@@ -731,6 +731,36 @@ export default function Home() {
       return;
     }
 
+    /**
+     * Where the booking is happening.
+     *
+     * A venue that keeps one calendar per room says which rooms an event uses
+     * simply by appearing in several of them — the Pat Dunne memorial shows up
+     * in Margarets Meeting Room, Dance Studio and Auditorium. That is far more
+     * reliable than the location text, which is written by whoever made the
+     * booking and arrives as things like "MMR".
+     *
+     * Both are kept: the source calendars first, then the typed location if it
+     * adds anything, so a one-calendar venue still gets its room.
+     */
+    const sameBooking = calendarFeedEvents.filter(
+      (candidate) =>
+        candidate.date === imported.date &&
+        candidate.title.trim().toLowerCase() === imported.title.trim().toLowerCase(),
+    );
+    const roomNames: string[] = [];
+    for (const name of [
+      ...sameBooking.map((candidate) => candidate.sourceName ?? ""),
+      imported.location ?? "",
+    ]) {
+      const clean = name.trim();
+      if (!clean) continue;
+      if (roomNames.some((seen) => seen.toLowerCase() === clean.toLowerCase())) continue;
+      roomNames.push(clean);
+    }
+    // Tabletron splits this back into rooms on the same separators.
+    const space = roomNames.join(", ") || imported.location;
+
     const created: EventoEvent = {
       ...eventSeed(
         `event_${imported.id}`,
@@ -738,7 +768,7 @@ export default function Home() {
         imported.date,
         importedEventKind(imported),
         formatRegularTime(imported.eventTime),
-        imported.location,
+        space,
         `Imported from ${imported.sourceName}.`,
         "",
         "",
@@ -765,7 +795,7 @@ export default function Home() {
     } else if (outcome === "error") {
       setEventSaveStatus("IMPORTED LOCALLY");
     }
-  }, [events, openEvent, persistEvent]);
+  }, [calendarFeedEvents, events, openEvent, persistEvent]);
 
   useEffect(() => {
     if (!settingsLoaded || !eventBackendChecked) return;

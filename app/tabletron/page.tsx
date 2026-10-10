@@ -9,6 +9,7 @@ import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 import { useEventLiveStatus } from "../use-event-live-status";
 import { seatsInFurniture } from "./seating-capacity";
+import { roomNamesMatch } from "./room-names";
 import {
   makeSeatRow,
   makeSeatingSection,
@@ -272,23 +273,6 @@ function eventRoomNames(space: string) {
     .filter((name, index, names) => names.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index);
 }
 
-function normalizedTabletronRoomName(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/['’]/g, "")
-    .replace(/\b(lccc|main|space|room|meeting)\b/g, "")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
-
-function tabletronRoomNameMatches(a: string, b: string) {
-  const left = normalizedTabletronRoomName(a);
-  const right = normalizedTabletronRoomName(b);
-  return Boolean(
-    left && right && (left === right || left.includes(right) || right.includes(left)),
-  );
-}
-
 function tabletronClockValue(value: string) {
   const match = value.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
   if (!match) return "";
@@ -378,9 +362,9 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
   const names = eventRoomNames(source.space || presetEvent?.space || "Community Room");
   const rooms = [...project.rooms];
   const roomByName = (name: string) =>
-    rooms.find((room) => tabletronRoomNameMatches(room.name, name));
+    rooms.find((room) => roomNamesMatch(room.name, name));
   const configuredRoom = (name: string) =>
-    settings?.rooms.find((room) => tabletronRoomNameMatches(room.name, name));
+    settings?.rooms.find((room) => roomNamesMatch(room.name, name));
   const activeRooms = names.map((name) => {
     const existing = roomByName(name);
     if (existing) return existing;
@@ -405,18 +389,41 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
     source.rentalTime,
     presetEvent?.rentalTime,
   );
-  const assignments = prior?.rooms.length
-    ? prior.rooms.filter((assignment) => rooms.some((room) => room.id === assignment.roomId))
-    : activeRooms.map((room, index) => ({
-        roomId: room.id,
-        layoutId: room.activeLayoutId,
-        purpose: index === 0 ? "Primary event space" : "Supporting event space",
-        setupTime: rentalRange?.start || eventRange?.start || "09:00",
-        guestTime: eventRange?.start || rentalRange?.start || "09:00",
-        endTime: eventRange?.end || rentalRange?.end || "12:00",
-        teardownTime: rentalRange?.end || eventRange?.end || "13:00",
-        notes: source.description,
-      }));
+  const defaultAssignment = (room: Room, index: number): EventRoom => ({
+    roomId: room.id,
+    layoutId: room.activeLayoutId,
+    purpose: index === 0 ? "Primary event space" : "Supporting event space",
+    setupTime: rentalRange?.start || eventRange?.start || "09:00",
+    guestTime: eventRange?.start || rentalRange?.start || "09:00",
+    endTime: eventRange?.end || rentalRange?.end || "12:00",
+    teardownTime: rentalRange?.end || eventRange?.end || "13:00",
+    notes: source.description,
+  });
+
+  /**
+   * Existing assignments win, and rooms the booking names are added to them.
+   *
+   * This used to be either/or: once an event had any room assigned, the rooms
+   * named by its calendars were ignored for good. A booking that later spread
+   * into a second room never picked it up, and an event imported before room
+   * matching worked stayed attached to whatever it first guessed. Purposes and
+   * times an operator has set are never discarded — only missing rooms are
+   * appended.
+   */
+  const priorAssignments = (prior?.rooms ?? []).filter((assignment) =>
+    rooms.some((room) => room.id === assignment.roomId),
+  );
+  const unassigned = activeRooms.filter(
+    (room) => !priorAssignments.some((assignment) => assignment.roomId === room.id),
+  );
+  const assignments = priorAssignments.length
+    ? [
+        ...priorAssignments,
+        ...unassigned.map((room, index) =>
+          defaultAssignment(room, priorAssignments.length + index),
+        ),
+      ]
+    : activeRooms.map(defaultAssignment);
   const requested = (source.requestedItems || presetEvent?.requestedItems || "6 FT ROUND TABLES, CHAIRS")
     .split(/[,\n]+/)
     .map((item) => item.trim())
