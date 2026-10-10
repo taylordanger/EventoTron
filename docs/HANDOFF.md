@@ -115,6 +115,21 @@ from team deployment readiness.
 
 ## Recent work, newest first
 
+### Tabletron Setup Sheet (2026-10-10)
+
+- Reproduced Export Setup Sheet printing the editor canvas/status counters
+  without room/layout/event identity or setup instructions. It now opens a
+  dedicated preview for the active room and layout, with Print and Save PDF.
+- The sheet includes event/date, assigned room timing/purpose/notes, equipment
+  counts and total seating (including furniture seats). Unassigned rooms and
+  layouts different from the event assignment are clearly identified; exporting
+  never changes the assignment. Standalone projects still export without events.
+- Shared Tabletron report maps preserve furniture shapes and rotation and keep
+  tall-room proportions. Setup print output excludes editor panels and catering.
+- Verification: 125 tests, build, lint with the existing settings warning;
+  isolated browser checks covered layout/room switching, row/furniture seats,
+  standalone export, PDF title and mobile preview. Sample setup PDF: one page.
+
 ### Daily Use And Reports (2026-10-10)
 
 - Main calendar expands busy days without clipping event tiles. Startup opens

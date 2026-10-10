@@ -409,4 +409,9 @@ test("print report contracts keep report previews and print mode aligned", async
   // than calling window.print() directly, so the printed document gets a title
   // naming the room and layout instead of inheriting the page's.
   assert.match(tabletron, /printReport\(`\$\{room\.name\} · \$\{layout\.name\} setup sheet`\)/);
+  assert.match(tabletron, /setSetupSheet\(true\)/);
+  assert.match(tabletron, /aria-label="Room setup sheet"/);
+  assert.match(tabletron, /<ReportLayoutMap room=\{room\} layout=\{layout\}/);
+  assert.match(tabletron, /Event-assigned layout:/);
+  assert.match(tabletron, /setupAssignment\?\.notes/);
 });

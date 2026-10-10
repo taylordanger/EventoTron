@@ -104,3 +104,34 @@
   .foodotron-applet .compact-shopping > header h1 { font-size: 24px; }
   .foodotron-applet .compact-shopping .food-report-heading { margin-bottom: 8px; padding-bottom: 5px; }
 }
+.tabletron-applet .setup-sheet { background: #fff; min-height: 0; letter-spacing: 0; }
+.tabletron-applet .setup-sheet > header { padding: 18px 22px; }
+.tabletron-applet .setup-sheet h1 { font-size: 24px; margin: 4px 0; }
+.tabletron-applet .setup-sheet header p { margin: 4px 0; }
+.tabletron-applet .setup-timing { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 22px; color: #172218; }
+.tabletron-applet .setup-timing dt { font-size: 10px; color: #526454; }
+.tabletron-applet .setup-timing dd { margin: 4px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+.tabletron-applet .setup-layout-warning { margin: 12px 22px; padding: 8px; background: #fff7d8; color: #59450e; font-size: 12px; }
+.tabletron-applet .setup-sheet .ops-layout-wrap { padding: 12px 22px; background: #fff; break-inside: avoid; }
+.tabletron-applet .setup-sheet .ops-layout-map { width: min(100%, 480px); max-height: none; }
+.tabletron-applet .setup-details { padding: 0 22px 12px; color: #172218; }
+.tabletron-applet .setup-details h2 { font-size: 14px; margin: 12px 0 6px; }
+.tabletron-applet .setup-details ul { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.tabletron-applet .setup-details p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.4; }
+.tabletron-applet .setup-sheet > footer { margin: 0 22px; padding: 8px 0; font-size: 9px; }
+.tabletron-applet .setup-sheet .ops-report-actions { position: static; padding: 12px 22px; background: #fff; flex-wrap: wrap; }
+.tabletron-applet .setup-sheet .ops-report-actions button { font-size: 12px; }
+.tabletron-applet .ops-map-object-name { position: absolute; left: 50%; top: 50%; max-width: 150%; color: #172218; font-size: 7px; line-height: 1.1; text-align: center; }
+.tabletron-applet .ops-map-object .piece { border-color: #354c43; background: #e0eae4; }
+@media (max-width: 600px) {
+  .tabletron-applet .setup-timing { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tabletron-applet .setup-sheet > header { flex-wrap: wrap; gap: 8px; }
+}
+@media print {
+  html:has(.setup-sheet), html body:has(.setup-sheet), .suite-frame:has(.setup-sheet), .tabletron-applet:has(.setup-sheet), .tabletron-applet .setup-sheet.operations-report { background: #fff !important; }
+  .tabletron-applet .setup-sheet.operations-report { min-height: 0 !important; padding: 0; }
+  .tabletron-applet:has(.setup-sheet) > .label-sheet-backdrop { display: none !important; }
+  .tabletron-applet .setup-sheet .ops-layout-map { width: min(100%, 4.8in); }
+  .tabletron-applet .setup-sheet > header { padding: 10px 16px !important; border-top: 0 !important; border-bottom-width: 2px !important; }
+  .tabletron-applet .setup-sheet .setup-timing { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

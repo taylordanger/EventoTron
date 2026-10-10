@@ -632,7 +632,7 @@ function ReportLayoutMap({
     <div className="ops-layout-wrap">
       <div
         className="ops-layout-map"
-        style={{ aspectRatio: `${room.width}/${room.height}` }}
+        style={{ aspectRatio: `${room.width}/${room.height}`, maxWidth: `${370 * room.width / room.height}px` }}
       >
         <span className="ops-map-size ops-map-width">{room.width} FT</span>
         <span className="ops-map-size ops-map-height">{room.height} FT</span>
@@ -675,7 +675,8 @@ function ReportLayoutMap({
                 transform: `translate(-50%, -50%) rotate(${normalizeRotation(object.rotation)}deg)`,
               }}
             >
-              {template.name}
+              {template.pieces.map((piece) => <Shape key={piece.id} piece={piece} />)}
+              <span className="ops-map-object-name" style={{ transform: `translate(-50%, -50%) rotate(${-normalizeRotation(object.rotation)}deg)` }}>{template.name}</span>
             </div>
           );
         })}
@@ -763,6 +764,7 @@ export default function Home() {
   const [autoModal, setAutoModal] = useState(false);
   const [eventModal, setEventModal] = useState(false);
   const [opsReport, setOpsReport] = useState(false);
+  const [setupSheet, setSetupSheet] = useState(false);
   const [furnitureDraft, setFurnitureDraft] = useState<FurnitureTemplate>({
     id: "",
     name: "Custom Fixture",
@@ -791,6 +793,12 @@ export default function Home() {
   const event =
     project.events.find((e) => e.id === project.activeEventId) ??
     project.events[0];
+  const setupAssignment = event?.rooms.find((assignment) => assignment.roomId === room.id);
+  const assignedLayout = room.layouts.find((item) => item.id === setupAssignment?.layoutId);
+  const setupEquipment = project.templates.map((template) => ({
+    name: template.name,
+    count: layout.objects.filter((object) => object.templateId === template.id).length,
+  })).filter((item) => item.count > 0);
 
   useEffect(() => {
     const raw = localStorage.getItem("tabletron-project-v2");
@@ -1603,17 +1611,13 @@ export default function Home() {
    * Exports what is actually on the canvas: the active room and layout, with
    * its tables, seating and entrances.
    *
-   * EXPORT SETUP SHEET briefly ran the operations report instead. That report
-   * draws the layout *assigned to the event* in Event Ops, which is often not
-   * the layout being edited, so the sheet came out without the tables just
-   * arranged — and with no event file linked the button did nothing at all,
-   * silently. A setup sheet is for whoever sets the room up, so it does not
-   * depend on an event file existing.
+   * Preview the active layout, not the event-assigned layout or editor chrome.
    */
   function printSetupSheet() {
-    // Make sure the operations overlay is not covering the canvas we print.
     setOpsReport(false);
-    printReport(`${room.name} · ${layout.name} setup sheet`);
+    setEventModal(false);
+    setLabelSheet(false);
+    setSetupSheet(true);
   }
 
   function printOperations() {
@@ -1673,7 +1677,7 @@ export default function Home() {
       : undefined;
 
   return (
-    <div className="suite-frame"><SuiteChrome active="tabletron" eventId={linkedSuiteEventId || undefined} /><OperationsTicker active="tabletron" /><main className={`tabletron-applet app-shell ${opsReport ? "printing-report" : ""}`}>
+    <div className="suite-frame"><SuiteChrome active="tabletron" eventId={linkedSuiteEventId || undefined} /><OperationsTicker active="tabletron" /><main className={`tabletron-applet app-shell ${opsReport || setupSheet ? "printing-report" : ""}`}>
       <header className="topbar">
         <label className="project-name">
           <small>{linkedEventIsLive ? "LIVE EVENT" : linkedSuiteEvent ? "PLANNING EVENT" : "PLANNING PROJECT"}</small>
@@ -3153,6 +3157,52 @@ export default function Home() {
               </button>
             </footer>
           </section>
+        </div>
+      )}
+      {setupSheet && (
+        <div className="operations-overlay">
+          <article className="operations-report setup-sheet" aria-label="Room setup sheet">
+            <header>
+              <div>
+                <small>TABLETRON // ROOM SETUP SHEET</small>
+                <h1>{room.name}</h1>
+                <p>{layout.name} · {room.width} × {room.height} ft</p>
+                <p>{event ? `${event.name} · ${event.date}` : project.name}</p>
+              </div>
+              <b>{totalSeatCount} SEATS</b>
+            </header>
+            {event && (!setupAssignment || setupAssignment.layoutId !== layout.id) && (
+              <p className="setup-layout-warning">
+                {setupAssignment
+                  ? `Displayed layout: ${layout.name}. Event-assigned layout: ${assignedLayout?.name || "Unavailable"}.`
+                  : "This room is not assigned to the event."}
+              </p>
+            )}
+            {setupAssignment && (
+              <dl className="setup-timing">
+                <div><dt>Setup</dt><dd>{formatRegularTime(setupAssignment.setupTime)}</dd></div>
+                <div><dt>Guests</dt><dd>{formatRegularTime(setupAssignment.guestTime)} - {formatRegularTime(setupAssignment.endTime)}</dd></div>
+                <div><dt>Teardown</dt><dd>{formatRegularTime(setupAssignment.teardownTime)}</dd></div>
+                {setupAssignment.purpose && <div><dt>Purpose</dt><dd>{setupAssignment.purpose}</dd></div>}
+              </dl>
+            )}
+            <ReportLayoutMap room={room} layout={layout} templates={project.templates} />
+            <section className="setup-details">
+              <h2>Equipment</h2>
+              <ul>
+                <li><b>{layout.tables.length}</b> 6 ft round tables</li>
+                <li><b>{layout.tables.length * 6 + rowSeatCount}</b> chairs ({layout.tables.length * 6} at tables, {rowSeatCount} in rows)</li>
+                {setupEquipment.map((item, index) => <li key={index}><b>{item.count}</b> {item.name}</li>)}
+              </ul>
+              {setupAssignment?.notes && <><h2>Room notes</h2><p>{setupAssignment.notes}</p></>}
+            </section>
+            <footer><span>Sheppard Semiconductor Systems · Confirm clearances and setup before the event.</span></footer>
+            <div className="ops-report-actions">
+              <button onClick={() => setSetupSheet(false)}>CLOSE</button>
+              <button onClick={() => saveReportPdf(`${room.name} · ${layout.name} setup sheet`)}>SAVE PDF</button>
+              <button className="primary" onClick={() => printReport(`${room.name} · ${layout.name} setup sheet`)}>PRINT SETUP SHEET</button>
+            </div>
+          </article>
         </div>
       )}
       {opsReport && event && (

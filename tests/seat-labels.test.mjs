@@ -272,8 +272,12 @@ test("Export Setup Sheet exports the layout on screen, not the event's assigned 
   // an event file: a setup sheet is for whoever sets the room up.
   const fn = source.slice(source.indexOf("function printSetupSheet()"));
   const body = fn.slice(0, fn.indexOf("\n  }"));
-  assert.match(body, /room\.name/, "the sheet does not identify the room");
-  assert.match(body, /layout\.name/, "the sheet does not identify the layout");
+  const sheet = source.slice(source.indexOf("{setupSheet && ("), source.indexOf("{opsReport && event && ("));
+  assert.match(sheet, /<h1>\{room\.name\}/, "the sheet does not identify the room");
+  assert.match(sheet, /layout\.name/, "the sheet does not identify the layout");
+  assert.match(sheet, /<ReportLayoutMap room=\{room\} layout=\{layout\}/, "the sheet does not render the active layout");
+  assert.match(sheet, /totalSeatCount/, "furniture seats are missing from the sheet");
+  assert.match(body, /setSetupSheet\(true\)/, "the setup preview never opens");
   assert.doesNotMatch(body, /if \(!event\)/, "the setup sheet still requires an event file");
   assert.match(body, /setOpsReport\(false\)/, "the operations overlay could cover the printed canvas");
 });
