@@ -192,7 +192,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarRoute, /googleCalendarFeedUrl/);
   assert.match(calendarRoute, /function importSummaryForSource/);
   assert.match(calendarRoute, /importHistory/);
-  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0006_access_and_oauth"/);
+  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0007_guarded_writes"/);
   for (const table of ["eventAudit", "rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
   }
@@ -350,7 +350,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(roadmap, /Phase 1: Local Pilot/);
   assert.match(roadmap, /Settings > Private Alpha/);
   assert.match(roadmap, /Phase 4: Desktop App/);
-  assert.match(roadmap, /80 percent ready for a local pilot/);
+  assert.match(roadmap, /staff-run real event/);
+  assert.match(roadmap, /off-device backups/);
   assert.match(privateAlphaRunbook, /one operator using EventoTron locally with real events/);
   assert.match(privateAlphaRunbook, /Export Checkpoint/);
   assert.match(privateAlphaRunbook, /Recovery Drill/);

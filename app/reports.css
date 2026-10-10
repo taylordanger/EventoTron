@@ -135,3 +135,32 @@
   .tabletron-applet .setup-sheet > header { padding: 10px 16px !important; border-top: 0 !important; border-bottom-width: 2px !important; }
   .tabletron-applet .setup-sheet .setup-timing { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+.shared-save-recovery { position: fixed; z-index: 250; bottom: 16px; left: 50%; transform: translateX(-50%); width: min(680px, calc(100vw - 32px)); padding: 14px; background: #fff5da; color: #392e16; border: 2px solid #94722b; box-shadow: 0 4px 20px #0005; font: 13px Arial, sans-serif; letter-spacing: 0; }
+.shared-save-recovery p { margin: 0 0 10px; overflow-wrap: anywhere; }
+html body .shared-save-recovery button { margin: 3px; padding: 8px; border: 1px solid #94722b; border-radius: 2px; background: #fff; color: #392e16; font-size: 11px; }
+@media print { .shared-save-recovery { display: none !important; } }
+.planning-checklist { color: inherit; font-size: 12px; }
+.planning-checklist h2, .planning-checklist h3 { font-size: 14px; }
+html body .planning-checklist label { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; margin: 8px 0; font-size: 12px; }
+html body .planning-checklist input[type=checkbox] { width: 16px; height: 16px; flex: 0 0 16px; }
+.planning-checklist p, .hospitality-notes { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+.foodotron-applet .meal-hospitality { padding: 0 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.foodotron-applet .meal-hospitality textarea { min-height: 80px; resize: vertical; background: #071009; color: #e0f6db; border: 1px solid #315b34; width: 100%; font: inherit; padding: 8px; }
+.template-room-setups { margin: 8px 0; }
+.template-room-setups summary { cursor: pointer; padding: 6px 0; font-size: 12px; }
+@media (max-width: 600px) { .foodotron-applet .meal-hospitality { grid-template-columns: 1fr; } }
+.room-sketch-map { position: absolute; inset: 0; width: 100%; height: 100%; color: #192e25; pointer-events: none; z-index: 5; overflow: hidden; }
+.tabletron-applet .room-canvas .room-sketch-map { color: #e9bd4f; }
+.room-sketch-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.room-sketch-layer.drawing { pointer-events: auto; cursor: crosshair; touch-action: none; }
+.tabletron-applet .sketch-tools { display: flex; flex-direction: row; gap: 4px; }
+.tabletron-applet .sketch-tools button { width: 30px; height: 30px; padding: 0; font-size: 18px; flex: 0 0 30px; }
+.tabletron-applet .sketch-tools button[aria-pressed=true] { border-color: #e9bd4f; color: #e9bd4f; }
+.tabletron-applet .sketch-tools input { width: 130px; min-width: 0; background: #071009; color: #d3eece; border: 1px solid #315b34; padding: 5px; }
+.tabletron-applet .room-toolbar { flex-wrap: wrap; min-height: 55px; }
+.tabletron-applet .drafting-bay { grid-template-rows: auto minmax(0, 1fr) 28px; }
+.tabletron-applet .hallway-connections label { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 4px 0; }
+.tabletron-applet .hallway-connections input { width: auto; }
+@media print { .tabletron-applet .room-canvas .room-sketch-map { color: #192e25; } }
+.report-compact .report-layout-object { overflow: visible; }
+.report-layout-object-name { position: absolute; left: 50%; top: 50%; width: max-content; max-width: 70px; font-size: 6px; line-height: 1.1; text-align: center; white-space: normal; overflow-wrap: anywhere; }

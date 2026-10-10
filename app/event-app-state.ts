@@ -18,6 +18,7 @@ export async function saveSuiteAppletState(
   eventId: string | null | undefined,
   app: SuiteAppletName,
   payload: unknown,
+  expectedUpdatedAt: string | null,
 ) {
   if (!eventId) return null;
   const response = await fetch(
@@ -25,7 +26,7 @@ export async function saveSuiteAppletState(
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payload }),
+      body: JSON.stringify({ payload, expectedUpdatedAt }),
     },
   );
   if (!response.ok) throw new Error("Applet state could not be saved");

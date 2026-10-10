@@ -6,7 +6,8 @@ import { OperationsTicker } from "../OperationsTicker";
 import type { SuiteRole, SuiteUser, SuiteUserStatus } from "../api/_lib/users";
 import type { OAuthAccountSummary } from "../api/_lib/calendar-oauth-accounts";
 import { saveStatusHint, saveStatusTone } from "../save-status";
-import { calendarReadiness, settingsConfigurationFingerprint } from "../calendar-source-state";
+import { calendarReadiness, calendarConfiguration } from "../calendar-source-state";
+import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
 import {
   SETTINGS_STORE_KEY,
   calendarProviderLabels,
@@ -181,7 +182,7 @@ export default function SettingsPage() {
   const [status, setStatus] = useState("READY");
   const [loaded, setLoaded] = useState(false);
   const [backendChecked, setBackendChecked] = useState(false);
-  const savedSettingsRef = useRef("");
+  const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthChecking, setHealthChecking] = useState(true);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
@@ -202,6 +203,9 @@ export default function SettingsPage() {
   const [oauthNotice, setOauthNotice] = useState<string | null>(null);
   const [oauthDisconnecting, setOauthDisconnecting] = useState<Record<string, boolean>>({});
   const isEffectiveAdmin = session?.source === "local" || session?.role === "admin";
+  const savePayload = useMemo(() => ({ ...settings, calendarSources: settings.calendarSources.map(calendarConfiguration) }), [settings]);
+  const sharedSave = useGuardedSave<SuiteSettings>("/api/settings", savePayload, serverRevision, loaded && backendChecked && isEffectiveAdmin, setSettings, true);
+  const displayedStatus = sharedSave.status === "READY" ? status : sharedSave.status;
   const backupInput = useRef<HTMLInputElement>(null);
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
   const backupAgeDays = daysSince(backupCheckpoint?.exportedAt ?? null);
@@ -276,10 +280,11 @@ export default function SettingsPage() {
         const response = await fetch("/api/settings");
         if (!response.ok && response.status !== 404) throw new Error("Settings load failed");
         if (response.ok) {
-          const data = (await response.json()) as { payload?: Partial<SuiteSettings> };
+          const data = (await response.json()) as { payload?: Partial<SuiteSettings>; updatedAt: string };
+          setServerRevision(data.updatedAt);
           restored = mergeSuiteSettings(data.payload ?? restored);
           setStatus("DATABASE READY");
-        }
+        } else setServerRevision(null);
         const calendarResponse = await fetch("/api/calendar-sources", { cache: "no-store" });
         if (!calendarResponse.ok) throw new Error("Calendar load failed");
         if (calendarResponse.ok) {
@@ -290,7 +295,6 @@ export default function SettingsPage() {
           if (calendarData.sources) restored = { ...restored, calendarSources: calendarData.sources };
           setCalendarImportHistory(calendarData.importHistory ?? []);
         }
-        savedSettingsRef.current = settingsConfigurationFingerprint(restored);
         setBackendChecked(true);
       } catch { setStatus("NOT ON SERVER"); }
       setSettings(restored);
@@ -354,23 +358,6 @@ export default function SettingsPage() {
     if (!loaded) return;
     localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(settings));
     if (!backendChecked) return;
-    const fingerprint = settingsConfigurationFingerprint(settings);
-    if (savedSettingsRef.current === fingerprint) return;
-    const timer = window.setTimeout(() => {
-      setStatus("SAVING");
-      fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: settings }),
-      })
-        .then(async (response) => {
-          if (!response.ok) throw new Error("Settings save failed");
-          savedSettingsRef.current = fingerprint;
-          setStatus("SAVED");
-        })
-        .catch(() => setStatus("NOT ON SERVER"));
-    }, 500);
-    return () => window.clearTimeout(timer);
   }, [settings, loaded, backendChecked]);
 
   function update(patch: Partial<SuiteSettings>) {
@@ -582,7 +569,6 @@ export default function SettingsPage() {
 
   function removeCalendarSource(id: string) {
     update({ calendarSources: settings.calendarSources.filter((source) => source.id !== id) });
-    void fetch(`/api/calendar-sources?sourceId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
   }
 
   function addOperationsTemplate() {
@@ -654,6 +640,7 @@ export default function SettingsPage() {
     }
     setCalendarSyncing((current) => ({ ...current, [source.id]: true }));
     try {
+      if (!await sharedSave.save()) throw new Error("Save calendar settings before syncing.");
       const response = await fetch("/api/calendar-sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -855,12 +842,13 @@ export default function SettingsPage() {
       <SuiteChrome active="settings" />
       <OperationsTicker active="settings" />
       <main className="settings-applet">
+        <SaveRecovery state={sharedSave} />
         <header className="settings-page-header">
           <div>
             <small>EVENTOTRON // CONTROL PANEL</small>
             <h1>Settings</h1>
           </div>
-          <button className="save-state" data-tone={saveStatusTone(status)} title={saveStatusHint(status)} disabled>{status}</button>
+          <button className="save-state" data-tone={saveStatusTone(displayedStatus)} title={saveStatusHint(displayedStatus)} disabled>{displayedStatus}</button>
           <button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button>
           <button onClick={() => backupInput.current?.click()}>RESTORE</button>
           <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Review EventoTron workspace backup before restoring" onChange={(event) => void reviewWorkspaceBackup(event.target.files?.[0])} />
@@ -1037,6 +1025,16 @@ export default function SettingsPage() {
                   </div>
                   <label className="settings-field wide"><span>Summary</span><input value={template.summary} onChange={(event) => updateOperationsTemplate(template.id, { summary: event.target.value })} /></label>
                   <label className="settings-field wide"><span>Checklist items</span><textarea value={template.checklist.join("\n")} onChange={(event) => updateOperationsTemplate(template.id, { checklist: event.target.value.split(/\n+/).map((item) => item.trim()).filter(Boolean) })} /></label>
+                  <label className="settings-field wide"><span>Food / hospitality notes</span><textarea value={template.preset?.food?.notes ?? ""} onChange={(event) => updateOperationsTemplate(template.id, { preset: { ...template.preset, food: { notes: event.target.value, shoppingItems: template.preset?.food?.shoppingItems ?? [] } } })} /></label>
+                  <label className="settings-field wide"><span>Additional shopping items</span><textarea value={(template.preset?.food?.shoppingItems ?? []).join("\n")} onChange={(event) => updateOperationsTemplate(template.id, { preset: { ...template.preset, food: { notes: template.preset?.food?.notes ?? "", shoppingItems: event.target.value.split("\n").map(item => item.trim()).filter(Boolean) } } })} /></label>
+                  <div className="template-room-setups">{settings.rooms.map(room => {
+                    const setup = template.preset?.roomSetup?.find(item => item.room === room.name);
+                    function changeRoom(patch: { notes?: string; items?: string[] }) {
+                      const next = { room: room.name, notes: setup?.notes ?? "", items: setup?.items ?? [], ...patch };
+                      updateOperationsTemplate(template.id, { preset: { ...template.preset, roomSetup: [...(template.preset?.roomSetup ?? []).filter(item => item.room !== room.name), next] } });
+                    }
+                    return <details key={room.id}><summary>{room.name}</summary><label className="settings-field"><span>Room setup notes</span><textarea value={setup?.notes ?? ""} onChange={e => changeRoom({ notes: e.target.value })} /></label><label className="settings-field"><span>Room equipment</span><input value={(setup?.items ?? []).join(", ")} onChange={e => changeRoom({ items: e.target.value.split(",").map(item => item.trim()).filter(Boolean) })} /></label></details>;
+                  })}</div>
                   <div className="template-preset-editor">
                     <div className="template-preset-heading">
                       <span>Event Preset</span>

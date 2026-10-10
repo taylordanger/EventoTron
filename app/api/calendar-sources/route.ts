@@ -8,8 +8,10 @@ import { fetchGoogleCalendarEvents } from "../_lib/google-oauth";
 import { fetchMicrosoftCalendarEvents } from "../_lib/microsoft-oauth";
 import { normalizeSource, calendarConfiguration } from "@/app/calendar-source-state";
 import type { CalendarSource as CalendarSourceInput } from "@/app/suite-settings";
+import { guardedWrite, validExpectedRevision, revisionConflict, nextRevision } from "../_lib/guarded-write";
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
+type SyncSource = CalendarSourceInput & { syncRevision?: string; syncPayload?: string };
 
 
 export type ParsedCalendarEvent = {
@@ -240,8 +242,14 @@ async function permanentCalendarEventId(sourceId: string, externalId: string) {
   return `calevt_${Array.from(digest.slice(0, 12), (value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
-async function upsertSource(source: CalendarSourceInput, now: string, syncResult = false) {
+async function upsertSource(source: SyncSource, now: string, syncResult = false) {
   const db = await getDb();
+  if (syncResult) {
+    await guardedWrite("suite_calendar_sources", source.id, source.syncRevision ?? null, [
+      db.update(suiteCalendarSources).set({ lastSynced: source.lastSynced ?? null, lastError: source.lastError ?? null, updatedAt: now }).where(eq(suiteCalendarSources.id, source.id)),
+    ], source.syncPayload);
+    return db;
+  }
   const config = calendarConfiguration(source);
   await db.insert(suiteCalendarSources).values({
     id: source.id,
@@ -318,10 +326,12 @@ function importSummaryForSource(
   };
 }
 
-async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEvent[]) {
+async function persistSync(source: SyncSource, events: ParsedCalendarEvent[]) {
   const now = new Date().toISOString();
+  const { syncRevision: _revision, syncPayload: _payload, ...configuration } = source;
+  void _revision; void _payload;
   const syncedSource: CalendarSourceInput = {
-    ...source,
+    ...configuration,
     lastSynced: now,
     lastError: "",
     eventCount: events.length,
@@ -343,7 +353,7 @@ async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEv
     createdAt: now,
     updatedAt: now,
   })));
-  await Promise.all(rows.map((row) => db.insert(suiteCalendarEvents).values(row).onConflictDoUpdate({
+  const eventWrites = rows.map((row) => db.insert(suiteCalendarEvents).values(row).onConflictDoUpdate({
     target: suiteCalendarEvents.id,
     set: {
       sourceId: row.sourceId,
@@ -356,12 +366,15 @@ async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEv
       payload: row.payload,
       updatedAt: now,
     },
-  })));
+  }));
   const retained = new Set(rows.map((row) => row.id));
-  await Promise.all(existing.filter((row) => !retained.has(row.id)).map((row) =>
+  const removals = existing.filter((row) => !retained.has(row.id)).map((row) =>
     db.delete(suiteCalendarEvents).where(eq(suiteCalendarEvents.id, row.id)),
-  ));
-  await upsertSource(syncedSource, now, true);
+  );
+  await guardedWrite("suite_calendar_sources", source.id, source.syncRevision ?? null, [
+    ...eventWrites, ...removals,
+    db.update(suiteCalendarSources).set({ lastSynced: now, lastError: "", updatedAt: now }).where(eq(suiteCalendarSources.id, source.id)),
+  ], source.syncPayload);
   return {
     source: syncedSource,
     events: rows.map((event) => eventForClient(event, syncedSource)),
@@ -437,10 +450,19 @@ export const PUT = withRole("admin", async (request: Request) => {
   const body = record(await request.json().catch(() => null));
   const source = normalizeSource(body?.source ?? body);
   if (!source) return Response.json({ error: "Calendar connection is incomplete." }, { status: 400 });
+  if (!validExpectedRevision(body ?? {})) return Response.json({ error: "A settings revision is required." }, { status: 428 });
   try {
-    await upsertSource(source, new Date().toISOString());
-    return Response.json({ source });
+    const db = await getDb();
+    const now = nextRevision(body!.expectedUpdatedAt as string | null);
+    const config = calendarConfiguration(source);
+    await guardedWrite("suite_settings", "workspace", body!.expectedUpdatedAt as string | null, [
+      db.update(suiteSettings).set({ updatedAt: now }).where(eq(suiteSettings.id, "workspace")),
+      db.insert(suiteCalendarSources).values({ ...config, payload: config, createdAt: now, updatedAt: now })
+        .onConflictDoUpdate({ target: suiteCalendarSources.id, set: { ...config, payload: config, updatedAt: now } }),
+    ]);
+    return Response.json({ source, updatedAt: now });
   } catch (error) {
+    if (revisionConflict(error)) return Response.json({ error: "Calendar configuration changed. Reload settings." }, { status: 409 });
     return Response.json({
       error: "Calendar connection could not be saved.",
       detail: error instanceof Error ? error.message : String(error),
@@ -448,7 +470,7 @@ export const PUT = withRole("admin", async (request: Request) => {
   }
 });
 
-async function syncOAuthSource(source: CalendarSourceInput, env: TokenEnv) {
+async function syncOAuthSource(source: SyncSource, env: TokenEnv) {
   try {
     const accessToken = await getValidAccessToken(source.oauthAccountId!, env);
     const events = source.provider === "outlook"
@@ -457,6 +479,7 @@ async function syncOAuthSource(source: CalendarSourceInput, env: TokenEnv) {
     const persisted = await persistSync(source, events);
     return Response.json({ ...persisted, persisted: true });
   } catch (error) {
+    if (revisionConflict(error)) return Response.json({ error: "The calendar connection changed while syncing. Reload and retry." }, { status: 409 });
     const failedSource = { ...source, lastError: error instanceof Error ? error.message : "Calendar sync failed" };
     await upsertSource(failedSource, new Date().toISOString(), true).catch(() => undefined);
     return Response.json(
@@ -468,17 +491,19 @@ async function syncOAuthSource(source: CalendarSourceInput, env: TokenEnv) {
 
 export const POST = withRole("admin", async (request: Request) => {
   const body = record(await request.json().catch(() => null));
-  let source = normalizeSource(body?.source);
+  let source: SyncSource | null = normalizeSource(body?.source);
   if (source) {
     const db = await getDb();
     const row = await db.select().from(suiteCalendarSources).where(eq(suiteCalendarSources.id, source.id)).get();
-    if (row) source = normalizeSource({ ...record(row.payload), id: row.id, name: row.name, provider: row.provider, url: row.url, enabled: row.enabled, color: row.color, syncMinutes: row.syncMinutes, lastSynced: row.lastSynced ?? undefined, lastError: row.lastError ?? undefined });
+    if (!row) return Response.json({ error: "Save the calendar connection before syncing." }, { status: 409 });
+    source = normalizeSource({ ...record(row.payload), id: row.id, name: row.name, provider: row.provider, url: row.url, enabled: row.enabled, color: row.color, syncMinutes: row.syncMinutes, lastSynced: row.lastSynced ?? undefined, lastError: row.lastError ?? undefined });
+    if (source) { source.syncRevision = row.updatedAt; source.syncPayload = JSON.stringify(row.payload); }
   }
   if (source?.oauthAccountId) {
     const { env } = await import("cloudflare:workers");
     return syncOAuthSource(source, env as TokenEnv);
   }
-  const rawUrl = String(body?.url ?? source?.url ?? "").trim();
+  const rawUrl = String(source?.url ?? body?.url ?? "").trim();
   let url: string;
   try {
     url = validateFeedUrl(rawUrl);
@@ -501,6 +526,7 @@ export const POST = withRole("admin", async (request: Request) => {
     return Response.json({ ...persisted, persisted: true });
   } catch (error) {
     if (source) {
+      if (revisionConflict(error)) return Response.json({ error: "The calendar connection changed while syncing. Reload and retry." }, { status: 409 });
       const failedSource = { ...source, lastError: error instanceof Error ? error.message : "Calendar feed could not be read" };
       await upsertSource(failedSource, new Date().toISOString(), true).catch(() => undefined);
     }
@@ -511,19 +537,23 @@ export const POST = withRole("admin", async (request: Request) => {
 export const DELETE = withRole("admin", async (request: Request) => {
   const sourceId = new URL(request.url).searchParams.get("sourceId")?.trim() ?? "";
   if (!sourceId) return Response.json({ error: "Calendar source ID is required." }, { status: 400 });
+  const body = await request.json().catch(() => ({})) as { expectedUpdatedAt?: string | null };
+  if (!validExpectedRevision(body)) return Response.json({ error: "A settings revision is required." }, { status: 428 });
   try {
     const db = await getDb();
-    await db.delete(suiteCalendarEvents).where(eq(suiteCalendarEvents.sourceId, sourceId));
-    await db.delete(suiteCalendarSources).where(eq(suiteCalendarSources.id, sourceId));
     const settings = await db.select().from(suiteSettings).where(eq(suiteSettings.id, "workspace")).get();
     const payload = record(settings?.payload);
-    if (settings && Array.isArray(payload?.calendarSources)) {
-      const { calendarSources: _legacy, ...canonicalSettings } = payload;
-      void _legacy;
-      await db.update(suiteSettings).set({ payload: canonicalSettings, updatedAt: new Date().toISOString() }).where(eq(suiteSettings.id, "workspace"));
-    }
-    return Response.json({ deleted: true, sourceId });
+    const { calendarSources: _legacy, ...canonicalSettings } = payload ?? {};
+    void _legacy;
+    const now = nextRevision(body.expectedUpdatedAt);
+    await guardedWrite("suite_settings", "workspace", body.expectedUpdatedAt!, [
+      db.update(suiteSettings).set({ payload: canonicalSettings, updatedAt: now }).where(eq(suiteSettings.id, "workspace")),
+      db.delete(suiteCalendarEvents).where(eq(suiteCalendarEvents.sourceId, sourceId)),
+      db.delete(suiteCalendarSources).where(eq(suiteCalendarSources.id, sourceId)),
+    ]);
+    return Response.json({ deleted: true, sourceId, updatedAt: now });
   } catch (error) {
+    if (revisionConflict(error)) return Response.json({ error: "Calendar configuration changed. Reload settings." }, { status: 409 });
     return Response.json({
       error: "Calendar connection could not be removed.",
       detail: error instanceof Error ? error.message : String(error),

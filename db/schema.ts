@@ -1,4 +1,10 @@
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+
+export const suiteWriteGuards = sqliteTable("suite_write_guards", {
+  token: text("token").primaryKey(),
+  accepted: integer("accepted").notNull(),
+}, (table) => [check("accepted_guard", sql`${table.accepted} = 1`)]);
 
 export const suiteSchemaMigrations = sqliteTable("suite_schema_migrations", {
   id: text("id").primaryKey(),

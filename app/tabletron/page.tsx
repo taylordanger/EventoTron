@@ -2,7 +2,9 @@
 
 import { SuiteChrome } from "../SuiteChrome";
 import { OperationsTicker } from "../OperationsTicker";
-import { saveSuiteAppletState } from "../event-app-state";
+import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
+import { RoomSketch, SketchMap } from "./RoomSketch";
+import { normalizeSketches, type SketchStroke } from "./sketch-data";
 import { readSuiteEventBundle } from "../event-bundle";
 import { type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
@@ -53,6 +55,7 @@ type PlacedItem = {
   rotation?: number;
 };
 type Layout = {
+  sketches?: SketchStroke[];
   id: string;
   name: string;
   tables: TableItem[];
@@ -69,6 +72,8 @@ type Entrance = {
   width: number;
 };
 type Room = {
+  kind?: "room" | "hallway";
+  connectsTo?: string[];
   id: string;
   name: string;
   width: number;
@@ -415,7 +420,7 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
     guestTime: eventRange?.start || rentalRange?.start || "09:00",
     endTime: eventRange?.end || rentalRange?.end || "12:00",
     teardownTime: rentalRange?.end || eventRange?.end || "13:00",
-    notes: source.description,
+    notes: [source.description, operationsTemplate?.preset?.roomSetup?.find(item => roomNamesMatch(item.room, room.name))?.notes].filter(Boolean).join("\n\n"),
   });
 
   /**
@@ -446,8 +451,9 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
     .split(/[,\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+  const roomItems = (name: string) => operationsTemplate?.preset?.roomSetup?.find(item => roomNamesMatch(item.room, name))?.items ?? [];
   const templates = [...project.templates];
-  requested.forEach((name, index) => {
+  [...new Set([...requested, ...activeRooms.flatMap(room => roomItems(room.name))])].forEach((name, index) => {
     if (!templates.some((template) => template.name.toLowerCase() === name.toLowerCase())) {
       templates.push(makeFurnitureTemplate(name, index));
     }
@@ -460,7 +466,7 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
           ...room,
           layouts: room.layouts.map((layout) =>
             layout.id === room.activeLayoutId
-              ? seedLayoutObjects(room, layout, templates, requested)
+              ? seedLayoutObjects(room, layout, templates, [...new Set([...requested, ...roomItems(room.name)])])
               : layout,
           ),
         };
@@ -479,9 +485,9 @@ function hydrateForEvent(project: Project, source: EventoEventContext, settings?
     guestCount: source.attendees || presetEvent?.attendees || 0,
     eventType: source.kind,
     rooms: assignments,
-    staffing: source.mod || source.manager || presetEvent?.manager || "",
-    operationsNotes,
-    clientNotes: source.description,
+    staffing: prior?.staffing ?? (source.mod || source.manager || presetEvent?.manager || ""),
+    operationsNotes: prior?.operationsNotes ?? operationsNotes,
+    clientNotes: prior?.clientNotes ?? source.description,
   };
   return {
     ...project,
@@ -528,10 +534,13 @@ function normalizeProject(value: unknown): Project {
       ),
   ).map((room) => ({
     ...room,
+    kind: room.kind === "hallway" ? "hallway" as const : "room" as const,
+    connectsTo: Array.isArray(room.connectsTo) ? room.connectsTo.filter(id => typeof id === "string" && id !== room.id) : [],
     // Layouts saved before seating sections existed have no `seating` array.
     layouts: room.layouts.map((layout) => ({
       ...layout,
       seating: Array.isArray(layout.seating) ? layout.seating.filter(isSeatingSection) : [],
+      sketches: normalizeSketches(layout.sketches),
     })),
     entrances:
       Array.isArray((room as Room & { entrances?: Entrance[] }).entrances) &&
@@ -637,6 +646,7 @@ function ReportLayoutMap({
         <span className="ops-map-size ops-map-width">{room.width} FT</span>
         <span className="ops-map-size ops-map-height">{room.height} FT</span>
         <div className="ops-map-route" />
+        <SketchMap strokes={layout.sketches} width={room.width} height={room.height} />
         {layout.tables.map((table, index) => (
           <div
             className="ops-map-table"
@@ -753,12 +763,16 @@ export default function Home() {
     id: string;
   } | null>(null);
   const [labelSheet, setLabelSheet] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [sketchLabel, setSketchLabel] = useState("");
   const [drag, setDrag] = useState<Drag>(null);
   const [roomModal, setRoomModal] = useState<"add" | "edit" | null>(null);
   const [roomDraft, setRoomDraft] = useState({
     name: "New Room",
     width: 26,
     height: 26,
+    kind: "room" as "room" | "hallway",
+    connectsTo: [] as string[],
   });
   const [furnitureModal, setFurnitureModal] = useState(false);
   const [autoModal, setAutoModal] = useState(false);
@@ -776,7 +790,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [appletSaveStatus, setAppletSaveStatus] = useState("READY");
+  const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
   const [restoreVerified, setRestoreVerified] = useState(false);
   const [linkedSuiteEventId, setLinkedSuiteEventId] = useState("");
   const [linkedSuiteEvent, setLinkedSuiteEvent] = useState<EventoEventContext | null>(null);
@@ -799,6 +813,8 @@ export default function Home() {
     name: template.name,
     count: layout.objects.filter((object) => object.templateId === template.id).length,
   })).filter((item) => item.count > 0);
+  const sharedSave = useGuardedSave<Project>(linkedSuiteEventId ? `/api/event-app-state?eventId=${encodeURIComponent(linkedSuiteEventId)}&app=tabletron` : null, project, serverRevision, loaded && restoreVerified, setProject, serverRevision !== null);
+  const appletSaveStatus = sharedSave.status;
 
   useEffect(() => {
     const raw = localStorage.getItem("tabletron-project-v2");
@@ -825,6 +841,7 @@ export default function Home() {
         let linkedContext: EventoEventContext | null = null;
         if (linkedEventId) {
           const bundle = await readSuiteEventBundle<Project>(linkedEventId);
+          if (bundle) setServerRevision(bundle.appletRevisions.tabletron);
           if (!bundle) throw new Error("Event file was removed");
           linkedContext = bundle.event;
           next = bundle.applets.tabletron ? applySettingsToProject(normalizeProject(bundle.applets.tabletron), suiteSettings) : defaultProject(suiteSettings);
@@ -935,11 +952,6 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       try {
         localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
-        setAppletSaveStatus("SAVING");
-        void saveSuiteAppletState(project.activeEventId, "tabletron", project)
-          .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
-          .catch(() => setAppletSaveStatus("NOT ON SERVER"));
-        setSavedAt(new Date());
       } catch {
         setNotice("AUTO-SAVE FAILED · DOWNLOAD A BACKUP");
       }
@@ -966,15 +978,13 @@ export default function Home() {
     }));
   }
   function save() {
-    if (!restoreVerified) { setAppletSaveStatus("NOT ON SERVER"); return; }
+    if (!restoreVerified) { setNotice("SAVED PROJECT COULD NOT BE VERIFIED"); return; }
     try {
       localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
-      setAppletSaveStatus("SAVING");
-      void saveSuiteAppletState(project.activeEventId, "tabletron", project)
-        .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
-        .catch(() => setAppletSaveStatus("NOT ON SERVER"));
-      setSavedAt(new Date());
-      setNotice("PROJECT SAVED ON THIS DEVICE");
+      void sharedSave.save().then((revision) => {
+        if (revision) { setSavedAt(new Date()); setNotice("PROJECT SAVED ON SERVER"); }
+        else if (!linkedSuiteEventId) setNotice("KEPT ON THIS COMPUTER · OPEN AN EVENT FILE TO SHARE IT");
+      });
     } catch {
       setNotice("SAVE FAILED · DOWNLOAD A BACKUP");
     }
@@ -1065,20 +1075,25 @@ export default function Home() {
   function switchRoom(id: string) {
     setProject((p) => ({ ...p, activeRoomId: id }));
     setSelected(null);
+    setDrawing(false);
   }
   function openEditRoom() {
-    setRoomDraft({ name: room.name, width: room.width, height: room.height });
+    setRoomDraft({ name: room.name, width: room.width, height: room.height, kind: room.kind ?? "room", connectsTo: room.connectsTo ?? [] });
     setRoomModal("edit");
   }
   function submitRoom() {
-    const width = clamp(Number(roomDraft.width) || 1, 6, 200),
-      height = clamp(Number(roomDraft.height) || 1, 6, 200);
+    const minimum = roomDraft.kind === "hallway" ? 3 : 6;
+    const width = clamp(Number(roomDraft.width) || 1, minimum, 200),
+      height = clamp(Number(roomDraft.height) || 1, minimum, 200);
     if (roomModal === "add") {
       const newRoom = makeRoom(
         roomDraft.name || "Untitled Room",
         width,
         height,
       );
+      newRoom.kind = roomDraft.kind;
+      newRoom.connectsTo = roomDraft.connectsTo;
+      if (newRoom.kind === "hallway") newRoom.layouts = newRoom.layouts.map(item => ({ ...item, name: "Hallway plan", tables: [], objects: [], seating: [] }));
       setProject((p) => ({
         ...p,
         rooms: [...p.rooms, newRoom],
@@ -1090,6 +1105,8 @@ export default function Home() {
         name: roomDraft.name || r.name,
         width,
         height,
+        kind: roomDraft.kind,
+        connectsTo: roomDraft.connectsTo.filter(id => id !== r.id),
       }));
     setRoomModal(null);
     setSelected(null);
@@ -1759,6 +1776,7 @@ export default function Home() {
       </header>
 
       <section className="workspace">
+        <SaveRecovery state={sharedSave} />
         <aside className="rooms panel">
           <div className="panel-heading">
             <span>PROJECT ROOMS</span>
@@ -1784,7 +1802,7 @@ export default function Home() {
           <button
             className="add-room"
             onClick={() => {
-              setRoomDraft({ name: "New Room", width: 26, height: 26 });
+              setRoomDraft({ name: "New Room", width: 26, height: 26, kind: "room", connectsTo: [] });
               setRoomModal("add");
             }}
           >
@@ -1878,6 +1896,12 @@ export default function Home() {
             <button onClick={addLayout}>＋ DUPLICATE LAYOUT</button>
             <button onClick={addEntrance}>＋ ENTRANCE</button>
             <button onClick={addSeatingSection}>＋ SEATING ROWS</button>
+            <div className="sketch-tools" role="group" aria-label="Room annotation tools">
+              <button title="Select furniture" aria-label="Select furniture" aria-pressed={!drawing} onClick={() => setDrawing(false)}>↖</button>
+              <button title="Draw room annotation" aria-label="Draw room annotation" aria-pressed={drawing} onClick={() => setDrawing(true)}>✎</button>
+              <button title="Undo last annotation" aria-label="Undo last annotation" disabled={!layout.sketches?.length} onClick={() => updateLayout(current => ({ ...current, sketches: current.sketches?.slice(0, -1) }))}>↶</button>
+              {drawing && <input aria-label="Annotation label" placeholder="Annotation label" maxLength={80} value={sketchLabel} onChange={e => setSketchLabel(e.target.value)} />}
+            </div>
             <button className="primary" onClick={() => setAutoModal(true)}>
               ⚙ AUTO LAYOUT
             </button>
@@ -1897,6 +1921,7 @@ export default function Home() {
             >
               <div className="top-measure">{room.width}′—0″</div>
               <div className="side-measure">{room.height}′—0″</div>
+              <RoomSketch key={layout.id} strokes={layout.sketches} width={room.width} height={room.height} drawing={drawing} label={sketchLabel} onChange={sketches => updateLayout(current => ({ ...current, sketches }))} />
               {layout.tables.map((t) => (
                 <div
                   key={t.id}
@@ -2539,6 +2564,8 @@ export default function Home() {
               <button onClick={() => setRoomModal(null)}>×</button>
             </header>
             <div className="modal-grid">
+              <label className="field full"><span>SPACE TYPE</span><select aria-label="SPACE TYPE" value={roomDraft.kind} onChange={e => setRoomDraft(current => ({ ...current, kind: e.target.value as "room" | "hallway" }))}><option value="room">Room</option><option value="hallway">Hallway / connecting space</option></select></label>
+              {roomDraft.kind === "hallway" && <fieldset className="field full hallway-connections"><legend>Connects rooms</legend>{project.rooms.filter(item => roomModal === "add" || item.id !== room.id).map(item => <label key={item.id}><input type="checkbox" checked={roomDraft.connectsTo.includes(item.id)} onChange={e => setRoomDraft(current => ({ ...current, connectsTo: e.target.checked ? [...current.connectsTo, item.id] : current.connectsTo.filter(id => id !== item.id) }))} />{item.name}</label>)}</fieldset>}
               <label className="field full">
                 <span>ROOM NAME</span>
                 <input
@@ -2552,7 +2579,7 @@ export default function Home() {
                 <span>WIDTH (FT)</span>
                 <input
                   type="number"
-                  min="6"
+                  min={roomDraft.kind === "hallway" ? 3 : 6}
                   value={roomDraft.width}
                   onChange={(e) =>
                     setRoomDraft((d) => ({
@@ -2566,7 +2593,7 @@ export default function Home() {
                 <span>LENGTH (FT)</span>
                 <input
                   type="number"
-                  min="6"
+                  min={roomDraft.kind === "hallway" ? 3 : 6}
                   value={roomDraft.height}
                   onChange={(e) =>
                     setRoomDraft((d) => ({
@@ -3167,6 +3194,7 @@ export default function Home() {
                 <small>TABLETRON // ROOM SETUP SHEET</small>
                 <h1>{room.name}</h1>
                 <p>{layout.name} · {room.width} × {room.height} ft</p>
+                {room.kind === "hallway" && <p>Hallway · connects {(room.connectsTo ?? []).map(id => project.rooms.find(item => item.id === id)?.name).filter(Boolean).join(", ") || "Not set"}</p>}
                 <p>{event ? `${event.name} · ${event.date}` : project.name}</p>
               </div>
               <b>{totalSeatCount} SEATS</b>
@@ -3195,6 +3223,7 @@ export default function Home() {
                 {setupEquipment.map((item, index) => <li key={index}><b>{item.count}</b> {item.name}</li>)}
               </ul>
               {setupAssignment?.notes && <><h2>Room notes</h2><p>{setupAssignment.notes}</p></>}
+              {layout.sketches?.some(stroke => stroke.label) && <><h2>Annotations</h2><ul>{layout.sketches.filter(stroke => stroke.label).map(stroke => <li key={stroke.id}>{stroke.label}</li>)}</ul></>}
             </section>
             <footer><span>Sheppard Semiconductor Systems · Confirm clearances and setup before the event.</span></footer>
             <div className="ops-report-actions">

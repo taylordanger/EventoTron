@@ -3,7 +3,7 @@ import * as schema from "./schema";
 
 let schemaReady: Promise<void> | null = null;
 
-export const EXPECTED_SCHEMA_MIGRATION = "0006_access_and_oauth";
+export const EXPECTED_SCHEMA_MIGRATION = "0007_guarded_writes";
 
 async function getD1() {
   const { env } = await import("cloudflare:workers");
@@ -20,6 +20,9 @@ export async function ensureSuiteSchema() {
     db.batch([
       db.prepare(
         "CREATE TABLE IF NOT EXISTS suite_schema_migrations (id text PRIMARY KEY NOT NULL, applied_at text NOT NULL)",
+      ),
+      db.prepare(
+        "CREATE TABLE IF NOT EXISTS suite_write_guards (token text PRIMARY KEY NOT NULL, accepted integer NOT NULL CHECK (accepted = 1))",
       ),
       db.prepare(
         "CREATE TABLE IF NOT EXISTS suite_events (id text PRIMARY KEY NOT NULL, title text NOT NULL, date text NOT NULL, kind text NOT NULL, event_time text DEFAULT '' NOT NULL, rental_time text DEFAULT '' NOT NULL, space text DEFAULT '' NOT NULL, manager text DEFAULT '' NOT NULL, contact text DEFAULT '' NOT NULL, phone text DEFAULT '' NOT NULL, email text DEFAULT '' NOT NULL, attendees integer DEFAULT 0 NOT NULL, description text DEFAULT '' NOT NULL, planning_notes text DEFAULT '' NOT NULL, mod text DEFAULT '' NOT NULL, vacation text DEFAULT '' NOT NULL, rental_total real DEFAULT 0 NOT NULL, catering_total real DEFAULT 0 NOT NULL, discount_rate real DEFAULT 0 NOT NULL, deposit real DEFAULT 0 NOT NULL, payment_notes text DEFAULT '' NOT NULL, quote_entered_by text DEFAULT '' NOT NULL, requested_items text DEFAULT '' NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)",
@@ -157,7 +160,7 @@ export async function ensureSuiteSchema() {
         "CREATE INDEX IF NOT EXISTS idx_meal_transfers_status_created_at ON meal_transfers (status, created_at)",
       ),
       db.prepare(
-        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('0004_calendar_sync_records', datetime('now')), ('0005_event_audit_history', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
+        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('0004_calendar_sync_records', datetime('now')), ('0005_event_audit_history', datetime('now')), ('0006_access_and_oauth', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
       ),
     ]).then(() => undefined),
   );
@@ -167,4 +170,9 @@ export async function ensureSuiteSchema() {
 export async function getDb() {
   await ensureSuiteSchema();
   return drizzle(await getD1(), { schema });
+}
+
+export async function getSuiteD1() {
+  await ensureSuiteSchema();
+  return getD1();
 }

@@ -21,6 +21,8 @@ export type OperationsTemplate = {
   summary: string;
   checklist: string[];
   preset?: {
+    food?: { notes: string; shoppingItems: string[] };
+    roomSetup?: Array<{ room: string; notes: string; items: string[] }>;
     event?: {
       eventTime?: string;
       rentalTime?: string;

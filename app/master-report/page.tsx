@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import { printReport, saveReportPdf } from "../print-mode";
 import { readSuiteEventBundle } from "../event-bundle";
 import { readSuiteAppletState } from "../event-app-state";
+import { departmentViews, parseReportViews, REPORT_VIEWS_KEY, type ReportView } from "../report-preferences";
+import { SketchMap } from "../tabletron/RoomSketch";
+import type { SketchStroke } from "../tabletron/sketch-data";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY, type OperationsTemplate, type SuiteRoomSetting, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
@@ -25,6 +28,7 @@ type LayoutTable = { id: string; x: number; y: number };
 type LayoutObject = { id: string; templateId: string; x: number; y: number; rotation?: number };
 type LayoutEntrance = { id: string; name: string; wall: "top" | "right" | "bottom" | "left"; offset: number; width: number };
 type TableLayout = {
+  sketches?: SketchStroke[];
   id: string;
   name: string;
   tables?: LayoutTable[];
@@ -33,6 +37,8 @@ type TableLayout = {
 };
 type TableProject = {
   rooms?: Array<{
+    kind?: "room" | "hallway";
+    connectsTo?: string[];
     id: string;
     name: string;
     width: number;
@@ -56,9 +62,10 @@ type TableProject = {
 type FoodRecipe = { id: string; name: string; baseServings: number; ingredients: ShoppingIngredient[] };
 type FoodPlan = {
   recipes?: FoodRecipe[];
-  meals?: Array<{ id: string; name: string; date: string; guests: number; recipes: Array<{ recipeId: string; servings: number }>; tabletronEventId?: string }>;
+  meals?: Array<{ id: string; name: string; date: string; guests: number; recipes: Array<{ recipeId: string; servings: number }>; tabletronEventId?: string; hospitalityNotes?: string; shoppingExtras?: string[] }>;
 };
 type SchedulePlan = {
+  checklist?: Array<{ id: string; title: string; done: boolean }>;
   eventName: string;
   date: string;
   venue: string;
@@ -66,6 +73,7 @@ type SchedulePlan = {
 };
 type GroceryLine = { ingredient: string; needed: string; purchase: string; store: string; quantity: string; cost: number };
 type ReportLayout = {
+  sketches?: SketchStroke[];
   width: number;
   height: number;
   name: string;
@@ -85,6 +93,8 @@ type ReportData = {
   meal?: { name: string; guests: number; recipes: string[] };
   groceries: GroceryLine[];
   schedule: SchedulePlan["blocks"];
+  tasks: NonNullable<SchedulePlan["checklist"]>;
+  hospitalityNotes: string;
   includeCosts: boolean;
   includeLayout: boolean;
 };
@@ -185,6 +195,7 @@ function buildReport(
           }),
           entrances: room?.entrances ?? [],
           seating: layout.seating ?? [],
+          sketches: layout.sketches ?? [],
         }
       : undefined;
     return {
@@ -194,6 +205,8 @@ function buildReport(
         `Setup ${formatRegularTime(assignment.setupTime) || "—"} · guests ${formatRegularTime(assignment.guestTime) || "—"}`,
         `End ${formatRegularTime(assignment.endTime) || "—"} · teardown ${formatRegularTime(assignment.teardownTime) || "—"}`,
         assignment.notes || "No special room notes",
+        ...(layout?.sketches ?? []).filter(stroke => stroke.label).map(stroke => `Annotation: ${stroke.label}`),
+        ...(room?.kind === "hallway" ? [`Hallway connections: ${(room.connectsTo ?? []).map(id => table?.rooms?.find(item => item.id === id)?.name).filter(Boolean).join(", ") || "Not set"}`] : []),
       ],
       layout: layoutPicture,
       reference: findRoomReference(settings, room?.name),
@@ -219,8 +232,10 @@ function buildReport(
     rooms,
     furniture: furniture.length ? furniture : ["No custom furniture has been added yet."],
     meal: meal ? { name: meal.name, guests: meal.guests, recipes: recipeNames } : linkedFood ? { name: linkedFood.mealName, guests: linkedFood.guests, recipes: [] } : undefined,
-    groceries: groceryLines(food, meal, linkedFood),
-    schedule: schedule?.eventName === event.title ? schedule.blocks : [],
+    groceries: [...groceryLines(food, meal, linkedFood), ...(meal?.shoppingExtras ?? []).map(ingredient => ({ ingredient, needed: "Confirm quantity", purchase: "Confirm price", store: "Unpriced", quantity: "", cost: 0 }))],
+    schedule: schedule?.blocks ?? [],
+    tasks: schedule?.checklist ?? [],
+    hospitalityNotes: meal?.hospitalityNotes ?? "",
     includeCosts: settings?.reportIncludeCosts ?? true,
     includeLayout: settings?.reportIncludeLayout ?? true,
   };
@@ -239,10 +254,14 @@ export default function MasterReportPage() {
   const [recipient, setRecipient] = useState("");
   const [notice, setNotice] = useState("");
   const [loadError, setLoadError] = useState(false);
+  const [savedViews, setSavedViews] = useState<ReportView[]>([]);
+  const [viewName, setViewName] = useState("");
+  const [selectedView, setSelectedView] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       const params = new URLSearchParams(window.location.search);
+      setSavedViews(parseReportViews(readJson<unknown>(REPORT_VIEWS_KEY)));
       const stored = readJson<{ events?: EventoEventContext[]; selectedId?: string }>("eventotron-events-v1");
       const eventId = params.get("event") ?? stored?.selectedId ?? "";
       let event = readEventContext(eventId) ?? stored?.events?.find((item) => item.id === eventId) ?? null;
@@ -325,6 +344,28 @@ export default function MasterReportPage() {
     setPreset("custom");
     setSections((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   }
+  function applyView(id: string) {
+    setSelectedView(id);
+    const view = [...savedViews, ...departmentViews].find((item) => item.id === id);
+    if (!view) return;
+    setPreset("custom"); setSections(view.sections); setCosts(view.costs); setLayouts(view.layouts);
+    setReferences(view.references); setCompactSummary(view.summary); setRecipient(view.recipient); setViewName(view.name);
+    setRoomNames(view.rooms ? view.rooms.filter((name) => report!.rooms.some((room) => room.name === name)) : report!.rooms.map((room) => room.name));
+  }
+  function saveView() {
+    if (!viewName.trim()) { setNotice("A saved view needs a name."); return; }
+    const id = `saved:${viewName.trim().toLowerCase()}`;
+    const view: ReportView = { id, name: viewName.trim(), sections, costs, layouts, references, summary: compactSummary, recipient,
+      rooms: roomNames.length === report!.rooms.length ? undefined : roomNames };
+    const next = [...savedViews.filter((item) => item.id !== id), view].slice(-30);
+    try { localStorage.setItem(REPORT_VIEWS_KEY, JSON.stringify(next)); setSavedViews(next); setSelectedView(id); setNotice("Report view saved on this computer."); }
+    catch { setNotice("Report view could not be saved."); }
+  }
+  function deleteView() {
+    const next = savedViews.filter((item) => item.id !== selectedView);
+    try { localStorage.setItem(REPORT_VIEWS_KEY, JSON.stringify(next)); setSavedViews(next); setSelectedView(""); setNotice("Saved view removed."); }
+    catch { setNotice("Saved view could not be removed."); }
+  }
   async function copyLink() {
     const url = new URL(window.location.href);
     url.search = "";
@@ -347,6 +388,9 @@ export default function MasterReportPage() {
   return (
     <main className={`master-report-page report-compact ${sections.length === 1 && show("rooms") ? "report-rooms-only" : ""} ${compactSummary ? "report-summary" : ""} ${costs ? "" : "report-hide-costs"}`}>
       <div className="report-builder">
+        <label>Department / saved view<select aria-label="Department / saved view" value={selectedView} onChange={(e) => applyView(e.target.value)}><option value="">Select view</option><optgroup label="Departments">{departmentViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</optgroup><optgroup label="Saved views">{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</optgroup></select></label>
+        <label>View name<input value={viewName} onChange={(e) => setViewName(e.target.value)} /></label>
+        <button onClick={saveView}>SAVE VIEW</button><button disabled={!selectedView.startsWith("saved:")} onClick={deleteView}>DELETE VIEW</button>
         <label>Report<select aria-label="Report" value={preset} onChange={(e) => choosePreset(e.target.value)}><option value="full">Complete event</option><option value="summary">Event summary</option><option value="shopping">Shopping list</option><option value="rooms">Room setup</option><option value="schedule">Run of show</option><option value="custom">Custom</option></select></label>
         <label>Prepared for<input value={recipient} placeholder="Department or recipient" onChange={(e) => setRecipient(e.target.value)} /></label>
         <label>Detail<select aria-label="Detail" value={compactSummary ? "summary" : "compact"} onChange={(e) => setCompactSummary(e.target.value === "summary")}><option value="compact">Compact detail</option><option value="summary">Summary</option></select></label>
@@ -440,7 +484,7 @@ export default function MasterReportPage() {
           <article className="report-room" key={room.name}>
             <h3><span className="report-checkbox" />{room.name}</h3>
             <b>{room.details}</b>
-            {room.checklist.map((item) => <p key={item}><span className="report-checkbox" />{item}</p>)}
+            {room.checklist.map((item, index) => <p key={index}><span className="report-checkbox" />{item}</p>)}
             {references && room.reference && (
               <div className="report-room-reference">
                 <strong>Facility Reference</strong>
@@ -461,8 +505,9 @@ export default function MasterReportPage() {
             )}
             {layouts && room.layout && (
               <div className="report-layout-figure">
-                <div className="report-layout-figure-heading"><span>LAYOUT PICTURE</span><b>{room.layout.name}</b></div>
+                <div className="report-layout-figure-heading"><span>EVENT-ASSIGNED LAYOUT</span><b>{room.layout.name}</b></div>
                 <div className="report-layout-canvas" style={{ aspectRatio: `${room.layout.width} / ${room.layout.height}` }}>
+                  <SketchMap strokes={room.layout.sketches} width={room.layout.width} height={room.layout.height} />
                   <span className="report-layout-measure report-layout-measure-top">{room.layout.width} FT</span>
                   <span className="report-layout-measure report-layout-measure-side">{room.layout.height} FT</span>
                   {room.layout.tables.map((table, index) => (
@@ -484,7 +529,7 @@ export default function MasterReportPage() {
                         height: `${(object.height / room.layout!.height) * 100}%`,
                         transform: `translate(-50%, -50%) rotate(${object.rotation ?? 0}deg)`,
                       }}
-                    >{object.name}</span>
+                    ><span className="report-layout-object-name" style={{ transform: `translate(-50%, -50%) rotate(${-(object.rotation ?? 0)}deg)` }}>{object.name}</span></span>
                   ))}
                   {room.layout.seating.flatMap((section) => sectionSeatLabels(section).map((seat) => <span className="report-layout-seat" key={`${section.id}-${seat.label}`} style={{ left: `${seat.x / room.layout!.width * 100}%`, top: `${seat.y / room.layout!.height * 100}%`, width: `${section.seatSpacing * .8 / room.layout!.width * 100}%`, height: `${section.rowSpacing * .62 / room.layout!.height * 100}%` }}>{seat.label}</span>))}
                   {room.layout.entrances.map((entrance) => (
@@ -497,7 +542,7 @@ export default function MasterReportPage() {
                     />
                   ))}
                 </div>
-                <small className="report-layout-caption">Tables, furniture, and entrances shown from the active Tabletron layout.</small>
+                <small className="report-layout-caption">Event-assigned layout · tables, furniture, seating, entrances and annotations.</small>
               </div>
             )}
           </article>
@@ -506,6 +551,7 @@ export default function MasterReportPage() {
 
       {show("schedule") && <section className="master-report-section">
         <div className="master-report-section-heading"><span>04</span><h2>Run of Show</h2></div>
+        {!!report.tasks.length && <div className="planning-checklist"><h3>Event checklist</h3>{report.tasks.map(task => <p key={task.id}>{task.done ? "[x]" : "[ ]"} {task.title}</p>)}</div>}
         {report.schedule.length ? (
           <div className="report-timeline">
             {report.schedule.map((block) => (
@@ -524,6 +570,7 @@ export default function MasterReportPage() {
       {show("food") && <section className="master-report-section">
         <div className="master-report-section-heading"><span>05</span><h2>Food and Grocery Checklist</h2></div>
         {report.meal ? <p className="report-lead"><b>{report.meal.name}</b> · {report.meal.guests} guests{report.meal.recipes.length ? ` · ${report.meal.recipes.join(", ")}` : ""}</p> : <div className="report-callout">No Foodotron meal is linked to this event yet.</div>}
+        {report.hospitalityNotes && <p className="hospitality-notes">{report.hospitalityNotes}</p>}
         {compactSummary && report.groceries.length > 0 && <p>{report.groceries.length} shopping items{costs ? ` · Estimated total $${total.toFixed(2)}` : ""}</p>}
         {!compactSummary && report.groceries.length ? (
           <div className="report-shopping-list">

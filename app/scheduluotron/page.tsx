@@ -2,7 +2,8 @@
 
 import { SuiteChrome } from "../SuiteChrome";
 import { OperationsTicker } from "../OperationsTicker";
-import { saveSuiteAppletState } from "../event-app-state";
+import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
+import { templateTasks, type PlanningTask } from "../template-planning";
 import { readSuiteEventBundle } from "../event-bundle";
 import { type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
@@ -34,6 +35,7 @@ type ScheduleBlock = {
 };
 
 type SchedulePlan = {
+  checklist?: PlanningTask[];
   eventName: string;
   date: string;
   venue: string;
@@ -211,7 +213,10 @@ export default function Scheduluotron() {
   const [plan, setPlan] = useState<SchedulePlan>(() => initialPlan());
   const [notice, setNotice] = useState("");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
-  const [appletSaveStatus, setAppletSaveStatus] = useState("READY");
+  const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const sharedSave = useGuardedSave<SchedulePlan>(activeEvent ? `/api/event-app-state?eventId=${encodeURIComponent(activeEvent.id)}&app=scheduluotron` : null, plan, serverRevision, !!activeEvent, setPlan, serverRevision !== null);
+  const appletSaveStatus = loadFailed ? "NOT ON SERVER" : sharedSave.status;
   const [timezone, setTimezone] = useState("America/Los_Angeles");
   const eventIsLive = useEventLiveStatus(activeEvent, timezone);
   const active =
@@ -261,25 +266,27 @@ export default function Scheduluotron() {
       if (!eventId) return;
       let bundle;
       try { bundle = await readSuiteEventBundle<unknown, unknown, SchedulePlan>(eventId); }
-      catch { setAppletSaveStatus("NOT ON SERVER"); return; }
+      catch { setLoadFailed(true); return; }
       const context = bundle?.event;
       if (!context) return;
       const settings = await loadSuiteSettings();
       const template = settings.operationsTemplates.find((item) => item.id === context.operationsTemplateId);
       const owners = settings.staff.length ? settings.staff : ["Ops lead"];
       const saved = bundle!.applets.scheduluotron;
+      setServerRevision(bundle!.appletRevisions.scheduluotron);
       const seededBlocks = saved && Array.isArray(saved.blocks)
         ? saved.blocks
         : templateScheduleBlocks(template, context, owners) ?? currentEventBriefBlocks(context);
       setPlan((current) => ({
         ...(saved && Array.isArray(saved.blocks) ? saved : current),
-        eventName: context.title,
-        date: context.date,
-        venue: context.space,
+        eventName: saved?.eventName ?? context.title,
+        date: saved?.date ?? context.date,
+        venue: saved?.venue ?? context.space,
         dayStart: seededBlocks.reduce((earliest, block) => toMinutes(block.start) < toMinutes(earliest) ? block.start : earliest, saved?.dayStart ?? current.dayStart),
         dayEnd: seededBlocks.reduce((latest, block) => toMinutes(block.end) > toMinutes(latest) ? block.end : latest, saved?.dayEnd ?? current.dayEnd),
         activeId: saved?.activeId ?? seededBlocks[0]?.id ?? current.activeId,
         blocks: seededBlocks,
+        checklist: saved ? saved.checklist ?? [] : templateTasks(template),
       }));
       setActiveEvent(context);
     }, 0);
@@ -290,10 +297,6 @@ export default function Scheduluotron() {
     if (!activeEvent) return;
     const timer = window.setTimeout(() => {
       localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
-      setAppletSaveStatus("SAVING");
-      void saveSuiteAppletState(activeEvent.id, "scheduluotron", plan)
-        .then((stored) => setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE"))
-        .catch(() => setAppletSaveStatus("NOT ON SERVER"));
     }, 500);
     return () => window.clearTimeout(timer);
   }, [activeEvent, plan]);
@@ -367,20 +370,17 @@ export default function Scheduluotron() {
 
   function save() {
     localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
-    setAppletSaveStatus("SAVING");
     // The toast used to fire here, before the save resolved, so a failed save
     // still announced success. It now reports what actually happened.
-    void saveSuiteAppletState(activeEvent?.id, "scheduluotron", plan)
+    void sharedSave.save()
       .then((stored) => {
-        setAppletSaveStatus(stored ? "SAVED" : "NO EVENT FILE");
         setNotice(
           stored
             ? "SCHEDULUOTRON SAVED"
-            : "KEPT ON THIS COMPUTER · OPEN AN EVENT FILE TO SHARE IT",
+            : activeEvent ? "SAVE NOT CONFIRMED · KEEP YOUR DRAFT" : "KEPT ON THIS COMPUTER · OPEN AN EVENT FILE TO SHARE IT",
         );
       })
       .catch(() => {
-        setAppletSaveStatus("NOT ON SERVER");
         setNotice("SAVE FAILED · KEPT ON THIS COMPUTER ONLY");
       });
   }
@@ -400,6 +400,7 @@ export default function Scheduluotron() {
 
   return (
     <div className="suite-frame"><SuiteChrome active="scheduluotron" eventId={activeEvent?.id} /><OperationsTicker active="scheduluotron" /><main className="scheduluotron-app">
+      <SaveRecovery state={sharedSave} />
       <header className="sched-topbar">
         <div className="sched-title">
           <small>SCHEDULUOTRON EVENT CLOCK</small>
@@ -551,6 +552,7 @@ export default function Scheduluotron() {
         </section>
 
         <aside className="sched-panel inspector">
+          {!!plan.checklist?.length && <section className="planning-checklist"><h2>Event checklist</h2>{plan.checklist.map((task) => <label key={task.id}><input type="checkbox" checked={task.done} onChange={(e) => setPlan(current => ({ ...current, checklist: current.checklist?.map(item => item.id === task.id ? { ...item, done: e.target.checked } : item) }))} /><span>{task.title}</span></label>)}</section>}
           <div className="sched-heading">
             <span>BLOCK INSPECTOR</span>
             <b>03</b>
@@ -683,6 +685,7 @@ export default function Scheduluotron() {
           ))}
         </section>
         <footer className="sched-print-footer">Prepared by Sheppard Semiconductor Systems for setup, staffing, and event-day coordination. Confirm final times, access details, and crew assignments before use.</footer>
+        {!!plan.checklist?.length && <section className="sched-print-section planning-checklist"><h2>Event checklist</h2>{plan.checklist.map(task => <p key={task.id}>{task.done ? "[x]" : "[ ]"} {task.title}</p>)}</section>}
       </article>
       {notice && <div className="sched-toast">{notice}</div>}
     </main></div>

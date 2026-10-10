@@ -55,6 +55,10 @@ function appletPayloads(
   );
 }
 
+function appletRevisions(states: Array<{ appName: string; updatedAt: string }>) {
+  return Object.fromEntries(appNames.map((name) => [name, states.find((state) => state.appName === name)?.updatedAt ?? null]));
+}
+
 export const GET = withRole("staff", async (request: Request) => {
   const eventId = new URL(request.url).searchParams.get("eventId") ?? "";
   if (!eventId) {
@@ -79,12 +83,13 @@ export const GET = withRole("staff", async (request: Request) => {
       event: rowToEvent(event),
       settings: await settingsWithCalendarSources(db, settings?.payload),
       applets: appletPayloads(states),
+      appletRevisions: appletRevisions(states),
       updatedAt: [event.updatedAt, settings?.updatedAt, ...states.map((state) => state.updatedAt)]
         .filter(Boolean)
         .sort()
         .at(-1) ?? event.updatedAt,
       source: "database",
-    });
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (!databaseUnavailable(error)) {
       return Response.json(
@@ -108,11 +113,12 @@ export const GET = withRole("staff", async (request: Request) => {
       event,
       settings: settings?.payload ?? null,
       applets: appletPayloads(states),
+      appletRevisions: appletRevisions(states),
       updatedAt: [settings?.updatedAt, ...states.map((state) => state.updatedAt)]
         .filter(Boolean)
         .sort()
         .at(-1) ?? null,
       source: "local-dev",
-    });
+    }, { headers: { "Cache-Control": "no-store" } });
   }
 });

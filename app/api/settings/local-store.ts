@@ -19,9 +19,8 @@ export function readLocalSettings() {
   return store()[globalKey] ?? null;
 }
 
-export function writeLocalSettings(payload: unknown) {
+export function writeLocalSettings(payload: unknown, now = new Date().toISOString()) {
   const root = store();
-  const now = new Date().toISOString();
   const current = root[globalKey];
   const settings: StoredSettings = {
     id: "workspace",

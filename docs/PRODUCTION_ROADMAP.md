@@ -17,9 +17,21 @@ EventoTron is ready for a controlled local pilot when the current local database
 
 ## Ship Readiness
 
-EventoTron is about 80 percent ready for a local pilot.
+The local build has passed automated and isolated browser/storage rehearsals.
+It still needs a staff-run real event and a named owner for off-device backups.
+Do not treat backend health or test counts as evidence of a completed team rollout.
+Hosting and work-account setup were explicitly deferred by the owner on 2026-10-10.
 
-It is about 60 percent ready for a broader production rollout with multiple users, calendar accounts, desktop packaging, and formal data ownership.
+### Implemented In The Local Pilot Pass
+
+- Revision-protected, serialized applet/settings saves with atomic derived writes,
+  stale-write rejection, and per-tab draft recovery. Conflicts require review;
+  there is no automatic layout merge or full offline editing.
+- Template-seeded event tasks, room-specific setup notes/equipment, and food notes
+  with additional unpriced shopping requirements. Existing plans remain intact.
+- Compact department reports and browser-local saved report views.
+- Freehand room annotations and hallway connections, including printed diagrams.
+- Two-editor, failed-save, print and lossless recovery rehearsals in isolated D1.
 
 ## Phase 1: Local Pilot
 

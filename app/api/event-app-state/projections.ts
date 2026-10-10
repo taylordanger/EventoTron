@@ -13,6 +13,7 @@ import {
 
 type Database = Awaited<ReturnType<typeof getDb>>;
 type JsonRecord = Record<string, unknown>;
+export type ProjectionWrite = { toSQL(): { sql: string; params: unknown[] } };
 
 function record(value: unknown): JsonRecord | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -43,7 +44,7 @@ function stableId(...parts: string[]) {
   return parts.map((part) => part.replace(/[^A-Za-z0-9_-]/g, "_")).join(":");
 }
 
-async function projectTabletron(db: Database, eventId: string, payload: unknown, now: string) {
+function projectTabletron(db: Database, eventId: string, payload: unknown, now: string, writes: ProjectionWrite[]) {
   const project = record(payload);
   if (!project) return { tabletronEvents: 0, rooms: 0, layouts: 0, layoutItems: 0 };
   const rooms = records(project.rooms);
@@ -52,7 +53,7 @@ async function projectTabletron(db: Database, eventId: string, payload: unknown,
   const activeEvent = events.find((event) => text(event.id) === eventId)
     ?? events.find((event) => text(event.id) === text(project.activeEventId));
 
-  await Promise.all(rooms.map((room) =>
+  writes.push(...rooms.map((room) =>
     db.insert(suiteRooms).values({
       id: text(room.id),
       name: text(room.name, "Unnamed room"),
@@ -76,7 +77,7 @@ async function projectTabletron(db: Database, eventId: string, payload: unknown,
   const layouts = rooms.flatMap((room) =>
     records(room.layouts).map((layout) => ({ room, layout })),
   );
-  await Promise.all(layouts.map(({ room, layout }) =>
+  writes.push(...layouts.map(({ room, layout }) =>
     db.insert(suiteRoomLayouts).values({
       id: text(layout.id),
       roomId: text(room.id),
@@ -95,7 +96,7 @@ async function projectTabletron(db: Database, eventId: string, payload: unknown,
     })
   ));
 
-  await db.delete(suiteLayoutItems).where(eq(suiteLayoutItems.eventId, eventId));
+  writes.push(db.delete(suiteLayoutItems).where(eq(suiteLayoutItems.eventId, eventId)));
   const assignments = records(activeEvent?.rooms);
   const layoutItems = assignments.flatMap((assignment) => {
     const room = rooms.find((item) => text(item.id) === text(assignment.roomId));
@@ -141,10 +142,10 @@ async function projectTabletron(db: Database, eventId: string, payload: unknown,
     }));
     return [...tableItems, ...furnitureItems, ...entranceItems];
   });
-  if (layoutItems.length) await Promise.all(layoutItems.map((item) => db.insert(suiteLayoutItems).values(item)));
+  writes.push(...layoutItems.map((item) => db.insert(suiteLayoutItems).values(item)));
 
   if (activeEvent) {
-    await db.insert(tabletronEvents).values({
+    writes.push(db.insert(tabletronEvents).values({
       id: eventId,
       name: text(activeEvent.name, "Untitled event"),
       date: text(activeEvent.date),
@@ -163,7 +164,7 @@ async function projectTabletron(db: Database, eventId: string, payload: unknown,
         payload: activeEvent,
         updatedAt: now,
       },
-    });
+    }));
   }
 
   return {
@@ -212,13 +213,13 @@ function shoppingRows(meal: JsonRecord, recipes: JsonRecord[], mealId: string, n
   });
 }
 
-async function projectFoodotron(db: Database, eventId: string, payload: unknown, now: string) {
+function projectFoodotron(db: Database, eventId: string, payload: unknown, now: string, writes: ProjectionWrite[]) {
   const plan = record(payload);
   if (!plan) return { meals: 0, recipes: 0, shoppingItems: 0 };
   const recipes = records(plan.recipes);
   const meals = records(plan.meals).filter((meal) => text(meal.tabletronEventId) === eventId);
 
-  await Promise.all(recipes.map((recipe) =>
+  writes.push(...recipes.map((recipe) =>
     db.insert(suiteRecipes).values({
       id: text(recipe.id),
       name: text(recipe.name, "Untitled recipe"),
@@ -245,10 +246,10 @@ async function projectFoodotron(db: Database, eventId: string, payload: unknown,
     const rows = shoppingRows(meal, recipes, mealId, now);
     shoppingItemCount += rows.length;
     if (localMealId && localMealId !== mealId) {
-      await db.delete(suiteShoppingItems).where(eq(suiteShoppingItems.mealId, localMealId));
-      await db.delete(foodotronMeals).where(eq(foodotronMeals.id, localMealId));
+      writes.push(db.delete(suiteShoppingItems).where(eq(suiteShoppingItems.mealId, localMealId)));
+      writes.push(db.delete(foodotronMeals).where(eq(foodotronMeals.id, localMealId)));
     }
-    await db.insert(foodotronMeals).values({
+    writes.push(db.insert(foodotronMeals).values({
       id: mealId,
       name: text(meal.name, "Untitled meal"),
       date: text(meal.date),
@@ -269,18 +270,18 @@ async function projectFoodotron(db: Database, eventId: string, payload: unknown,
         payload: meal,
         updatedAt: now,
       },
-    });
-    await db.delete(suiteShoppingItems).where(eq(suiteShoppingItems.mealId, mealId));
-    if (rows.length) await Promise.all(rows.map((row) => db.insert(suiteShoppingItems).values(row)));
+    }));
+    writes.push(db.delete(suiteShoppingItems).where(eq(suiteShoppingItems.mealId, mealId)));
+    writes.push(...rows.map((row) => db.insert(suiteShoppingItems).values(row)));
   }
 
   return { meals: meals.length, recipes: recipes.length, shoppingItems: shoppingItemCount };
 }
 
-async function projectScheduluotron(db: Database, eventId: string, payload: unknown, now: string) {
+function projectScheduluotron(db: Database, eventId: string, payload: unknown, now: string, writes: ProjectionWrite[]) {
   const plan = record(payload);
   const blocks = records(plan?.blocks);
-  await db.delete(suiteScheduleItems).where(eq(suiteScheduleItems.eventId, eventId));
+  writes.push(db.delete(suiteScheduleItems).where(eq(suiteScheduleItems.eventId, eventId)));
   const rows = blocks.map((block) => ({
     id: stableId(eventId, text(block.id)),
     eventId,
@@ -295,41 +296,58 @@ async function projectScheduluotron(db: Database, eventId: string, payload: unkn
     createdAt: now,
     updatedAt: now,
   }));
-  if (rows.length) await Promise.all(rows.map((row) => db.insert(suiteScheduleItems).values(row)));
+  writes.push(...rows.map((row) => db.insert(suiteScheduleItems).values(row)));
   return { scheduleItems: rows.length };
 }
 
-export async function projectAppletState(
+export function prepareAppletProjection(
   db: Database,
   eventId: string,
   appName: string,
   payload: unknown,
   now: string,
 ) {
-  if (appName === "tabletron") return projectTabletron(db, eventId, payload, now);
-  if (appName === "foodotron") return projectFoodotron(db, eventId, payload, now);
-  return projectScheduluotron(db, eventId, payload, now);
+  const writes: ProjectionWrite[] = [];
+  const normalized = appName === "tabletron" ? projectTabletron(db, eventId, payload, now, writes)
+    : appName === "foodotron" ? projectFoodotron(db, eventId, payload, now, writes)
+    : projectScheduluotron(db, eventId, payload, now, writes);
+  return { writes, normalized };
 }
 
-export async function removeAppletProjection(db: Database, eventId: string, appName: string) {
+export async function projectAppletState(db: Database, eventId: string, appName: string, payload: unknown, now: string) {
+  const { writes, normalized } = prepareAppletProjection(db, eventId, appName, payload, now);
+  const { getSuiteD1 } = await import("@/db");
+  const d1 = await getSuiteD1();
+  if (writes.length) await d1.batch(writes.map((write) => {
+    const query = write.toSQL();
+    return d1.prepare(query.sql).bind(...query.params);
+  }));
+  return normalized;
+}
+
+export async function prepareAppletRemoval(db: Database, eventId: string, appName: string): Promise<ProjectionWrite[]> {
   if (appName === "tabletron") {
-    await Promise.all([
+    return [
       db.delete(tabletronEvents).where(eq(tabletronEvents.id, eventId)),
       db.delete(suiteLayoutItems).where(eq(suiteLayoutItems.eventId, eventId)),
-    ]);
-    return;
+    ];
   }
   if (appName === "scheduluotron") {
-    await db.delete(suiteScheduleItems).where(eq(suiteScheduleItems.eventId, eventId));
-    return;
+    return [db.delete(suiteScheduleItems).where(eq(suiteScheduleItems.eventId, eventId))];
   }
   const meals = await db.select({ id: foodotronMeals.id })
     .from(foodotronMeals)
     .where(eq(foodotronMeals.tabletronEventId, eventId));
-  await Promise.all(meals.map((meal) =>
+  return [...meals.map((meal) =>
     db.delete(suiteShoppingItems).where(eq(suiteShoppingItems.mealId, meal.id)),
-  ));
-  await db.delete(foodotronMeals).where(eq(foodotronMeals.tabletronEventId, eventId));
+  ), db.delete(foodotronMeals).where(eq(foodotronMeals.tabletronEventId, eventId))];
+}
+
+export async function removeAppletProjection(db: Database, eventId: string, appName: string) {
+  const writes = await prepareAppletRemoval(db, eventId, appName);
+  const { getSuiteD1 } = await import("@/db");
+  const d1 = await getSuiteD1();
+  await d1.batch(writes.map((write) => { const query = write.toSQL(); return d1.prepare(query.sql).bind(...query.params); }));
 }
 
 export async function removeEventProjections(db: Database, eventId: string) {

@@ -19,7 +19,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 import { saveStatusHint, saveStatusTone } from "./save-status";
-import { settingsConfigurationFingerprint } from "./calendar-source-state";
+import { calendarConfiguration } from "./calendar-source-state";
+import { useGuardedSave, SaveRecovery } from "./use-guarded-save";
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
 type EventoEvent = {
@@ -289,7 +290,9 @@ export default function Home() {
   const [eventSaveStatus, setEventSaveStatus] = useState("READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
   const [settingsBackendChecked, setSettingsBackendChecked] = useState(false);
-  const syncedSettingsRef = useRef("");
+  const [settingsRevision, setSettingsRevision] = useState<string | null | undefined>(undefined);
+  const settingsPayload = useMemo(() => ({ ...settings, calendarSources: settings.calendarSources.map(calendarConfiguration) }), [settings]);
+  const settingsSave = useGuardedSave<EventoSettings>("/api/settings", settingsPayload, settingsRevision, settingsBackendChecked, setSettings, true);
   const startupDayRef = useRef(initialDay);
   const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
   const inFlightEventsRef = useRef(new Set<string>());
@@ -515,17 +518,6 @@ export default function Home() {
     localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(settings));
   }, [settings, settingsLoaded]);
 
-  useEffect(() => {
-    if (!settingsBackendChecked) return;
-    const fingerprint = settingsConfigurationFingerprint(settings);
-    if (syncedSettingsRef.current === fingerprint) return;
-    const timer = window.setTimeout(() => {
-      void fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payload: settings }) })
-        .then((response) => { if (!response.ok) throw new Error("Settings save failed"); syncedSettingsRef.current = fingerprint; })
-        .catch(() => setEventSaveStatus("SETTINGS NOT ON SERVER"));
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [settings, settingsBackendChecked]);
 
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -544,19 +536,19 @@ export default function Home() {
       .then(async ([settingsResponse, calendarResponse]) => {
         if ((!settingsResponse.ok && settingsResponse.status !== 404) || !calendarResponse.ok) throw new Error("Settings load failed");
         const saved = settingsResponse.ok ? await settingsResponse.json() : null;
-        return { ...await calendarResponse.json(), settings: saved?.payload };
+        return { ...await calendarResponse.json(), settings: saved?.payload, revision: saved?.updatedAt ?? null };
       })
-      .then((result: { sources?: CalendarSource[]; events?: ImportedCalendarEvent[]; settings?: Partial<EventoSettings> } | null) => {
+      .then((result: { sources?: CalendarSource[]; events?: ImportedCalendarEvent[]; settings?: Partial<EventoSettings>; revision: string | null } | null) => {
         if (!result) return;
         const databaseSources = Array.isArray(result.sources) ? result.sources : [];
         const databaseEvents = Array.isArray(result.events) ? result.events : [];
         if (Array.isArray(result.sources)) {
           setSettings((current) => {
             const next = { ...current, ...mergeSuiteSettings(result.settings ?? current), calendarSources: databaseSources };
-            syncedSettingsRef.current = settingsConfigurationFingerprint(next);
             return next;
           });
           setCalendarFeedEvents(databaseEvents);
+          setSettingsRevision(result.revision);
           setSettingsBackendChecked(true);
         }
       })
@@ -1009,7 +1001,6 @@ export default function Home() {
       calendarSources: current.calendarSources.filter((source) => source.id !== id),
     }));
     setCalendarFeedEvents((current) => current.filter((event) => event.sourceId !== id));
-    void fetch(`/api/calendar-sources?sourceId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
   }
 
   async function syncCalendarSource(source: CalendarSource) {
@@ -1098,6 +1089,7 @@ export default function Home() {
 
   return (
     <main className="eventotron-desktop">
+      <SaveRecovery state={settingsSave} />
       <div className="eventotron-ribbon-row">
         <SuiteChrome active="calendar" eventId={hasActiveEvent ? selected.id : undefined} />
         <button className="save-state-action" data-tone={saveStatusTone(eventSaveStatus)} title={saveStatusHint(eventSaveStatus)} onClick={() => void save()}>{eventSaveStatus}</button>

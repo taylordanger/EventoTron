@@ -44,7 +44,7 @@ is a three-room event. That fact drives a lot of the design.
 ## Running and checking it
 
 ```bash
-npm test     # 125 tests; runs a build first
+npm test     # 134 tests; runs a build first
 npm run lint # expect 0 errors, 1 pre-existing warning in app/settings/page.tsx
 ```
 
@@ -101,12 +101,16 @@ from team deployment readiness.
   and strip the duplicate settings list. Sync timestamps and errors belong to
   the sync route, so a settings save cannot overwrite them. Old backup lists
   remain readable until a configuration save migrates them. This does not add
-  offline editing or conflict resolution for simultaneous applet/settings edits.
-- **Freeform sketching does not exist.** The furniture builder composes
-  rectangles, circles, ovals and triangles into reusable pieces, but nothing
-  draws directly on the room canvas. This is the largest outstanding request.
-- **A connecting space (hallway) has no first-class support.** The workaround is
-  "＋ ADD ROOM" with real dimensions; it holds furniture, rotates it, and prints.
+  full offline editing. Applet/settings writes now require revisions, run with
+  their projections/configuration in guarded D1 transactions, and reject stale
+  snapshots. Conflict recovery preserves a downloadable draft and loads the
+  server copy; it does not automatically merge conflicting layouts or settings.
+- **Sketching is a first-pass annotation tool**, not a floor-plan/CAD editor.
+  It supports labeled strokes and undo, stores coordinates in room feet, and
+  prints in setup/master reports. It has no measurement or safety certification.
+- **Hallways are independent connecting spaces**, with dimensions, room links
+  and an empty initial layout. Assign them in Event Ops to include them in the
+  master report. There is no unified building-wide map or route validation.
 - **Deployment is blocked on the owner**, not on code. See `docs/DEPLOYMENT.md`.
   Four steps need a human: a Cloudflare account, `wrangler login`,
   `wrangler d1 create`, and connecting Microsoft Entra ID for sign-in.
@@ -114,6 +118,36 @@ from team deployment readiness.
   cannot ship the local admin bypass.
 
 ## Recent work, newest first
+
+### Local Team Pilot Improvements (2026-10-10)
+
+- Owner explicitly deferred hosting; keep the existing local launcher and D1.
+  Hosted accounts, production migration and a live staff pilot are not complete.
+- Added migration `0007_guarded_writes`. Short-lived guard rows make revision
+  checks, applet snapshots and derived records one atomic D1 transaction. A
+  stale settings save cannot partially change calendars; sync results are also
+  guarded against changed/deleted connections. Guard rows are transaction-only
+  bookkeeping, always removed on success and not part of workspace backups.
+- All applets and both settings editors serialize saves. Failed/conflicting
+  drafts survive refresh in the same tab via session storage. Recovery offers
+  retry, draft download/restore, and download-before-loading the server copy.
+  Reopening an applet preserves customized notes, meal details and schedule
+  metadata. Existing open browser tabs must reload for the new revision protocol;
+  legacy writes without an expected revision are rejected with HTTP 428.
+- Operations templates seed unchecked event tasks, food/hospitality notes,
+  unpriced extra shopping items, and room-specific notes/equipment only when
+  creating a new applet plan. Existing plans are never reseeded automatically.
+- Master reports include Kitchen, Setup crew, Front desk and MOD views and
+  named saved views. Saved views are personal to this browser, not shared team
+  configuration; Copy Report Link still preserves the actual report choices.
+- Tabletron supports freehand annotations with optional labels and undo, plus
+  Hallway/connecting-space type and room links. Annotations print in setup and
+  event-assigned master diagrams. Hallways start without dinner tables.
+- Verification: 134 automated tests, build, lint (known settings warning), plus
+  isolated D1 two-writer/rollback, draft recovery/offline retry and template-to-
+  reports browser rehearsals. Setup, hallway and kitchen sample PDFs: one page
+  each. Backup/re-export verified lossless with new tasks, notes and sketches.
+  A real staff-run event and off-device backup ownership are still required.
 
 ### Tabletron Setup Sheet (2026-10-10)
 
