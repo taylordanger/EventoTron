@@ -44,7 +44,7 @@ is a three-room event. That fact drives a lot of the design.
 ## Running and checking it
 
 ```bash
-npm test     # 119 tests; runs a build first
+npm test     # 125 tests; runs a build first
 npm run lint # expect 0 errors, 1 pre-existing warning in app/settings/page.tsx
 ```
 
@@ -88,17 +88,20 @@ something reassuring that was not true.**
   when no event was linked.
 
 Checking confident-sounding UI against what the code actually does is a
-productive way to spend time here. **Not yet audited:** the Private Alpha
-readiness panel ("5/6 READY") and `/api/health` reporting `status: ready`.
+productive way to spend time here. The Private Alpha panel and `/api/health`
+were audited in the daily-use pass below; backend health is explicitly distinct
+from team deployment readiness.
 
 ## Known open problems
 
-- **The same data is stored twice, in two places that disagree.** Calendar
-  sources live in both the settings payload and the `calendar_sources` table; a
-  sync advances one and leaves the other stale. Events live in both
-  `localStorage` and the database. Workarounds are in place — the sync interval
-  measures against whichever record is newer — but the divergence is real and
-  deserves a proper fix.
+- **Storage follow-up.** Browser storage is now a cache:
+  failed event reads block writes and retry, and linked applets load their event
+  bundle from the backend before saving. Calendar connections are read from
+  `suite_calendar_sources`; settings saves batch configuration into that table
+  and strip the duplicate settings list. Sync timestamps and errors belong to
+  the sync route, so a settings save cannot overwrite them. Old backup lists
+  remain readable until a configuration save migrates them. This does not add
+  offline editing or conflict resolution for simultaneous applet/settings edits.
 - **Freeform sketching does not exist.** The furniture builder composes
   rectangles, circles, ovals and triangles into reusable pieces, but nothing
   draws directly on the room canvas. This is the largest outstanding request.
@@ -111,6 +114,31 @@ readiness panel ("5/6 READY") and `/api/health` reporting `status: ready`.
   cannot ship the local admin bypass.
 
 ## Recent work, newest first
+
+### Daily Use And Reports (2026-10-10)
+
+- Main calendar expands busy days without clipping event tiles. Startup opens
+  the current month, highlights and scrolls to today, and selects today's saved
+  event when one exists (`8560042`, pushed to `main`).
+- Master Report has complete, summary, shopping, room setup and run-of-show
+  presets, selectable sections/rooms, optional costs/layouts/facility reference,
+  and a department/recipient label. Copy Report Link preserves the choices;
+  links require access to the same running server. Save PDF uses the browser's
+  print destination and produces a file suitable for sending separately.
+- Reports flow between sections instead of forcing a page per section.
+  Foodotron opens a shopping preview with optional meal brief, costs and a
+  store filter. Grocery calculations are shared with the master report:
+  compatible units combine before package rounding, and offers are ranked by
+  total purchase cost. Missing price/conversion items remain visible.
+- Master Report layout diagrams include row seating and furniture rotation.
+  Room times use the suite's regular-time formatter. The equipment library is
+  no longer dumped into every report.
+- Readiness now checks enabled calendar freshness/errors and persisted coverage
+  for all three applets. Health probes calendar/auth tables and labels its scope
+  as backend status, rather than claiming deployment readiness.
+- Verification: 125 automated tests, build, and lint with the known settings
+  warning. Browser/storage/print checks use an isolated D1 directory under
+  `/private/tmp`; never restore test fixtures into the daily-use server.
 
 | Commit | What it changed |
 | --- | --- |

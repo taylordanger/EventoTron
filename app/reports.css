@@ -1,0 +1,106 @@
+.report-builder, .report-builder-notice {
+  width: min(1050px, 100%);
+  margin: 0 auto 16px;
+  color: #172218;
+}
+.report-builder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #a5b2ac;
+  font-size: 12px;
+}
+.report-builder > label { display: grid; gap: 5px; }
+.report-builder select, .report-builder input:not([type=checkbox]) {
+  padding: 7px 9px;
+  border: 1px solid #83968b;
+  border-radius: 3px;
+  background: white;
+  color: #172218;
+  font: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+.report-builder fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; flex-basis: 100%; }
+.report-builder legend { margin-bottom: 6px; font-weight: 700; }
+.report-builder fieldset label { display: inline-flex; align-items: center; gap: 6px; }
+.report-builder input[type=checkbox] { accent-color: #2c6651; }
+.master-report-page.report-compact { padding: 20px; background: #edf0f1; }
+.report-compact .master-report-header { padding: 16px 20px; gap: 16px; border-bottom-width: 2px; }
+.report-compact .master-report-header h1 { font-size: 26px; line-height: 1.15; overflow-wrap: anywhere; }
+.report-compact .master-report-header p { font-size: 12px; margin-top: 5px; }
+.report-compact .master-report-actions { flex-wrap: wrap; padding: 10px 0; }
+.report-compact .master-report-section { box-shadow: none; padding: 14px 20px; margin-bottom: 0; border-bottom: 1px solid #bcc8c2; }
+.report-compact .master-report-section-heading { padding-bottom: 5px; margin-bottom: 9px; border-bottom-width: 1px; }
+.report-compact .master-report-section-heading h2 { font-size: 17px; }
+.report-compact .report-field-grid > div { min-height: 0; gap: 4px; padding: 6px 8px; overflow-wrap: anywhere; }
+.report-compact .report-field-grid b { font-size: 12px; }
+.report-compact .report-note-grid { margin-top: 8px; gap: 8px; }
+.report-compact .report-note-grid > div { padding: 6px 8px; background: #f5f6f6; border-left-width: 2px; }
+.report-compact .report-note-grid p { margin-top: 3px; font-size: 12px; line-height: 1.3; }
+.report-compact .report-room { padding: 10px 0; margin-bottom: 0; border: 0; border-bottom: 1px solid #c5d0ca; background: white; }
+.report-compact .report-room h3 { margin: 0 0 5px; font-size: 14px; }
+.report-compact .report-room > b { font-size: 11px; }
+.report-compact .report-room > p { margin: 4px 0; font-size: 12px; }
+.report-compact .report-checkbox { width: 12px; height: 12px; flex: 0 0 12px; border-width: 1px; }
+.report-compact .report-layout-figure { width: min(100%, 440px); margin: 10px auto; padding: 8px; background: white; border: 1px solid #879c91; }
+.report-compact .report-layout-canvas { background: #fafcfc; border: 2px solid #354c43; box-shadow: none; }
+.report-compact .report-layout-object { color: #1c3026; background: #e3ece7; border: 1px solid #536e61; font-size: 7px; }
+.report-compact .report-layout-table { display: grid; place-items: center; color: #172218; background: white; border: 1px solid #536e61; box-shadow: none; font-size: 8px; }
+.report-compact .report-layout-seat { position: absolute; display: grid; place-items: center; border: 1px solid #536e61; background: white; color: #172218; font-size: 5px; transform: translate(-50%, -50%); overflow: hidden; }
+.report-compact .report-layout-measure { color: #354c43; }
+.report-compact .report-layout-entrance { background: #27846c; }
+.report-compact .report-layout-figure-heading { color: #172218; background: white; }
+.report-compact .report-layout-figure-heading b, .report-compact .report-layout-figure-heading span { color: #354c43; }
+.report-compact .report-layout-caption { color: #53645b; }
+.report-compact .report-timeline-row { gap: 10px; padding: 6px 0; grid-template-columns: 76px minmax(0,1fr) 45px; }
+.report-compact .report-timeline-row h3 { font-size: 12px; }
+.report-compact .report-timeline-row > strong { font-size: 11px; }
+.report-compact .report-timeline-row p { font-size: 11px; margin: 3px 0; }
+.report-compact .report-callout { padding: 8px 10px; font-size: 12px; }
+.report-compact .report-shopping-head, .report-compact .report-shopping-row { gap: 7px; grid-template-columns: 20px 1.25fr .65fr 1.4fr .8fr .6fr; min-width: 0; overflow-wrap: anywhere; }
+.report-compact.report-hide-costs .report-shopping-head, .report-compact.report-hide-costs .report-shopping-row { grid-template-columns: 20px 1.25fr .65fr 1.4fr .8fr; }
+.report-compact .report-shopping-row { min-height: 0; padding: 6px 0; font-size: 11px; }
+.report-compact .report-shopping-head { padding: 6px 0; font-size: 8px; }
+.report-compact .report-lead { font-size: 12px; margin: 0 0 8px; }
+.report-compact .master-report-footer { padding: 10px 0; font-size: 9px; }
+.report-summary .report-note-grid > div:nth-child(n+3), .report-summary .report-timeline-row small { display: none; }
+.foodotron-applet .food-report-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; color: #172218; font-size: 12px; }
+.foodotron-applet .food-report-controls label { display: flex; align-items: center; gap: 6px; }
+.foodotron-applet .food-report-controls select, .foodotron-applet .food-report-controls input:not([type=checkbox]) { background: white; color: #172218; border: 1px solid #83968b; padding: 6px; min-width: 0; max-width: 100%; }
+.foodotron-applet .compact-shopping .report-row { padding: 6px 0; min-height: 0; font-size: 11px; }
+.foodotron-applet .compact-shopping .report-store { margin-top: 8px; padding: 0; background: white; }
+.foodotron-applet .compact-shopping .report-store h2 { padding: 7px 0; margin: 0; font-size: 13px; }
+.foodotron-applet .compact-shopping .food-report-heading { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #83968b; padding-bottom: 5px; margin-bottom: 8px; }
+.foodotron-applet .compact-shopping .food-report-heading h2 { font-size: 17px; margin: 0; }
+.foodotron-applet .compact-shopping .food-report-heading > span { font-size: 10px; color: #53645b; }
+.foodotron-applet .compact-shopping .report-row > span:first-child { display: flex; align-items: center; gap: 7px; }
+.foodotron-applet .compact-shopping .report-row > span:first-child::before { content: ""; display: block; flex: 0 0 11px; height: 11px; border: 1px solid #53645b; background: white; }
+.foodotron-applet .shopping-hide-costs .report-head, .foodotron-applet .shopping-hide-costs .report-row { grid-template-columns: 1.2fr .8fr 1.2fr .7fr; }
+.foodotron-applet .shopping-hide-costs .report-head > :last-child, .foodotron-applet .shopping-hide-costs .report-row > :last-child, .foodotron-applet .shopping-hide-costs .report-store h2 > b, .foodotron-applet .shopping-hide-costs .report-totals > div:nth-child(-n+2) { display: none; }
+@media screen and (max-width: 700px) {
+  .master-report-page.report-compact { padding: 10px; }
+  .report-compact .master-report-header { padding: 12px; }
+  .report-compact .master-report-header h1 { font-size: 22px; }
+  .report-compact .master-report-brand { display: none; }
+  .report-compact .report-field-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .report-compact .report-note-grid { grid-template-columns: minmax(0,1fr); }
+  .report-compact .report-shopping-head, .report-compact .report-shopping-row { font-size: 9px; gap: 4px; }
+}
+@media print {
+  html:has(.master-report-page), body:has(.master-report-page), html:has(.compact-shopping), body:has(.compact-shopping), html body .suite-frame:has(.compact-shopping), html body .foodotron-applet:has(.compact-shopping), html body .foodotron-applet .meal-report-overlay:has(.compact-shopping) { background: white !important; }
+  .report-builder, .report-builder-notice, .foodotron-applet .food-report-controls { display: none !important; }
+  html body .master-report-page.report-compact, html body .master-report-page.report-compact > section, html body .master-report-page.report-compact > footer, html body .foodotron-applet .compact-shopping, html body .foodotron-applet .compact-shopping .food-report-section { background: white !important; }
+  html body .report-compact .master-report-header, html body .foodotron-applet .compact-shopping > header { padding: 0 0 9px !important; border-top: 0 !important; border-bottom: 2px solid #172218 !important; }
+  html body .report-compact .master-report-section, html body .foodotron-applet .compact-shopping .food-report-section { margin: 0 !important; padding: 10px 0 !important; break-before: auto; break-inside: auto; }
+  .report-compact .report-page-break { break-before: auto; }
+  .report-compact .report-room { break-inside: auto; }
+  .report-compact:not(.report-rooms-only) .report-layout-figure { width: min(100%, 280px); }
+  .report-compact .master-report-section-heading, .foodotron-applet .compact-shopping .report-store h2 { break-after: avoid; }
+  html body .report-compact .master-report-footer, html body .foodotron-applet .compact-shopping > footer { margin: 8px 0 0 !important; padding: 6px 0 0 !important; border-top-width: 1px !important; }
+  .foodotron-applet .compact-shopping .report-store { break-inside: auto; }
+  .foodotron-applet .compact-shopping > header h1 { font-size: 24px; }
+  .foodotron-applet .compact-shopping .food-report-heading { margin-bottom: 8px; padding-bottom: 5px; }
+}

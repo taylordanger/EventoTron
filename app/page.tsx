@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 import { saveStatusHint, saveStatusTone } from "./save-status";
+import { settingsConfigurationFingerprint } from "./calendar-source-state";
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
 type EventoEvent = {
@@ -287,6 +288,8 @@ export default function Home() {
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
   const [eventSaveStatus, setEventSaveStatus] = useState("READY");
   const [eventBackendChecked, setEventBackendChecked] = useState(false);
+  const [settingsBackendChecked, setSettingsBackendChecked] = useState(false);
+  const syncedSettingsRef = useRef("");
   const startupDayRef = useRef(initialDay);
   const syncedEventsRef = useRef(new Map<string, { event: EventoEvent; fingerprint: string }>());
   const inFlightEventsRef = useRef(new Set<string>());
@@ -309,6 +312,7 @@ export default function Home() {
   }, []);
 
   const persistEvent = useCallback(async (event: EventoEvent): Promise<"saved" | "conflict" | "error" | "busy"> => {
+    if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return "error"; }
     if (inFlightEventsRef.current.has(event.id)) return "busy";
     inFlightEventsRef.current.add(event.id);
     const capturedFingerprint = eventFingerprint(event);
@@ -353,7 +357,7 @@ export default function Home() {
     } finally {
       inFlightEventsRef.current.delete(event.id);
     }
-  }, [commitServerEvent]);
+  }, [commitServerEvent, eventBackendChecked]);
 
   useEffect(() => {
     const raw = localStorage.getItem(EVENT_STORE_KEY);
@@ -387,7 +391,7 @@ export default function Home() {
           setCalendarMonth(startupDay.month);
         }
         setLoaded(true);
-      } catch {}
+      } catch { setLoaded(true); }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -425,8 +429,9 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) return;
     const controller = new AbortController();
-    fetch("/api/events", { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
+    let retryTimer: number | undefined;
+    const restoreEvents = () => fetch("/api/events", { signal: controller.signal, cache: "no-store" })
+      .then((response) => { if (!response.ok) throw new Error("Event load failed"); return response.json(); })
       .then((restored: {
         events?: EventoEvent[];
         selectedId?: string;
@@ -435,7 +440,7 @@ export default function Home() {
         calendarMonth?: number;
         source?: string;
       } | null) => {
-        if (!restored || restored.source !== "database") return;
+        if (!restored || !Array.isArray(restored.events)) throw new Error("Invalid event response");
         const restoredEvents = Array.isArray(restored.events) ? restored.events.map((event) => ({
           ...event,
           requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
@@ -466,10 +471,15 @@ export default function Home() {
         setCalendarYear(startupDay.year);
         setCalendarMonth(startupDay.month);
         setEventSaveStatus(restoredEvents.length ? "DATABASE READY" : "NO EVENT FILES");
+        setEventBackendChecked(true);
       })
-      .catch(() => {})
-      .finally(() => setEventBackendChecked(true));
-    return () => controller.abort();
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setEventSaveStatus("NOT ON SERVER");
+        retryTimer = window.setTimeout(restoreEvents, 15_000);
+      });
+    void restoreEvents();
+    return () => { controller.abort(); window.clearTimeout(retryTimer); };
   }, [loaded]);
 
   useEffect(() => {
@@ -506,6 +516,18 @@ export default function Home() {
   }, [settings, settingsLoaded]);
 
   useEffect(() => {
+    if (!settingsBackendChecked) return;
+    const fingerprint = settingsConfigurationFingerprint(settings);
+    if (syncedSettingsRef.current === fingerprint) return;
+    const timer = window.setTimeout(() => {
+      void fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payload: settings }) })
+        .then((response) => { if (!response.ok) throw new Error("Settings save failed"); syncedSettingsRef.current = fingerprint; })
+        .catch(() => setEventSaveStatus("SETTINGS NOT ON SERVER"));
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [settings, settingsBackendChecked]);
+
+  useEffect(() => {
     if (!settingsLoaded) return;
     localStorage.setItem(UI_STORE_KEY, JSON.stringify({ railWidth }));
   }, [railWidth, settingsLoaded]);
@@ -518,24 +540,27 @@ export default function Home() {
   useEffect(() => {
     if (!settingsLoaded) return;
     const controller = new AbortController();
-    fetch("/api/calendar-sources", { signal: controller.signal, cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((result: { sources?: CalendarSource[]; events?: ImportedCalendarEvent[] } | null) => {
+    Promise.all([fetch("/api/settings", { signal: controller.signal, cache: "no-store" }), fetch("/api/calendar-sources", { signal: controller.signal, cache: "no-store" })])
+      .then(async ([settingsResponse, calendarResponse]) => {
+        if ((!settingsResponse.ok && settingsResponse.status !== 404) || !calendarResponse.ok) throw new Error("Settings load failed");
+        const saved = settingsResponse.ok ? await settingsResponse.json() : null;
+        return { ...await calendarResponse.json(), settings: saved?.payload };
+      })
+      .then((result: { sources?: CalendarSource[]; events?: ImportedCalendarEvent[]; settings?: Partial<EventoSettings> } | null) => {
         if (!result) return;
         const databaseSources = Array.isArray(result.sources) ? result.sources : [];
         const databaseEvents = Array.isArray(result.events) ? result.events : [];
-        if (databaseSources.length) {
-          setSettings((current) => ({
-            ...current,
-            calendarSources: [
-              ...databaseSources,
-              ...current.calendarSources.filter((source) => !databaseSources.some((saved) => saved.id === source.id)),
-            ],
-          }));
+        if (Array.isArray(result.sources)) {
+          setSettings((current) => {
+            const next = { ...current, ...mergeSuiteSettings(result.settings ?? current), calendarSources: databaseSources };
+            syncedSettingsRef.current = settingsConfigurationFingerprint(next);
+            return next;
+          });
           setCalendarFeedEvents(databaseEvents);
+          setSettingsBackendChecked(true);
         }
       })
-      .catch(() => {});
+      .catch(() => { if (!controller.signal.aborted) setEventSaveStatus("SETTINGS NOT ON SERVER"); });
     return () => controller.abort();
   }, [settingsLoaded]);
 
@@ -599,19 +624,11 @@ export default function Home() {
     [visibleCalendarSources],
   );
 
-  /**
-   * When each feed was last refreshed *by this session*.
-   *
-   * Calendar sources are persisted twice — inside the settings payload and in
-   * the calendar-sources table — and the two drift: a sync advances the table
-   * while the settings copy keeps its old timestamp. Trusting the settings copy
-   * alone would make every feed look permanently overdue and re-sync on a
-   * timer forever, so the interval is measured against whichever record is
-   * more recent.
-   */
+  // Failed syncs back off for the source interval, even without a success timestamp.
   const lastSyncAttemptRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
+    if (!settingsBackendChecked) return;
     let cancelled = false;
 
     const isDue = (source: CalendarSource) => {
@@ -656,7 +673,7 @@ export default function Home() {
     // Keyed to the source list: settings load after mount, so an effect that
     // ran only once would find no sources and then skip every later pass in a
     // background tab, syncing nothing at all.
-  }, [calendarSourceKey]);
+  }, [calendarSourceKey, settingsBackendChecked]);
 
   const linkedCalendarEventIds = useMemo(
     () => new Set(events.flatMap((event) => event.calendarEventId ? [event.calendarEventId] : [])),
@@ -729,6 +746,7 @@ export default function Home() {
   }, [events, calendarFeedEvents, calendarYear, calendarMonth, linkedCalendarEventIds, visibleCalendarSources]);
 
   async function save() {
+    if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return; }
     const payload = { events, selectedId, openIds, calendarYear, calendarMonth };
     localStorage.setItem(EVENT_STORE_KEY, JSON.stringify(payload));
     if (!events.length) {
@@ -761,6 +779,7 @@ export default function Home() {
   }, []);
 
   const convertCalendarEvent = useCallback(async (imported: ImportedCalendarEvent) => {
+    if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return; }
     const existing = events.find((event) => event.calendarEventId === imported.id);
     if (existing) {
       openEvent(existing);
@@ -831,7 +850,7 @@ export default function Home() {
     } else if (outcome === "error") {
       setEventSaveStatus("IMPORTED LOCALLY");
     }
-  }, [calendarFeedEvents, events, openEvent, persistEvent]);
+  }, [calendarFeedEvents, events, openEvent, persistEvent, eventBackendChecked]);
 
   useEffect(() => {
     if (!settingsLoaded || !eventBackendChecked) return;
@@ -875,6 +894,7 @@ export default function Home() {
   }
 
   async function deleteSelectedEvent() {
+    if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return; }
     if (!hasActiveEvent) return;
     const target = selected;
     if (!window.confirm(`Delete ${target.title}? This removes its EventoTron file and linked applet data.`)) return;
@@ -1036,6 +1056,7 @@ export default function Home() {
   }
 
   function addEvent(day?: number, templateId = newEventTemplateId) {
+    if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return; }
     const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
     const template = settings.operationsTemplates.find((item) => item.id === templateId);
     const created: EventoEvent = {
@@ -1256,7 +1277,7 @@ export default function Home() {
           </div>
         </section>
 
-        <aside className={`event-info-sheet ${infoExpanded ? "expanded" : "compact"}`}>
+        <aside inert={!eventBackendChecked} className={`event-info-sheet ${infoExpanded ? "expanded" : "compact"}`}>
           <div className="sheet-header">
             <div>
               <small>INFORMATION TAB</small>

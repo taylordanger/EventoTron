@@ -2,8 +2,9 @@
 
 import { SuiteChrome } from "../SuiteChrome";
 import { OperationsTicker } from "../OperationsTicker";
-import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
-import { readEventContext, type EventoEventContext } from "../event-context";
+import { saveSuiteAppletState } from "../event-app-state";
+import { readSuiteEventBundle } from "../event-bundle";
+import { type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
@@ -774,6 +775,7 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [appletSaveStatus, setAppletSaveStatus] = useState("READY");
+  const [restoreVerified, setRestoreVerified] = useState(false);
   const [linkedSuiteEventId, setLinkedSuiteEventId] = useState("");
   const [linkedSuiteEvent, setLinkedSuiteEvent] = useState<EventoEventContext | null>(null);
   const [timezone, setTimezone] = useState("America/Los_Angeles");
@@ -812,11 +814,12 @@ export default function Home() {
             ? source
             : "";
         const linkedEventId = params.get("event");
+        let linkedContext: EventoEventContext | null = null;
         if (linkedEventId) {
-          try {
-            const saved = await readSuiteAppletState<Project>(linkedEventId, "tabletron");
-            if (saved) next = applySettingsToProject(normalizeProject(saved), suiteSettings);
-          } catch {}
+          const bundle = await readSuiteEventBundle<Project>(linkedEventId);
+          if (!bundle) throw new Error("Event file was removed");
+          linkedContext = bundle.event;
+          next = bundle.applets.tabletron ? applySettingsToProject(normalizeProject(bundle.applets.tabletron), suiteSettings) : defaultProject(suiteSettings);
         }
         if (transferId) {
           const response = await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}`);
@@ -901,13 +904,13 @@ export default function Home() {
           setEventModal(true);
           window.history.replaceState({}, "", window.location.pathname);
         }
-        const linkedContext = readEventContext(linkedEventId);
         if (linkedContext) {
           setLinkedSuiteEventId(linkedContext.id);
           setLinkedSuiteEvent(linkedContext);
           next = hydrateForEvent(next, linkedContext, suiteSettings);
         }
         setProject(next);
+        setRestoreVerified(true);
         setSavedAt(raw ? new Date() : null);
       } catch {
         setProject(defaultProject(suiteSettings));
@@ -920,7 +923,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !restoreVerified) return;
     const timer = window.setTimeout(() => {
       try {
         localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
@@ -934,7 +937,7 @@ export default function Home() {
       }
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [project, loaded]);
+  }, [project, loaded, restoreVerified]);
 
   useEffect(() => {
     if (!notice) return;
@@ -955,6 +958,7 @@ export default function Home() {
     }));
   }
   function save() {
+    if (!restoreVerified) { setAppletSaveStatus("NOT ON SERVER"); return; }
     try {
       localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
       setAppletSaveStatus("SAVING");

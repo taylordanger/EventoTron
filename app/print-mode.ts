@@ -29,7 +29,7 @@ export function printReport(title?: string) {
       document.documentElement.classList.remove("eventotron-printing");
       document.title = originalTitle;
     }, 500);
-  }, 80);
+  });
 }
 
 export function saveReportPdf(title?: string) {

@@ -5,6 +5,7 @@ import { withRole } from "../_lib/auth";
 import { readLocalAppletState } from "../event-app-state/local-store";
 import { readLocalEvents } from "../events/local-store";
 import { readLocalSettings } from "../settings/local-store";
+import { settingsWithCalendarSources } from "../_lib/calendar-source-store";
 
 const appNames = ["tabletron", "foodotron", "scheduluotron"] as const;
 
@@ -15,6 +16,7 @@ function databaseUnavailable(error: unknown) {
 
 function rowToEvent(row: typeof suiteEvents.$inferSelect) {
   return {
+    ...(row.payload as Record<string, unknown>),
     id: row.id,
     title: row.title,
     date: row.date,
@@ -38,6 +40,7 @@ function rowToEvent(row: typeof suiteEvents.$inferSelect) {
     paymentNotes: row.paymentNotes,
     quoteEnteredBy: row.quoteEnteredBy,
     requestedItems: row.requestedItems,
+    revision: row.updatedAt,
   };
 }
 
@@ -74,7 +77,7 @@ export const GET = withRole("staff", async (request: Request) => {
 
     return Response.json({
       event: rowToEvent(event),
-      settings: settings?.payload ?? null,
+      settings: await settingsWithCalendarSources(db, settings?.payload),
       applets: appletPayloads(states),
       updatedAt: [event.updatedAt, settings?.updatedAt, ...states.map((state) => state.updatedAt)]
         .filter(Boolean)

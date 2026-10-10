@@ -45,7 +45,7 @@ test("the sync effect re-runs once the calendar sources have loaded", async () =
   // sources and then skip every later pass in a hidden tab, syncing nothing.
   const source = await page();
   assert.match(source, /const calendarSourceKey = useMemo\(/, "there is no stable key for the feed set");
-  assert.match(source, /\}, \[calendarSourceKey\]\);/, "the sync effect is not keyed to the sources it needs");
+  assert.match(source, /\}, \[calendarSourceKey, settingsBackendChecked\]\);/, "the sync effect must wait for authoritative sources before running");
 });
 
 test("feeds are refreshed one at a time", async () => {

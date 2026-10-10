@@ -10,6 +10,9 @@ import {
   suiteScheduleItems,
   suiteSchemaMigrations,
   suiteSettings,
+  suiteCalendarSources,
+  suiteUsers,
+  suiteCalendarOAuthAccounts,
   tabletronEvents,
 } from "@/db/schema";
 
@@ -28,6 +31,10 @@ export async function GET() {
       transferRows,
       calendarRows,
       settingsRows,
+      sourceRows,
+      userRows,
+      oauthRows,
+      appletCoverage,
     ] = await Promise.all([
       db.select().from(suiteSchemaMigrations).orderBy(asc(suiteSchemaMigrations.id)),
       db.select({ value: count() }).from(suiteEvents),
@@ -39,16 +46,22 @@ export async function GET() {
       db.select({ value: count() }).from(mealTransfers),
       db.select({ value: count() }).from(suiteCalendarEvents),
       db.select({ value: count() }).from(suiteSettings),
+      db.select({ value: count() }).from(suiteCalendarSources),
+      db.select({ value: count() }).from(suiteUsers),
+      db.select({ value: count() }).from(suiteCalendarOAuthAccounts),
+      db.select({ appName: suiteAppletStates.appName, value: count() }).from(suiteAppletStates).groupBy(suiteAppletStates.appName),
     ]);
     const applied = migrations.map((migration) => migration.id);
     const schemaReady = applied.includes(EXPECTED_SCHEMA_MIGRATION);
     const payload = {
       status: schemaReady ? "ready" : "migration-required",
       service: "eventotron",
+      scope: "backend",
       version: "0.1.0",
       checkedAt: new Date().toISOString(),
       latencyMs: Date.now() - startedAt,
       database: "connected",
+      applets: Object.fromEntries(appletCoverage.map((row) => [row.appName, row.value])),
       schema: {
         expected: EXPECTED_SCHEMA_MIGRATION,
         current: applied.at(-1) ?? null,
@@ -64,6 +77,9 @@ export async function GET() {
         transfers: transferRows[0]?.value ?? 0,
         calendarEvents: calendarRows[0]?.value ?? 0,
         settings: settingsRows[0]?.value ?? 0,
+        calendarSources: sourceRows[0]?.value ?? 0,
+        users: userRows[0]?.value ?? 0,
+        oauthAccounts: oauthRows[0]?.value ?? 0,
       },
     };
     return Response.json(payload, {

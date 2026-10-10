@@ -357,7 +357,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(readme, /Private Alpha/);
   assert.match(readme, /PRIVATE_ALPHA_RUNBOOK\.md/);
   assert.match(readme, /PRODUCTION_ROADMAP\.md/);
-  assert.match(masterReport, /printReport\(`?\$\{event\.title\} Master Report/);
+  assert.match(masterReport, /printReport\(reportTitle\)/);
   assert.match(foodotron, /printReport\(`\$\{meal\.name\} Foodotron Shopping Report/);
   assert.match(tabletron, /printing-report/);
   assert.match(scheduluotron, /printReport\(`\$\{plan\.eventName\} Scheduluotron Day Sheet/);
@@ -401,7 +401,7 @@ test("print report contracts keep report previews and print mode aligned", async
   assert.match(styles, /break-inside: avoid/);
   assert.match(foodotron, /disabled=\{!meal\} onClick=\{printMeal\}/);
   assert.match(foodotron, /meal\.name\} Foodotron Shopping Report/);
-  assert.match(masterReport, /event\.title\} Master Report/);
+  assert.match(masterReport, /COPY REPORT LINK/);
   assert.match(tabletron, /event\.name\} Tabletron Operations Report/);
   assert.match(scheduluotron, /plan\.eventName\} Scheduluotron Day Sheet/);
   assert.match(tabletron, /EXPORT SETUP SHEET/);

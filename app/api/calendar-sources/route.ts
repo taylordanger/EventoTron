@@ -1,27 +1,16 @@
 import { asc, eq, gte } from "drizzle-orm";
 import { getDb } from "@/db";
-import { suiteCalendarEvents, suiteCalendarSources } from "@/db/schema";
+import { suiteCalendarEvents, suiteCalendarSources, suiteSettings } from "@/db/schema";
 import { extractGoogleCalendarIds, googleCalendarFeedUrl } from "@/app/suite-settings";
 import { withRole } from "../_lib/auth";
 import { getValidAccessToken, type TokenEnv } from "../_lib/calendar-oauth-accounts";
 import { fetchGoogleCalendarEvents } from "../_lib/google-oauth";
 import { fetchMicrosoftCalendarEvents } from "../_lib/microsoft-oauth";
+import { normalizeSource, calendarConfiguration } from "@/app/calendar-source-state";
+import type { CalendarSource as CalendarSourceInput } from "@/app/suite-settings";
 
 type CalendarProvider = "google" | "outlook" | "ical" | "work";
 
-type CalendarSourceInput = {
-  id: string;
-  name: string;
-  provider: CalendarProvider;
-  url: string;
-  enabled: boolean;
-  color: string;
-  syncMinutes: number;
-  lastSynced?: string;
-  lastError?: string;
-  eventCount?: number;
-  oauthAccountId?: string;
-};
 
 export type ParsedCalendarEvent = {
   externalId: string;
@@ -54,7 +43,6 @@ type CalendarImportSummary = {
   }>;
 };
 
-const providers = new Set<CalendarProvider>(["google", "outlook", "ical", "work"]);
 const maxRecurringOccurrences = 730;
 const defaultRecurringHorizonDays = 730;
 
@@ -64,31 +52,6 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function normalizeSource(value: unknown): CalendarSourceInput | null {
-  const source = record(value);
-  if (!source) return null;
-  const id = String(source.id ?? "").trim();
-  const name = String(source.name ?? "").trim();
-  const provider = String(source.provider ?? "ical") as CalendarProvider;
-  const url = String(source.url ?? "").trim();
-  const color = String(source.color ?? "#75ff47").trim();
-  const syncMinutes = Math.max(5, Math.min(1440, Number(source.syncMinutes) || 15));
-  if (!id || id.length > 180 || !name || name.length > 240 || !providers.has(provider)) return null;
-  if (!/^#[0-9a-f]{6}$/i.test(color)) return null;
-  return {
-    id,
-    name,
-    provider,
-    url,
-    enabled: source.enabled !== false,
-    color,
-    syncMinutes,
-    lastSynced: typeof source.lastSynced === "string" ? source.lastSynced : undefined,
-    lastError: typeof source.lastError === "string" ? source.lastError : undefined,
-    eventCount: Number.isFinite(Number(source.eventCount)) ? Number(source.eventCount) : undefined,
-    oauthAccountId: typeof source.oauthAccountId === "string" && source.oauthAccountId ? source.oauthAccountId : undefined,
-  };
-}
 
 function validateFeedUrl(value: string) {
   if (!/^https?:\/\//i.test(value)) {
@@ -277,8 +240,9 @@ async function permanentCalendarEventId(sourceId: string, externalId: string) {
   return `calevt_${Array.from(digest.slice(0, 12), (value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
-async function upsertSource(source: CalendarSourceInput, now: string) {
+async function upsertSource(source: CalendarSourceInput, now: string, syncResult = false) {
   const db = await getDb();
+  const config = calendarConfiguration(source);
   await db.insert(suiteCalendarSources).values({
     id: source.id,
     name: source.name,
@@ -287,25 +251,16 @@ async function upsertSource(source: CalendarSourceInput, now: string) {
     enabled: source.enabled,
     color: source.color,
     syncMinutes: source.syncMinutes,
-    lastSynced: source.lastSynced ?? null,
-    lastError: source.lastError ?? null,
-    payload: source,
+    lastSynced: syncResult ? source.lastSynced ?? null : null,
+    lastError: syncResult ? source.lastError ?? null : null,
+    payload: config,
     createdAt: now,
     updatedAt: now,
   }).onConflictDoUpdate({
     target: suiteCalendarSources.id,
-    set: {
-      name: source.name,
-      provider: source.provider,
-      url: source.url,
-      enabled: source.enabled,
-      color: source.color,
-      syncMinutes: source.syncMinutes,
-      lastSynced: source.lastSynced ?? null,
-      lastError: source.lastError ?? null,
-      payload: source,
-      updatedAt: now,
-    },
+    set: syncResult ? {
+      lastSynced: source.lastSynced ?? null, lastError: source.lastError ?? null, updatedAt: now,
+    } : { ...config, payload: config, updatedAt: now },
   });
   return db;
 }
@@ -371,7 +326,7 @@ async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEv
     lastError: "",
     eventCount: events.length,
   };
-  const db = await upsertSource(syncedSource, now);
+  const db = await getDb();
   const existing = await db.select({ id: suiteCalendarEvents.id })
     .from(suiteCalendarEvents)
     .where(eq(suiteCalendarEvents.sourceId, source.id));
@@ -406,6 +361,7 @@ async function persistSync(source: CalendarSourceInput, events: ParsedCalendarEv
   await Promise.all(existing.filter((row) => !retained.has(row.id)).map((row) =>
     db.delete(suiteCalendarEvents).where(eq(suiteCalendarEvents.id, row.id)),
   ));
+  await upsertSource(syncedSource, now, true);
   return {
     source: syncedSource,
     events: rows.map((event) => eventForClient(event, syncedSource)),
@@ -502,7 +458,7 @@ async function syncOAuthSource(source: CalendarSourceInput, env: TokenEnv) {
     return Response.json({ ...persisted, persisted: true });
   } catch (error) {
     const failedSource = { ...source, lastError: error instanceof Error ? error.message : "Calendar sync failed" };
-    await upsertSource(failedSource, new Date().toISOString()).catch(() => undefined);
+    await upsertSource(failedSource, new Date().toISOString(), true).catch(() => undefined);
     return Response.json(
       { error: error instanceof Error ? error.message : "Calendar sync failed" },
       { status: 502 },
@@ -512,7 +468,12 @@ async function syncOAuthSource(source: CalendarSourceInput, env: TokenEnv) {
 
 export const POST = withRole("admin", async (request: Request) => {
   const body = record(await request.json().catch(() => null));
-  const source = normalizeSource(body?.source);
+  let source = normalizeSource(body?.source);
+  if (source) {
+    const db = await getDb();
+    const row = await db.select().from(suiteCalendarSources).where(eq(suiteCalendarSources.id, source.id)).get();
+    if (row) source = normalizeSource({ ...record(row.payload), id: row.id, name: row.name, provider: row.provider, url: row.url, enabled: row.enabled, color: row.color, syncMinutes: row.syncMinutes, lastSynced: row.lastSynced ?? undefined, lastError: row.lastError ?? undefined });
+  }
   if (source?.oauthAccountId) {
     const { env } = await import("cloudflare:workers");
     return syncOAuthSource(source, env as TokenEnv);
@@ -530,9 +491,10 @@ export const POST = withRole("admin", async (request: Request) => {
       cache: "no-store",
       headers: { Accept: "text/calendar, text/plain;q=0.9, */*;q=0.1" },
     });
-    if (!response.ok) return Response.json({ error: `Calendar feed returned ${response.status}` }, { status: 502 });
+    if (!response.ok) throw new Error(`Calendar feed returned ${response.status}`);
     const text = await response.text();
     if (text.length > 5_000_000) return Response.json({ error: "Calendar feed is too large to import." }, { status: 413 });
+    if (!text.includes("BEGIN:VCALENDAR")) throw new Error("The feed did not return an iCalendar document");
     const events = parseIcs(text);
     if (!source) return Response.json({ events });
     const persisted = await persistSync({ ...source, url }, events);
@@ -540,7 +502,7 @@ export const POST = withRole("admin", async (request: Request) => {
   } catch (error) {
     if (source) {
       const failedSource = { ...source, lastError: error instanceof Error ? error.message : "Calendar feed could not be read" };
-      await upsertSource(failedSource, new Date().toISOString()).catch(() => undefined);
+      await upsertSource(failedSource, new Date().toISOString(), true).catch(() => undefined);
     }
     return Response.json({ error: error instanceof Error ? error.message : "Calendar feed could not be read" }, { status: 500 });
   }
@@ -553,6 +515,13 @@ export const DELETE = withRole("admin", async (request: Request) => {
     const db = await getDb();
     await db.delete(suiteCalendarEvents).where(eq(suiteCalendarEvents.sourceId, sourceId));
     await db.delete(suiteCalendarSources).where(eq(suiteCalendarSources.id, sourceId));
+    const settings = await db.select().from(suiteSettings).where(eq(suiteSettings.id, "workspace")).get();
+    const payload = record(settings?.payload);
+    if (settings && Array.isArray(payload?.calendarSources)) {
+      const { calendarSources: _legacy, ...canonicalSettings } = payload;
+      void _legacy;
+      await db.update(suiteSettings).set({ payload: canonicalSettings, updatedAt: new Date().toISOString() }).where(eq(suiteSettings.id, "workspace"));
+    }
     return Response.json({ deleted: true, sourceId });
   } catch (error) {
     return Response.json({

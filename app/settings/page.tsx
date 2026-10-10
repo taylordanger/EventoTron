@@ -6,6 +6,7 @@ import { OperationsTicker } from "../OperationsTicker";
 import type { SuiteRole, SuiteUser, SuiteUserStatus } from "../api/_lib/users";
 import type { OAuthAccountSummary } from "../api/_lib/calendar-oauth-accounts";
 import { saveStatusHint, saveStatusTone } from "../save-status";
+import { calendarReadiness, settingsConfigurationFingerprint } from "../calendar-source-state";
 import {
   SETTINGS_STORE_KEY,
   calendarProviderLabels,
@@ -27,6 +28,7 @@ type SystemHealth = {
   checkedAt: string;
   latencyMs: number;
   database: "connected" | "unavailable";
+  applets?: Record<string, number>;
   schema: { expected: string; current: string | null; applied: string[] };
   records: {
     events: number;
@@ -178,6 +180,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SuiteSettings>(defaultSuiteSettings);
   const [status, setStatus] = useState("READY");
   const [loaded, setLoaded] = useState(false);
+  const [backendChecked, setBackendChecked] = useState(false);
+  const savedSettingsRef = useRef("");
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthChecking, setHealthChecking] = useState(true);
   const [calendarSyncing, setCalendarSyncing] = useState<Record<string, boolean>>({});
@@ -202,19 +206,20 @@ export default function SettingsPage() {
   const settingsJson = useMemo(() => JSON.stringify(settings, null, 2), [settings]);
   const backupAgeDays = daysSince(backupCheckpoint?.exportedAt ?? null);
   const alphaReadiness = useMemo<AlphaReadinessItem[]>(() => {
-    const syncedCalendarEvents = calendarImportHistory.reduce((total, source) => total + source.eventCount, 0);
+    const calendarStatus = calendarReadiness(settings.calendarSources);
     const backupFresh = backupCheckpoint && backupAgeDays !== null && backupAgeDays <= 7;
     const eventCount = health?.records?.events ?? 0;
     const auditCount = health?.records?.eventAudit ?? 0;
     const appletRecords = health?.records
       ? health.records.appletStates + health.records.foodotronMeals + health.records.tabletronEvents + health.records.scheduleItems
       : 0;
+    const appletCoverage = ["tabletron", "foodotron", "scheduluotron"].filter((app) => (health?.applets?.[app] ?? 0) > 0).length;
     return [
       {
         key: "system",
         label: "System",
         state: health?.status === "ready" ? "ready" : healthChecking ? "pending" : "attention",
-        value: healthChecking ? "Checking" : health?.status === "ready" ? "Ready" : "Needs check",
+        value: healthChecking ? "Checking" : health?.status === "ready" ? "Backend ready" : "Needs check",
       },
       {
         key: "backup",
@@ -237,8 +242,7 @@ export default function SettingsPage() {
       {
         key: "calendar",
         label: "Calendar",
-        state: syncedCalendarEvents > 0 ? "ready" : settings.calendarSources.length ? "attention" : "pending",
-        value: syncedCalendarEvents > 0 ? `${syncedCalendarEvents} synced` : settings.calendarSources.length ? "Sync due" : "Not connected",
+        ...calendarStatus,
       },
       {
         key: "audit",
@@ -249,17 +253,18 @@ export default function SettingsPage() {
       {
         key: "applets",
         label: "Applets",
-        state: appletRecords > 0 ? "ready" : eventCount > 0 ? "attention" : "pending",
-        value: `${appletRecords} records`,
+        state: appletCoverage === 3 ? "ready" : eventCount > 0 ? "attention" : "pending",
+        value: `${appletCoverage}/3 applets · ${appletRecords} records`,
       },
     ];
-  }, [backupAgeDays, backupCheckpoint, calendarImportHistory, health, healthChecking, settings.calendarSources.length]);
+  }, [backupAgeDays, backupCheckpoint, health, healthChecking, settings.calendarSources]);
   const alphaReadyCount = alphaReadiness.filter((item) => item.state === "ready").length;
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       const raw = localStorage.getItem(SETTINGS_STORE_KEY);
-      let restored = raw ? mergeSuiteSettings(JSON.parse(raw) as Partial<SuiteSettings>) : defaultSuiteSettings;
+      let restored = defaultSuiteSettings;
+      try { if (raw) restored = mergeSuiteSettings(JSON.parse(raw) as Partial<SuiteSettings>); } catch {}
       const rawBackupCheckpoint = localStorage.getItem(BACKUP_CHECKPOINT_KEY);
       if (rawBackupCheckpoint) {
         try {
@@ -269,21 +274,25 @@ export default function SettingsPage() {
       }
       try {
         const response = await fetch("/api/settings");
+        if (!response.ok && response.status !== 404) throw new Error("Settings load failed");
         if (response.ok) {
           const data = (await response.json()) as { payload?: Partial<SuiteSettings> };
           restored = mergeSuiteSettings(data.payload ?? restored);
           setStatus("DATABASE READY");
         }
         const calendarResponse = await fetch("/api/calendar-sources", { cache: "no-store" });
+        if (!calendarResponse.ok) throw new Error("Calendar load failed");
         if (calendarResponse.ok) {
           const calendarData = await calendarResponse.json() as {
             sources?: SuiteSettings["calendarSources"];
             importHistory?: CalendarImportSummary[];
           };
-          if (calendarData.sources?.length) restored = { ...restored, calendarSources: calendarData.sources };
+          if (calendarData.sources) restored = { ...restored, calendarSources: calendarData.sources };
           setCalendarImportHistory(calendarData.importHistory ?? []);
         }
-      } catch {}
+        savedSettingsRef.current = settingsConfigurationFingerprint(restored);
+        setBackendChecked(true);
+      } catch { setStatus("NOT ON SERVER"); }
       setSettings(restored);
       setLoaded(true);
     }, 0);
@@ -344,6 +353,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!loaded) return;
     localStorage.setItem(SETTINGS_STORE_KEY, JSON.stringify(settings));
+    if (!backendChecked) return;
+    const fingerprint = settingsConfigurationFingerprint(settings);
+    if (savedSettingsRef.current === fingerprint) return;
     const timer = window.setTimeout(() => {
       setStatus("SAVING");
       fetch("/api/settings", {
@@ -353,19 +365,13 @@ export default function SettingsPage() {
       })
         .then(async (response) => {
           if (!response.ok) throw new Error("Settings save failed");
-          await Promise.all(settings.calendarSources.map((source) => fetch("/api/calendar-sources", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ source }),
-          }).then((calendarResponse) => {
-            if (!calendarResponse.ok) throw new Error("Calendar connection save failed");
-          })));
+          savedSettingsRef.current = fingerprint;
           setStatus("SAVED");
         })
         .catch(() => setStatus("NOT ON SERVER"));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [settings, loaded]);
+  }, [settings, loaded, backendChecked]);
 
   function update(patch: Partial<SuiteSettings>) {
     setSettings((current) => ({ ...current, ...patch }));
@@ -1089,8 +1095,8 @@ export default function SettingsPage() {
           <section className="settings-card settings-health-card">
             <div className="settings-card-heading"><span>09</span><h3>System Status</h3><button onClick={() => void checkHealth()} disabled={healthChecking}>{healthChecking ? "CHECKING" : "CHECK AGAIN"}</button></div>
             <div className={`health-banner health-${health?.status ?? "checking"}`}>
-              <small>EVENTOTRON READINESS</small>
-              <b>{healthChecking ? "CHECKING" : health?.status === "ready" ? "READY" : "ATTENTION REQUIRED"}</b>
+              <small>BACKEND STATUS</small>
+              <b>{healthChecking ? "CHECKING" : health?.status === "ready" ? "BACKEND READY" : "ATTENTION REQUIRED"}</b>
             </div>
             <div className="health-grid">
               <div><small>DATABASE</small><b>{health?.database?.toUpperCase() ?? "CHECKING"}</b></div>

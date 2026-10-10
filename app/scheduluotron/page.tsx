@@ -2,8 +2,9 @@
 
 import { SuiteChrome } from "../SuiteChrome";
 import { OperationsTicker } from "../OperationsTicker";
-import { readSuiteAppletState, saveSuiteAppletState } from "../event-app-state";
-import { readEventContext, type EventoEventContext } from "../event-context";
+import { saveSuiteAppletState } from "../event-app-state";
+import { readSuiteEventBundle } from "../event-bundle";
+import { type EventoEventContext } from "../event-context";
 import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type OperationsTemplate } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
@@ -257,16 +258,16 @@ export default function Scheduluotron() {
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       const eventId = new URLSearchParams(window.location.search).get("event");
-      const context = readEventContext(eventId);
+      if (!eventId) return;
+      let bundle;
+      try { bundle = await readSuiteEventBundle<unknown, unknown, SchedulePlan>(eventId); }
+      catch { setAppletSaveStatus("NOT ON SERVER"); return; }
+      const context = bundle?.event;
       if (!context) return;
-      setActiveEvent(context);
       const settings = await loadSuiteSettings();
       const template = settings.operationsTemplates.find((item) => item.id === context.operationsTemplateId);
       const owners = settings.staff.length ? settings.staff : ["Ops lead"];
-      let saved: SchedulePlan | null = null;
-      try {
-        saved = await readSuiteAppletState<SchedulePlan>(context.id, "scheduluotron");
-      } catch {}
+      const saved = bundle!.applets.scheduluotron;
       const seededBlocks = saved && Array.isArray(saved.blocks)
         ? saved.blocks
         : templateScheduleBlocks(template, context, owners) ?? currentEventBriefBlocks(context);
@@ -280,6 +281,7 @@ export default function Scheduluotron() {
         activeId: saved?.activeId ?? seededBlocks[0]?.id ?? current.activeId,
         blocks: seededBlocks,
       }));
+      setActiveEvent(context);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);

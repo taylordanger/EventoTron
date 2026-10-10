@@ -8,6 +8,8 @@ import { readSuiteAppletState } from "../event-app-state";
 import { readEventContext, type EventoEventContext } from "../event-context";
 import { loadSuiteSettings, mergeSuiteSettings, SETTINGS_STORE_KEY, type OperationsTemplate, type SuiteRoomSetting, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
+import { buildMealShopping, type ShoppingIngredient } from "../food-shopping";
+import { sectionSeatLabels, type SeatingSection } from "../tabletron/seat-labels";
 
 type RoomAssignment = {
   roomId: string;
@@ -20,13 +22,14 @@ type RoomAssignment = {
   notes: string;
 };
 type LayoutTable = { id: string; x: number; y: number };
-type LayoutObject = { id: string; templateId: string; x: number; y: number };
+type LayoutObject = { id: string; templateId: string; x: number; y: number; rotation?: number };
 type LayoutEntrance = { id: string; name: string; wall: "top" | "right" | "bottom" | "left"; offset: number; width: number };
 type TableLayout = {
   id: string;
   name: string;
   tables?: LayoutTable[];
   objects?: LayoutObject[];
+  seating?: SeatingSection[];
 };
 type TableProject = {
   rooms?: Array<{
@@ -50,9 +53,7 @@ type TableProject = {
     };
   }>;
 };
-type FoodOffer = { store: string; packageQty: number; packageUnit?: string; price: number; note?: string };
-type FoodIngredient = { name: string; qty: number; unit: string; offers?: FoodOffer[] };
-type FoodRecipe = { id: string; name: string; baseServings: number; ingredients: FoodIngredient[] };
+type FoodRecipe = { id: string; name: string; baseServings: number; ingredients: ShoppingIngredient[] };
 type FoodPlan = {
   recipes?: FoodRecipe[];
   meals?: Array<{ id: string; name: string; date: string; guests: number; recipes: Array<{ recipeId: string; servings: number }>; tabletronEventId?: string }>;
@@ -71,6 +72,7 @@ type ReportLayout = {
   tables: LayoutTable[];
   objects: Array<LayoutObject & { name: string; width: number; height: number }>;
   entrances: LayoutEntrance[];
+  seating: SeatingSection[];
 };
 type ReportRoomReference = Pick<SuiteRoomSetting, "seats" | "squareFeet" | "features" | "rentalNotes" | "policyNotes">;
 type ReportRoom = { name: string; details: string; checklist: string[]; layout?: ReportLayout; reference?: ReportRoomReference };
@@ -131,7 +133,7 @@ function groceryLines(
   meal: NonNullable<FoodPlan["meals"]>[number] | undefined,
   linkedFood: NonNullable<NonNullable<TableProject["events"]>[number]["food"]> | undefined,
 ) {
-  if (linkedFood?.stores?.length) {
+  if ((!food || !meal) && linkedFood?.stores?.length) {
     return linkedFood.stores.flatMap((store) =>
       store.items.map((item) => ({
         ingredient: item.ingredient,
@@ -144,27 +146,14 @@ function groceryLines(
     );
   }
   if (!food || !meal) return [];
-  const lines: GroceryLine[] = [];
-  for (const entry of meal.recipes) {
-    const recipe = food.recipes?.find((item) => item.id === entry.recipeId);
-    if (!recipe) continue;
-    const multiplier = entry.servings / Math.max(1, recipe.baseServings);
-    for (const ingredient of recipe.ingredients) {
-      const required = ingredient.qty * multiplier;
-      const offers = (ingredient.offers ?? []).filter((offer) => offer.packageQty > 0);
-      const best = [...offers].sort((a, b) => a.price - b.price)[0];
-      const packageCount = best ? Math.max(1, Math.ceil(required / best.packageQty)) : 0;
-      lines.push({
-        ingredient: ingredient.name,
-        needed: `${Number(required.toFixed(2))} ${ingredient.unit}`,
-        purchase: best ? `${best.packageQty} ${best.packageUnit ?? ingredient.unit}${best.note ? ` · ${best.note}` : ""}` : "Add price / package",
-        store: best?.store ?? "Needs price",
-        quantity: best ? `${packageCount} container${packageCount === 1 ? "" : "s"}` : "—",
-        cost: best ? packageCount * best.price : 0,
-      });
-    }
-  }
-  return lines;
+  return buildMealShopping(food.recipes ?? [], meal.recipes).map(({ item, required, best }) => ({
+    ingredient: item.name,
+    needed: `${Number(required.toFixed(2))} ${item.unit}`,
+    purchase: best ? `${best.packageQty} ${best.packageUnit}${best.note ? ` · ${best.note}` : ""}` : "Needs price or conversion",
+    store: best?.store ?? "Unpriced",
+    quantity: best ? `${best.packages} container${best.packages === 1 ? "" : "s"}` : "—",
+    cost: best?.cost ?? 0,
+  })).sort((a, b) => a.store.localeCompare(b.store) || a.ingredient.localeCompare(b.ingredient));
 }
 
 function buildReport(
@@ -195,14 +184,15 @@ function buildReport(
             };
           }),
           entrances: room?.entrances ?? [],
+          seating: layout.seating ?? [],
         }
       : undefined;
     return {
       name: room?.name ?? "Unassigned room",
       details: `${assignment.purpose || "Event space"} · ${room?.width ?? "?"} x ${room?.height ?? "?"} FT · ${layout?.name ?? "Layout not selected"}`,
       checklist: [
-        `Setup ${assignment.setupTime || "—"} · guests ${assignment.guestTime || "—"}`,
-        `End ${assignment.endTime || "—"} · teardown ${assignment.teardownTime || "—"}`,
+        `Setup ${formatRegularTime(assignment.setupTime) || "—"} · guests ${formatRegularTime(assignment.guestTime) || "—"}`,
+        `End ${formatRegularTime(assignment.endTime) || "—"} · teardown ${formatRegularTime(assignment.teardownTime) || "—"}`,
         assignment.notes || "No special room notes",
       ],
       layout: layoutPicture,
@@ -217,9 +207,10 @@ function buildReport(
         checklist: ["Confirm room, access path, and setup time."],
         reference: findRoomReference(settings, event.space),
       }];
-  const furniture = (table?.templates ?? []).map((item) => `${item.name} · ${item.width} x ${item.height} FT`);
+  const used = roomRows.flatMap((room) => room.layout?.objects ?? []);
+  const furniture = [...new Set(used.map((item) => item.name))].map((name) => `${used.filter((item) => item.name === name).length} × ${name}`);
   const meal = food?.meals?.find((item) => item.tabletronEventId === event.id || item.name === event.title);
-  const recipeNames = meal?.recipes.map((entry) => food.recipes?.find((recipe) => recipe.id === entry.recipeId)?.name ?? "Recipe") ?? [];
+  const recipeNames = meal?.recipes.map((entry) => food?.recipes?.find((recipe) => recipe.id === entry.recipeId)?.name ?? "Recipe") ?? [];
   const linkedFood = tableEvent?.food;
   return {
     event,
@@ -238,6 +229,16 @@ function buildReport(
 export default function MasterReportPage() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [missing, setMissing] = useState(false);
+  const [preset, setPreset] = useState("full");
+  const [sections, setSections] = useState(["brief", "playbook", "rooms", "schedule", "food"]);
+  const [roomNames, setRoomNames] = useState<string[]>([]);
+  const [compactSummary, setCompactSummary] = useState(false);
+  const [costs, setCosts] = useState(true);
+  const [layouts, setLayouts] = useState(true);
+  const [references, setReferences] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  const [notice, setNotice] = useState("");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -253,6 +254,7 @@ export default function MasterReportPage() {
       if (eventId) {
         try {
           const bundle = await readSuiteEventBundle<TableProject, FoodPlan, SchedulePlan>(eventId);
+          if (!bundle) { setMissing(true); return; }
           if (bundle) {
             event = bundle.event;
             table = bundle.applets.tabletron;
@@ -265,6 +267,7 @@ export default function MasterReportPage() {
             if (bundle.applets.scheduluotron) localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(bundle.applets.scheduluotron));
           }
         } catch {
+          setLoadError(true);
           try {
             settings = await loadSuiteSettings();
             const [savedTable, savedFood, savedSchedule] = await Promise.all([
@@ -275,7 +278,7 @@ export default function MasterReportPage() {
             table = savedTable ?? table;
             food = savedFood ?? food;
             schedule = savedSchedule ?? schedule;
-          } catch {}
+          } catch { setLoadError(true); }
         }
       }
 
@@ -283,7 +286,18 @@ export default function MasterReportPage() {
         setMissing(true);
         return;
       }
-      setReport(buildReport(event, table, food, schedule, settings));
+      const built = buildReport(event, table, food, schedule, settings);
+      const view = params.get("view") ?? "full";
+      const presets: Record<string, string[]> = { full: ["brief", "playbook", "rooms", "schedule", "food"], summary: ["brief", "rooms", "schedule", "food"], shopping: ["food"], rooms: ["rooms"], schedule: ["schedule"] };
+      setPreset(view in presets ? view : "custom");
+      setSections(params.has("sections") ? (params.get("sections") ?? "").split(",").filter((key) => presets.full.includes(key)) : presets[view] ?? presets.full);
+      setRoomNames(params.has("rooms") ? params.getAll("rooms") : built.rooms.map((room) => room.name));
+      setCompactSummary(params.get("detail") === "summary" || view === "summary");
+      setCosts(params.has("costs") ? params.get("costs") === "1" : built.includeCosts);
+      setLayouts(params.has("layouts") ? params.get("layouts") === "1" : view !== "summary" && built.includeLayout);
+      setReferences(params.get("references") === "1");
+      setRecipient(params.get("recipient") ?? "");
+      setReport(built);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -299,24 +313,67 @@ export default function MasterReportPage() {
   if (!report) return <main className="master-report-page report-empty">Preparing master report…</main>;
 
   const { event } = report;
+  const show = (key: string) => sections.includes(key);
+  function choosePreset(value: string) {
+    const presets: Record<string, string[]> = { full: ["brief", "playbook", "rooms", "schedule", "food"], summary: ["brief", "rooms", "schedule", "food"], shopping: ["food"], rooms: ["rooms"], schedule: ["schedule"] };
+    setPreset(value);
+    if (presets[value]) setSections(presets[value]);
+    setCompactSummary(value === "summary");
+    setLayouts(value === "rooms" || (value === "full" && report!.includeLayout));
+  }
+  function toggleSection(key: string) {
+    setPreset("custom");
+    setSections((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
+  }
+  async function copyLink() {
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.searchParams.set("event", event.id);
+    url.searchParams.set("view", preset);
+    url.searchParams.set("sections", sections.join(","));
+    url.searchParams.set("detail", compactSummary ? "summary" : "compact");
+    url.searchParams.set("costs", costs ? "1" : "0");
+    url.searchParams.set("layouts", layouts ? "1" : "0");
+    url.searchParams.set("references", references ? "1" : "0");
+    url.searchParams.set("recipient", recipient);
+    // An explicit empty value keeps deselected rooms deselected on reopening.
+    (roomNames.length ? roomNames : [""]).forEach((name) => url.searchParams.append("rooms", name));
+    try { await navigator.clipboard.writeText(url.toString()); setNotice("Report link copied"); }
+    catch { setNotice("Link ready in the address bar"); }
+    window.history.replaceState(null, "", url);
+  }
+  const reportTitle = `${event.title} ${preset === "shopping" ? "Shopping List" : preset === "rooms" ? "Room Setup" : preset === "schedule" ? "Run of Show" : compactSummary ? "Event Summary" : "Event Report"}`;
   const total = report.groceries.reduce((sum, line) => sum + line.cost, 0);
   return (
-    <main className={`master-report-page ${report.includeCosts ? "" : "report-hide-costs"}`}>
+    <main className={`master-report-page report-compact ${sections.length === 1 && show("rooms") ? "report-rooms-only" : ""} ${compactSummary ? "report-summary" : ""} ${costs ? "" : "report-hide-costs"}`}>
+      <div className="report-builder">
+        <label>Report<select aria-label="Report" value={preset} onChange={(e) => choosePreset(e.target.value)}><option value="full">Complete event</option><option value="summary">Event summary</option><option value="shopping">Shopping list</option><option value="rooms">Room setup</option><option value="schedule">Run of show</option><option value="custom">Custom</option></select></label>
+        <label>Prepared for<input value={recipient} placeholder="Department or recipient" onChange={(e) => setRecipient(e.target.value)} /></label>
+        <label>Detail<select aria-label="Detail" value={compactSummary ? "summary" : "compact"} onChange={(e) => setCompactSummary(e.target.value === "summary")}><option value="compact">Compact detail</option><option value="summary">Summary</option></select></label>
+        <fieldset><legend>Sections</legend>{[["brief", "Event brief"], ["playbook", "Playbook"], ["rooms", "Room setup"], ["schedule", "Run of show"], ["food", "Shopping list"]].map(([key, label]) => <label key={key}><input type="checkbox" checked={show(key)} onChange={() => toggleSection(key)} />{label}</label>)}</fieldset>
+        <fieldset><legend>Include</legend><label><input type="checkbox" checked={costs} onChange={(e) => setCosts(e.target.checked)} />Costs</label><label><input type="checkbox" checked={layouts} onChange={(e) => setLayouts(e.target.checked)} />Layout diagrams</label><label><input type="checkbox" checked={references} onChange={(e) => setReferences(e.target.checked)} />Facility reference</label></fieldset>
+        {show("rooms") && <fieldset><legend>Rooms</legend>{report.rooms.map((room) => <label key={room.name}><input type="checkbox" checked={roomNames.includes(room.name)} onChange={() => setRoomNames((current) => current.includes(room.name) ? current.filter((name) => name !== room.name) : [...current, room.name])} />{room.name}</label>)}</fieldset>}
+      </div>
       <header className="master-report-header">
         <div>
-          <small>EVENTOTRON // MASTER REPORT</small>
+          <small>EVENTOTRON // {preset === "shopping" ? "SHOPPING LIST" : preset === "rooms" ? "ROOM SETUP" : preset === "schedule" ? "RUN OF SHOW" : compactSummary ? "EVENT SUMMARY" : "EVENT REPORT"}</small>
           <h1>{event.title}</h1>
           <p>{formatDate(event.date)} · {event.space || "Space not assigned"}</p>
+          <p>{event.attendees} guests · {formatRegularTime(event.eventTime) || "Time not set"}{recipient ? ` · Prepared for ${recipient}` : ""}</p>
         </div>
         <div className="master-report-brand"><b>S<sup>3</sup></b><span>EVENTOTRON<br /><small>SHEPPARD SEMICONDUCTOR SYSTEMS</small></span></div>
       </header>
       <div className="master-report-actions">
-        <button className="report-print-button" onClick={() => printReport(`${event.title} Master Report`)}>PRINT MASTER REPORT</button>
-        <button className="report-pdf-button" onClick={() => saveReportPdf(`${event.title} Master Report`)}>SAVE PDF</button>
+        <button disabled={!sections.length || loadError} className="report-print-button" onClick={() => printReport(reportTitle)}>PRINT REPORT</button>
+        <button disabled={!sections.length || loadError} className="report-pdf-button" onClick={() => saveReportPdf(reportTitle)}>SAVE PDF</button>
+        <button onClick={copyLink}>COPY REPORT LINK</button>
         <Link href={`/?event=${encodeURIComponent(event.id)}`}>BACK TO EVENT</Link>
       </div>
+      {notice && <p className="report-builder-notice" role="status">{notice}</p>}
+      {loadError && <p className="report-builder-notice" role="alert">Saved report data could not be verified. Reload before printing.</p>}
+      {!sections.length && <p className="report-builder-notice">No sections selected.</p>}
 
-      <section className="master-report-section">
+      {show("brief") && <section className="master-report-section">
         <div className="master-report-section-heading"><span>01</span><h2>Client and Event Brief</h2></div>
         <div className="report-field-grid">
           <div><small>CONTACT</small><b>{event.contact || "Not entered"}</b></div>
@@ -334,9 +391,9 @@ export default function MasterReportPage() {
           <div><small>PLANNING NOTES</small><p>{event.planningNotes || "No planning notes entered."}</p></div>
           <div><small>STAFFING / MOD</small><p>{event.mod || "No staffing assignment entered."}</p></div>
         </div>
-      </section>
+      </section>}
 
-      <section className="master-report-section report-page-break">
+      {show("playbook") && report.operationsTemplate && <section className="master-report-section">
         <div className="master-report-section-heading"><span>02</span><h2>Operations Playbook</h2></div>
         {report.operationsTemplate ? (
           <>
@@ -375,16 +432,16 @@ export default function MasterReportPage() {
         ) : (
           <div className="report-callout">No operations template is attached to this event. Attach one from the event information sheet to add recurring checklist material here.</div>
         )}
-      </section>
+      </section>}
 
-      <section className="master-report-section report-page-break">
+      {show("rooms") && <section className="master-report-section">
         <div className="master-report-section-heading"><span>03</span><h2>Room Setup Checklist</h2></div>
-        {report.rooms.map((room) => (
+        {report.rooms.filter((room) => roomNames.includes(room.name)).map((room) => (
           <article className="report-room" key={room.name}>
             <h3><span className="report-checkbox" />{room.name}</h3>
             <b>{room.details}</b>
             {room.checklist.map((item) => <p key={item}><span className="report-checkbox" />{item}</p>)}
-            {room.reference && (
+            {references && room.reference && (
               <div className="report-room-reference">
                 <strong>Facility Reference</strong>
                 <div className="report-room-reference-grid">
@@ -402,19 +459,19 @@ export default function MasterReportPage() {
                 ) : null}
               </div>
             )}
-            {report.includeLayout && room.layout && (
+            {layouts && room.layout && (
               <div className="report-layout-figure">
                 <div className="report-layout-figure-heading"><span>LAYOUT PICTURE</span><b>{room.layout.name}</b></div>
                 <div className="report-layout-canvas" style={{ aspectRatio: `${room.layout.width} / ${room.layout.height}` }}>
                   <span className="report-layout-measure report-layout-measure-top">{room.layout.width} FT</span>
                   <span className="report-layout-measure report-layout-measure-side">{room.layout.height} FT</span>
-                  {room.layout.tables.map((table) => (
+                  {room.layout.tables.map((table, index) => (
                     <span
                       className="report-layout-table"
                       key={table.id}
-                      style={{ left: `${(table.x / room.layout!.width) * 100}%`, top: `${(table.y / room.layout!.height) * 100}%` }}
+                      style={{ left: `${(table.x / room.layout!.width) * 100}%`, top: `${(table.y / room.layout!.height) * 100}%`, width: `${6 / room.layout!.width * 100}%` }}
                       title="Table"
-                    />
+                    >{index + 1}</span>
                   ))}
                   {room.layout.objects.map((object) => (
                     <span
@@ -423,11 +480,13 @@ export default function MasterReportPage() {
                       style={{
                         left: `${(object.x / room.layout!.width) * 100}%`,
                         top: `${(object.y / room.layout!.height) * 100}%`,
-                        width: `${((object.width + 4) / room.layout!.width) * 100}%`,
-                        height: `${((object.height + 4) / room.layout!.height) * 100}%`,
+                        width: `${(object.width / room.layout!.width) * 100}%`,
+                        height: `${(object.height / room.layout!.height) * 100}%`,
+                        transform: `translate(-50%, -50%) rotate(${object.rotation ?? 0}deg)`,
                       }}
                     >{object.name}</span>
                   ))}
+                  {room.layout.seating.flatMap((section) => sectionSeatLabels(section).map((seat) => <span className="report-layout-seat" key={`${section.id}-${seat.label}`} style={{ left: `${seat.x / room.layout!.width * 100}%`, top: `${seat.y / room.layout!.height * 100}%`, width: `${section.seatSpacing * .8 / room.layout!.width * 100}%`, height: `${section.rowSpacing * .62 / room.layout!.height * 100}%` }}>{seat.label}</span>))}
                   {room.layout.entrances.map((entrance) => (
                     <span
                       className={`report-layout-entrance ${entrance.wall}`}
@@ -443,10 +502,9 @@ export default function MasterReportPage() {
             )}
           </article>
         ))}
-        <div className="report-subsection"><h3>Furniture and Equipment Library</h3><div className="report-furniture-list">{report.furniture.map((item) => <span key={item}><span className="report-checkbox" />{item}</span>)}</div></div>
-      </section>
+      </section>}
 
-      <section className="master-report-section report-page-break">
+      {show("schedule") && <section className="master-report-section">
         <div className="master-report-section-heading"><span>04</span><h2>Run of Show</h2></div>
         {report.schedule.length ? (
           <div className="report-timeline">
@@ -461,19 +519,20 @@ export default function MasterReportPage() {
         ) : (
           <div className="report-callout">Scheduluotron has not been filled out for this event yet. Event time: <b>{formatRegularTime(event.eventTime) || "Not entered"}</b></div>
         )}
-      </section>
+      </section>}
 
-      <section className="master-report-section report-page-break">
+      {show("food") && <section className="master-report-section">
         <div className="master-report-section-heading"><span>05</span><h2>Food and Grocery Checklist</h2></div>
         {report.meal ? <p className="report-lead"><b>{report.meal.name}</b> · {report.meal.guests} guests{report.meal.recipes.length ? ` · ${report.meal.recipes.join(", ")}` : ""}</p> : <div className="report-callout">No Foodotron meal is linked to this event yet.</div>}
-        {report.groceries.length ? (
+        {compactSummary && report.groceries.length > 0 && <p>{report.groceries.length} shopping items{costs ? ` · Estimated total $${total.toFixed(2)}` : ""}</p>}
+        {!compactSummary && report.groceries.length ? (
           <div className="report-shopping-list">
-            <div className="report-shopping-head"><span>BUY</span><span>INGREDIENT</span><span>NEEDED</span><span>PURCHASE</span><span>STORE</span>{report.includeCosts && <span>EST. COST</span>}</div>
-            {report.groceries.map((line) => <div className="report-shopping-row" key={`${line.ingredient}-${line.store}`}><span className="report-checkbox" /><b>{line.ingredient}</b><span>{line.needed}</span><span>{line.quantity} · {line.purchase}</span><span>{line.store}</span>{report.includeCosts && <strong>{line.cost ? `$${line.cost.toFixed(2)}` : "—"}</strong>}</div>)}
-            {report.includeCosts && <div className="report-shopping-total"><span>ESTIMATED GROCERY TOTAL</span><b>{total ? `$${total.toFixed(2)}` : "Not priced"}</b></div>}
+            <div className="report-shopping-head"><span>BUY</span><span>INGREDIENT</span><span>NEEDED</span><span>PURCHASE</span><span>STORE</span>{costs && <span>EST. COST</span>}</div>
+            {report.groceries.map((line, index) => <div className="report-shopping-row" key={`${line.ingredient}-${line.store}-${index}`}><span className="report-checkbox" /><b>{line.ingredient}</b><span>{line.needed}</span><span>{line.quantity} · {line.purchase}</span><span>{line.store}</span>{costs && <strong>{line.cost ? `$${line.cost.toFixed(2)}` : "—"}</strong>}</div>)}
+            {costs && <div className="report-shopping-total"><span>ESTIMATED GROCERY TOTAL</span><b>{total ? `$${total.toFixed(2)}` : "Not priced"}</b></div>}
           </div>
         ) : null}
-      </section>
+      </section>}
 
       <footer className="master-report-footer">Prepared by Sheppard Semiconductor Systems from EventoTron event, Tabletron, Foodotron, and Scheduluotron records. Verify final counts, prices, access details, and client changes before setup.</footer>
     </main>
