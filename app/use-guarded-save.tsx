@@ -102,7 +102,7 @@ export function useGuardedSave<T>(endpoint: string | null, payload: T, revision:
     try {
       const response = await fetch(endpoint, { cache: "no-store" });
       if (!response.ok) throw new Error("Server copy could not be loaded. Your draft is still open.");
-      const data = await response.json();
+      const data = await response.json() as { updatedAt: string | null; payload: T };
       writer.current = createRevisionWriter(endpoint, data.updatedAt);
       acknowledged.current = JSON.stringify(data.payload);
       sessionStorage.removeItem(key); recoveryPending.current = false; setRecovered(null); onReload(data.payload); setProblem(""); setStatus("SAVED");

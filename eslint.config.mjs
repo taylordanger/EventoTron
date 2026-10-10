@@ -19,6 +19,7 @@ const eslintConfig = defineConfig([
     "**/dist/**",
     "**/.wrangler/**",
     ".claude/**",
+    ".wrangler/**",
   ]),
 ]);
 

@@ -14,7 +14,7 @@ export function SuiteIdentityBadge() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       fetch("/api/session", { cache: "no-store" })
-        .then((response) => (response.ok ? response.json() : null))
+        .then(async (response) => (response.ok ? await response.json() as Session : null))
         .then((data: Session | null) => setSession(data))
         .catch(() => setSession(null));
     }, 0);

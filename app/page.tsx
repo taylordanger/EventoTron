@@ -434,7 +434,7 @@ export default function Home() {
     const controller = new AbortController();
     let retryTimer: number | undefined;
     const restoreEvents = () => fetch("/api/events", { signal: controller.signal, cache: "no-store" })
-      .then((response) => { if (!response.ok) throw new Error("Event load failed"); return response.json(); })
+      .then(async (response) => { if (!response.ok) throw new Error("Event load failed"); return await response.json() as { events?: EventoEvent[]; selectedId?: string; openIds?: string[]; calendarYear?: number; calendarMonth?: number; source?: string }; })
       .then((restored: {
         events?: EventoEvent[];
         selectedId?: string;
@@ -535,8 +535,9 @@ export default function Home() {
     Promise.all([fetch("/api/settings", { signal: controller.signal, cache: "no-store" }), fetch("/api/calendar-sources", { signal: controller.signal, cache: "no-store" })])
       .then(async ([settingsResponse, calendarResponse]) => {
         if ((!settingsResponse.ok && settingsResponse.status !== 404) || !calendarResponse.ok) throw new Error("Settings load failed");
-        const saved = settingsResponse.ok ? await settingsResponse.json() : null;
-        return { ...await calendarResponse.json(), settings: saved?.payload, revision: saved?.updatedAt ?? null };
+        const saved = settingsResponse.ok ? await settingsResponse.json() as { payload: Partial<EventoSettings>; updatedAt: string | null } : null;
+        const calendars = await calendarResponse.json() as { sources?: CalendarSource[]; events?: ImportedCalendarEvent[] };
+        return { ...calendars, settings: saved?.payload, revision: saved?.updatedAt ?? null };
       })
       .then((result: { sources?: CalendarSource[]; events?: ImportedCalendarEvent[]; settings?: Partial<EventoSettings>; revision: string | null } | null) => {
         if (!result) return;

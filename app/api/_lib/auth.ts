@@ -30,7 +30,7 @@ function localActor(request: Request): string {
 async function runtimeEnv(): Promise<Record<string, unknown>> {
   try {
     const { env } = await import("cloudflare:workers");
-    return env as Record<string, unknown>;
+    return { ...env };
   } catch {
     return (globalThis as { process?: { env?: Record<string, unknown> } }).process?.env ?? {};
   }

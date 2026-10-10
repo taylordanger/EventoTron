@@ -48,8 +48,8 @@ workarounds before calling this pilot complete. Keep the paper binder available.
 
 ## Developer Checks
 
-`npm test` builds and runs 134 tests. `npm run lint` currently reports only the
-known Settings OAuth effect warning. Isolated browser/storage checks cover
+`npm run verify` enforces zero-warning lint, Workers-aware typecheck, build and
+138 tests. Isolated browser/storage checks cover
 stale saves, competing writers, transactional rollback, refresh recovery, retry,
 template initialization, sketches, hallways, department reports and restore.
 
@@ -73,3 +73,8 @@ live `.wrangler/state`. Run shared-saves verification first, then event-workflow
 verification. The first script imports the supplied backup and clears external
 calendar sources in the isolated copy; both scripts write test data. They refuse
 the normal daily-use ports. No fixture contents or private backups are committed.
+
+`scripts/verify-backup-consistency.mjs` uses the same isolated-server safety
+variables and checks concurrent applet writes against exported projections.
+For release/recovery gates and the next work queue, use
+`docs/PROFESSIONAL_READINESS_PLAN.md`.

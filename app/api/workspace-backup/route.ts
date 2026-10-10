@@ -125,6 +125,7 @@ function validateBackup(value: unknown): WorkspaceBackup | null {
 export const GET = withRole("staff", async () => {
   try {
     const db = await getDb();
+    // One D1 batch reads snapshots and derived records together.
     const [
       settings,
       events,
@@ -141,7 +142,7 @@ export const GET = withRole("staff", async () => {
       calendarSources,
       calendarEvents,
       transfers,
-    ] = await Promise.all([
+    ] = await db.batch([
       db.select().from(suiteSettings),
       db.select().from(suiteEvents),
       db.select().from(suiteEventAudit),

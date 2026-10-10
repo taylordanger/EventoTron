@@ -334,6 +334,7 @@ export default function SettingsPage() {
   }, [session, isEffectiveAdmin]);
 
   useEffect(() => {
+    if (!loaded || !backendChecked || !isEffectiveAdmin) return;
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       const connected = params.get("oauthConnected");
@@ -352,7 +353,7 @@ export default function SettingsPage() {
       window.history.replaceState(null, "", url.toString());
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [loaded, backendChecked, isEffectiveAdmin]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -440,15 +441,15 @@ export default function SettingsPage() {
   }
 
   async function addSourceForOAuthAccount(accountId: string) {
-    if (settings.calendarSources.some((source) => source.oauthAccountId === accountId)) return;
     try {
       const response = await fetch("/api/calendar-oauth/accounts", { cache: "no-store" });
       const result = await response.json().catch(() => ({})) as { accounts?: OAuthAccountSummary[] };
       const account = result.accounts?.find((item) => item.id === accountId);
       if (!account) return;
-      update({
+      setSettings((current) => current.calendarSources.some((source) => source.oauthAccountId === accountId) ? current : ({
+        ...current,
         calendarSources: [
-          ...settings.calendarSources,
+          ...current.calendarSources,
           {
             id: `calendar_${uid()}`,
             name: account.accountEmail || `${account.provider === "microsoft" ? "Outlook" : "Google"} Calendar`,
@@ -460,7 +461,7 @@ export default function SettingsPage() {
             oauthAccountId: account.id,
           },
         ],
-      });
+      }));
     } catch {}
   }
 

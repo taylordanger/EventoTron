@@ -4,7 +4,7 @@ import { foodotronMeals, mealTransfers } from "@/db/schema";
 import { withRole } from "../../_lib/auth";
 import { getLocalTransfer } from "../local-store";
 
-function cors(request: Request) {
+function cors(request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
   return origin.startsWith("http://localhost:")
     ? {

@@ -43,9 +43,13 @@ is a three-room event. That fact drives a lot of the design.
 
 ## Running and checking it
 
+Professionalization work now follows `docs/PROFESSIONAL_READINESS_PLAN.md`.
+Release/incident steps are in `docs/RELEASE_AND_RECOVERY.md`; staff trial evidence
+belongs in `docs/PILOT_RESULTS.md` (still pending). Hosting remains deferred.
+
 ```bash
-npm test     # 134 tests; runs a build first
-npm run lint # expect 0 errors, 1 pre-existing warning in app/settings/page.tsx
+npm run verify # strict lint, Workers-aware typecheck, build and all tests
+npm run backup:local -- --dir /absolute/approved/backup/folder
 ```
 
 The app runs from `build/macos/EventoTron Local.app` on port 3001, with a
@@ -69,9 +73,9 @@ Most real bugs here were invisible in the source and obvious on screen.
 - **Node cannot type-strip `.tsx`.** Pure logic must live in a `.ts` module to
   be testable. That is why `seat-labels.ts`, `seating-capacity.ts` and
   `room-names.ts` exist.
-- **`npx tsc --noEmit` reports ~38 pre-existing errors** unrelated to recent
-  work, mostly `cloudflare:workers` and `.ts` import extensions. Judge changes
-  by whether *your* files are clean, not the total.
+- **Use `npm run typecheck`, not bare `tsc` on a clean checkout.** It generates
+  Workers runtime declarations first. The historical type errors and lint
+  warning have been resolved; releases must now pass with zero warnings/errors.
 
 ## A lens that keeps finding real bugs
 
@@ -118,6 +122,26 @@ from team deployment readiness.
   cannot ship the local admin bypass.
 
 ## Recent work, newest first
+
+### Professional Readiness Baseline (2026-10-10)
+
+- Documented a six-phase readiness plan with named ownership roles, acceptance
+  gates and the next work queue; added release/recovery instructions and a staff
+  pilot result register. Hosting remains deferred; no launch is claimed.
+- Added `npm run typecheck` with generated Workers runtime declarations and
+  explicit bindings; fixed historical type errors, including API result types,
+  Web Crypto buffers, transfer headers and the example's async database access.
+- `npm run verify` and CI now enforce zero-warning lint, typecheck, build/tests.
+  OAuth returns wait for settings/backend initialization and append from the
+  current settings state, preserving existing calendar sources.
+- Added verified local backup command (explicit directory, read-back validation,
+  private files, unique names and checksum sidecars; no scheduling or pruning).
+  Export now reads all tables in one D1 batch. 25 isolated exports matched
+  concurrent schedule snapshot/projection updates; 138 automated tests pass.
+- Created a read-only live safety backup in `/private/tmp`; this does not meet
+  off-device recovery. Destination/backup owner selection, backup-health alerts,
+  scheduling and atomic restore remain next. Current restore is a non-atomic
+  merge/upsert, not a complete disaster-recovery replacement.
 
 ### Local Team Pilot Improvements (2026-10-10)
 

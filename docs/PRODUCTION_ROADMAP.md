@@ -1,5 +1,9 @@
 # EventoTron Production Roadmap
 
+The actionable delivery sequence and launch gates are now in
+`docs/PROFESSIONAL_READINESS_PLAN.md`. This document retains the broader product
+roadmap; use the readiness plan to decide what to implement and accept next.
+
 EventoTron is ready for a controlled local pilot when the current local database is backed up and one real event can be planned end to end from calendar file to master report.
 
 ## Current Status

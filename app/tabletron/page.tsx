@@ -848,7 +848,7 @@ export default function Home() {
         }
         if (transferId) {
           const response = await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}`);
-          const transfer = await response.json();
+          const transfer = await response.json() as { error?: string; meal: FoodotronMeal; tabletronEventId?: string; foodotronMealId?: string };
           if (!response.ok) throw new Error(transfer.error || "Transfer failed");
           const food = transfer.meal as FoodotronMeal;
           const targetEventId = String(

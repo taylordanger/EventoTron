@@ -11,7 +11,7 @@ type EventPayload = {
   guestCount?: number;
 };
 
-function cors(request: Request) {
+function cors(request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
   return origin.startsWith("http://localhost:")
     ? {

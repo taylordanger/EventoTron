@@ -20,7 +20,7 @@ export function createRevisionWriter(endpoint: string, revision: string | null, 
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ payload, expectedUpdatedAt: current }),
         });
-        const data = await response.json();
+        const data = await response.json() as { error?: string; updatedAt?: string };
         if (!response.ok) {
           blocked = response.status === 409 || response.status === 428;
           throw new SharedSaveError(data.error || "Your changes have not reached the server.", blocked);
