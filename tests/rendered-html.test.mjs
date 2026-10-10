@@ -403,5 +403,8 @@ test("print report contracts keep report previews and print mode aligned", async
   assert.match(tabletron, /event\.name\} Tabletron Operations Report/);
   assert.match(scheduluotron, /plan\.eventName\} Scheduluotron Day Sheet/);
   assert.match(tabletron, /EXPORT SETUP SHEET/);
-  assert.match(tabletron, /window\.print\(\)/);
+  // The setup sheet goes through printReport like every other report rather
+  // than calling window.print() directly, so the printed document gets a title
+  // naming the room and layout instead of inheriting the page's.
+  assert.match(tabletron, /printReport\(`\$\{room\.name\} · \$\{layout\.name\} setup sheet`\)/);
 });

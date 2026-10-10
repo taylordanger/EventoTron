@@ -8,6 +8,7 @@ import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type SuiteSettings } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 import { useEventLiveStatus } from "../use-event-live-status";
+import { seatsInFurniture } from "./seating-capacity";
 import {
   makeSeatRow,
   makeSeatingSection,
@@ -652,6 +653,54 @@ function ReportLayoutMap({
             </div>
           );
         })}
+        {layout.seating.map((section) => {
+          const seats = sectionSeatLabels(section);
+          return (
+            <div className="ops-map-seating" key={section.id}>
+              {seats.map((seat) => (
+                <div
+                  className="ops-map-seat"
+                  key={seat.seatId}
+                  style={{
+                    position: "absolute",
+                    left: `${(seat.x / room.width) * 100}%`,
+                    top: `${(seat.y / room.height) * 100}%`,
+                    width: `${((section.seatSpacing * 0.8) / room.width) * 100}%`,
+                    height: `${((section.rowSpacing * 0.62) / room.height) * 100}%`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px solid #94a3a0",
+                    background: "#fff",
+                    boxSizing: "border-box",
+                    fontSize: "6px",
+                    lineHeight: 1,
+                    overflow: "hidden",
+                    color: "#1f2a27",
+                  }}
+                  title={`${section.name} · ${seat.label}`}
+                >
+                  {seat.label}
+                </div>
+              ))}
+              <div
+                className="ops-map-seating-tag"
+                style={{
+                  position: "absolute",
+                  left: `${(section.x / room.width) * 100}%`,
+                  top: `${(Math.max(0, section.y - section.rowSpacing * 0.85) / room.height) * 100}%`,
+                  fontSize: "7px",
+                  fontWeight: 600,
+                  letterSpacing: "0.02em",
+                  whiteSpace: "nowrap",
+                  color: "#1f2a27",
+                }}
+              >
+                {section.name} · {seats.length} SEATS
+              </div>
+            </div>
+          );
+        })}
         {room.entrances.map((entrance) => (
           <div
             className={`ops-map-door ${entrance.wall}`}
@@ -1197,7 +1246,15 @@ export default function Home() {
     (total, section) => total + sectionSeatCount(section),
     0,
   );
-  const totalSeatCount = layout.tables.length * 6 + rowSeatCount;
+  /**
+   * Chairs placed as furniture seat people too. Counting only round tables and
+   * seating rows reported "0 seated" for a room holding sixteen chairs.
+   */
+  const chairSeatCount = layout.objects.reduce((total, placed) => {
+    const template = project.templates.find((t) => t.id === placed.templateId);
+    return total + (template ? seatsInFurniture(template.name) : 0);
+  }, 0);
+  const totalSeatCount = layout.tables.length * 6 + rowSeatCount + chairSeatCount;
 
   /**
    * Whether the layout actually seats the people coming. The movement score
@@ -1206,7 +1263,16 @@ export default function Home() {
    * is the first question a room plan has to answer, so it outranks clearance.
    */
   const expectedGuests = Math.max(0, Math.round(event?.guestCount ?? 0));
-  const seatShortfall = expectedGuests > 0 ? expectedGuests - totalSeatCount : 0;
+  /**
+   * Only compare guests against seats when the whole event happens in the room
+   * on screen. An event spread across three rooms would otherwise report a
+   * shortfall in each of them, and a room that is not part of the event at all
+   * would be measured against a guest count that has nothing to do with it.
+   */
+  const eventRoomIds = event?.rooms?.map((assignment) => assignment.roomId) ?? [];
+  const guestsAllInThisRoom = eventRoomIds.length === 1 && eventRoomIds[0] === room.id;
+  const seatShortfall =
+    expectedGuests > 0 && guestsAllInThisRoom ? expectedGuests - totalSeatCount : 0;
 
   /** The section currently being edited in the inspector, if any. */
   const activeSection =
@@ -1489,8 +1555,29 @@ export default function Home() {
     setEventModal(false);
     setOpsReport(false);
   }
+  /**
+   * Exports what is actually on the canvas: the active room and layout, with
+   * its tables, seating and entrances.
+   *
+   * EXPORT SETUP SHEET briefly ran the operations report instead. That report
+   * draws the layout *assigned to the event* in Event Ops, which is often not
+   * the layout being edited, so the sheet came out without the tables just
+   * arranged — and with no event file linked the button did nothing at all,
+   * silently. A setup sheet is for whoever sets the room up, so it does not
+   * depend on an event file existing.
+   */
+  function printSetupSheet() {
+    // Make sure the operations overlay is not covering the canvas we print.
+    setOpsReport(false);
+    printReport(`${room.name} · ${layout.name} setup sheet`);
+  }
+
   function printOperations() {
-    if (!event) return;
+    if (!event) {
+      // Previously returned silently, so the control looked broken.
+      setNotice("NO EVENT FILE OPEN · USE EVENT OPS TO START ONE");
+      return;
+    }
     setOpsReport(true);
     printReport(`${event.name} Tabletron Operations Report`);
   }
@@ -1612,7 +1699,7 @@ export default function Home() {
           <button onClick={() => (event ? setEventModal(true) : addEvent())}>
             ▦ EVENT OPS
           </button>
-          <button className="primary" onClick={() => window.print()}>
+          <button className="primary" onClick={printSetupSheet}>
             EXPORT SETUP SHEET
           </button>
         </div>
@@ -3041,7 +3128,11 @@ export default function Home() {
                           <h3>{source.name}</h3>
                           <p>{assignment.purpose}</p>
                         </div>
-                        <b>{chosen.tables.length * 6} SEATS</b>
+                        <b>
+                          {chosen.tables.length * 6 +
+                            chosen.seating.reduce((sum, section) => sum + sectionSeatCount(section), 0)}{" "}
+                          SEATS
+                        </b>
                       </header>
                       <dl>
                         <div>
@@ -3062,6 +3153,15 @@ export default function Home() {
                           <dt>Custom items</dt>
                           <dd>{chosen.objects.length}</dd>
                         </div>
+                        {chosen.seating.length ? (
+                          <div>
+                            <dt>Seating rows</dt>
+                            <dd>
+                              {chosen.seating.reduce((sum, section) => sum + section.rows.length, 0)} rows ·{" "}
+                              {chosen.seating.reduce((sum, section) => sum + sectionSeatCount(section), 0)} seats
+                            </dd>
+                          </div>
+                        ) : null}
                         <div>
                           <dt>Setup</dt>
                           <dd>{formatRegularTime(assignment.setupTime)}</dd>

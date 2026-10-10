@@ -212,14 +212,78 @@ test("the layout advisory answers whether everyone has a seat", async () => {
   assert.match(source, /expected, \$\{totalSeatCount\} seated/, "the advisory does not show the numbers");
 });
 
-test("no linked event means no false capacity warning", async () => {
-  // Tabletron is usable without an event file; a missing guest count must not
-  // read as "0 guests expected" and warn about nothing.
+test("the capacity warning only fires where the comparison is meaningful", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+
+  // Tabletron is usable without an event file; a missing guest count must not
+  // read as "0 guests expected" and warn about nothing.
   assert.match(
     source,
-    /expectedGuests > 0 \? expectedGuests - totalSeatCount : 0/,
+    /expectedGuests > 0 && guestsAllInThisRoom \? expectedGuests - totalSeatCount : 0/,
     "a layout with no linked event could report a shortfall",
   );
+
+  // An event spread over three rooms would otherwise report every guest as
+  // unseated in each of them, and a room that is not part of the event at all
+  // would be measured against a guest count that has nothing to do with it.
+  assert.match(source, /const eventRoomIds =/, "the event's rooms are not consulted");
+  assert.match(
+    source,
+    /eventRoomIds\.length === 1 && eventRoomIds\[0\] === room\.id/,
+    "the warning is not scoped to a single-room event in the room on screen",
+  );
+});
+
+test("chairs placed as furniture count towards seating", async () => {
+  // A room holding sixteen chairs reported "0 seated", because only round
+  // tables and seating rows were counted.
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /seatsInFurniture/, "furniture seating is not counted");
+  assert.match(
+    source,
+    /layout\.tables\.length \* 6 \+ rowSeatCount \+ chairSeatCount/,
+    "the seat total leaves out placed chairs",
+  );
+});
+
+test("Export Setup Sheet exports the layout on screen, not the event's assigned one", async () => {
+  // This button was briefly wired to the operations report. That report draws
+  // whichever layout Event Ops assigned to the event, so the sheet came out
+  // without the tables just arranged — and with no event file linked the
+  // handler returned immediately, so the button did nothing at all.
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /function printSetupSheet\(\)/, "there is no setup-sheet export");
+  assert.match(
+    source,
+    /onClick=\{printSetupSheet\}>\s*\n\s*EXPORT SETUP SHEET/,
+    "EXPORT SETUP SHEET is not wired to the setup sheet",
+  );
+  assert.doesNotMatch(
+    source,
+    /onClick=\{printOperations\}>\s*\n\s*EXPORT SETUP SHEET/,
+    "EXPORT SETUP SHEET runs the operations report again",
+  );
+
+  // It must name the room and layout being exported, and must not be gated on
+  // an event file: a setup sheet is for whoever sets the room up.
+  const fn = source.slice(source.indexOf("function printSetupSheet()"));
+  const body = fn.slice(0, fn.indexOf("\n  }"));
+  assert.match(body, /room\.name/, "the sheet does not identify the room");
+  assert.match(body, /layout\.name/, "the sheet does not identify the layout");
+  assert.doesNotMatch(body, /if \(!event\)/, "the setup sheet still requires an event file");
+  assert.match(body, /setOpsReport\(false\)/, "the operations overlay could cover the printed canvas");
+});
+
+test("printing the operations report with no event says so", async () => {
+  // It used to return silently, which made the control look broken.
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+  const fn = source.slice(source.indexOf("function printOperations()"));
+  const body = fn.slice(0, fn.indexOf("\n  }"));
+  assert.match(body, /if \(!event\)/, "the no-event case is not handled");
+  assert.match(body, /setNotice\(/, "the no-event case fails silently");
 });
