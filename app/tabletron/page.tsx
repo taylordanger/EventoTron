@@ -1,6 +1,8 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { useSearchParams } from "next/navigation";
+import { LEGACY_TABLETRON_CACHE, legacyProjectIsStandalone, tabletronCacheKey } from "./project-cache";
 import { OperationsTicker } from "../OperationsTicker";
 import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
 import { RoomSketch, SketchMap } from "./RoomSketch";
@@ -757,6 +759,12 @@ function ReportLayoutMap({
 }
 
 export default function Home() {
+  const params = useSearchParams();
+  const eventId = params.get("event") ?? "";
+  return <TabletronEditor key={eventId || "standalone"} requestedEventId={eventId} />;
+}
+
+function TabletronEditor({ requestedEventId }: { requestedEventId: string }) {
   const [project, setProject] = useState<Project>(() => defaultProject());
   const [selected, setSelected] = useState<{
     kind: "table" | "object" | "entrance" | "seating";
@@ -792,6 +800,7 @@ export default function Home() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
   const [restoreVerified, setRestoreVerified] = useState(false);
+  const [initialNeedsSave, setInitialNeedsSave] = useState(false);
   const [linkedSuiteEventId, setLinkedSuiteEventId] = useState("");
   const [linkedSuiteEvent, setLinkedSuiteEvent] = useState<EventoEventContext | null>(null);
   const [timezone, setTimezone] = useState("America/Los_Angeles");
@@ -813,15 +822,29 @@ export default function Home() {
     name: template.name,
     count: layout.objects.filter((object) => object.templateId === template.id).length,
   })).filter((item) => item.count > 0);
-  const sharedSave = useGuardedSave<Project>(linkedSuiteEventId ? `/api/event-app-state?eventId=${encodeURIComponent(linkedSuiteEventId)}&app=tabletron` : null, project, serverRevision, loaded && restoreVerified, setProject, serverRevision !== null);
+  const sharedSave = useGuardedSave<Project>(linkedSuiteEventId ? `/api/event-app-state?eventId=${encodeURIComponent(linkedSuiteEventId)}&app=tabletron` : null, project, serverRevision, loaded && restoreVerified, setProject, serverRevision !== null && !initialNeedsSave);
   const appletSaveStatus = sharedSave.status;
 
   useEffect(() => {
-    const raw = localStorage.getItem("tabletron-project-v2");
+    let cancelled = false;
     const timer = window.setTimeout(async () => {
       const suiteSettings = await loadSuiteSettings();
+      if (cancelled) return;
       setTimezone(suiteSettings.timezone);
       try {
+        let raw = localStorage.getItem(tabletronCacheKey(requestedEventId));
+        if (!requestedEventId && !raw) {
+          const legacy = localStorage.getItem(LEGACY_TABLETRON_CACHE);
+          if (legacy) {
+            try {
+              const response = await fetch("/api/events", { cache: "no-store" });
+              if (!response.ok) throw new Error("Event ownership could not be checked");
+              const data = await response.json() as { events?: Array<{ id: string }> };
+              if (Array.isArray(data.events) && legacyProjectIsStandalone(JSON.parse(legacy), data.events.map(event => event.id))) raw = legacy;
+            } catch { /* Retain the old cache without opening an unverified event. */ }
+          }
+        }
+        if (cancelled) return;
         const stored = raw
           ? applySettingsToProject(normalizeProject(JSON.parse(raw)), suiteSettings)
           : defaultProject(suiteSettings);
@@ -837,10 +860,11 @@ export default function Home() {
           /^http:\/\/127\.0\.0\.1:\d+$/.test(source)
             ? source
             : "";
-        const linkedEventId = params.get("event");
+        const linkedEventId = requestedEventId;
         let linkedContext: EventoEventContext | null = null;
         if (linkedEventId) {
           const bundle = await readSuiteEventBundle<Project>(linkedEventId);
+          if (cancelled) return;
           if (bundle) setServerRevision(bundle.appletRevisions.tabletron);
           if (!bundle) throw new Error("Event file was removed");
           linkedContext = bundle.event;
@@ -849,11 +873,23 @@ export default function Home() {
         if (transferId) {
           const response = await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}`);
           const transfer = await response.json() as { error?: string; meal: FoodotronMeal; tabletronEventId?: string; foodotronMealId?: string };
+          if (cancelled) return;
           if (!response.ok) throw new Error(transfer.error || "Transfer failed");
           const food = transfer.meal as FoodotronMeal;
           const targetEventId = String(
             food.tabletronEventId ?? transfer.tabletronEventId ?? "",
           );
+          if (targetEventId && linkedContext?.id !== targetEventId) {
+            const bundle = await readSuiteEventBundle<Project>(targetEventId);
+            if (cancelled) return;
+            if (!bundle) throw new Error("The meal's event file was removed");
+            linkedContext = bundle.event;
+            setServerRevision(bundle.appletRevisions.tabletron);
+            next = bundle.applets.tabletron
+              ? applySettingsToProject(normalizeProject(bundle.applets.tabletron), suiteSettings)
+              : defaultProject(suiteSettings);
+            next = hydrateForEvent(next, linkedContext, suiteSettings);
+          }
           setLinkedSuiteEventId(targetEventId);
           const linkedFood: FoodotronMeal = {
             ...food,
@@ -905,6 +941,7 @@ export default function Home() {
             );
           }
           if (claimedEvent) {
+            setInitialNeedsSave(true);
             await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -919,7 +956,7 @@ export default function Home() {
               }),
             });
           }
-          window.history.replaceState({}, "", window.location.pathname);
+          window.history.replaceState({}, "", `${window.location.pathname}${linkedEventId ? `?event=${encodeURIComponent(linkedEventId)}` : ""}`);
           setEventModal(true);
         } else if (
           linkedEventId &&
@@ -927,37 +964,38 @@ export default function Home() {
         ) {
           next = { ...next, activeEventId: linkedEventId };
           setEventModal(true);
-          window.history.replaceState({}, "", window.location.pathname);
         }
         if (linkedContext) {
           setLinkedSuiteEventId(linkedContext.id);
           setLinkedSuiteEvent(linkedContext);
           next = hydrateForEvent(next, linkedContext, suiteSettings);
         }
+        if (cancelled) return;
         setProject(next);
         setRestoreVerified(true);
         setSavedAt(raw ? new Date() : null);
       } catch {
+        if (cancelled) return;
         setProject(defaultProject(suiteSettings));
         setNotice("SAVED PROJECT COULD NOT BE READ · A NEW PROJECT WAS OPENED");
       } finally {
-        setLoaded(true);
+        if (!cancelled) setLoaded(true);
       }
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [requestedEventId]);
 
   useEffect(() => {
     if (!loaded || !restoreVerified) return;
     const timer = window.setTimeout(() => {
       try {
-        localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
+        localStorage.setItem(tabletronCacheKey(linkedSuiteEventId), JSON.stringify(project));
       } catch {
         setNotice("AUTO-SAVE FAILED · DOWNLOAD A BACKUP");
       }
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [project, loaded, restoreVerified]);
+  }, [project, loaded, restoreVerified, linkedSuiteEventId]);
 
   useEffect(() => {
     if (!notice) return;
@@ -980,7 +1018,7 @@ export default function Home() {
   function save() {
     if (!restoreVerified) { setNotice("SAVED PROJECT COULD NOT BE VERIFIED"); return; }
     try {
-      localStorage.setItem("tabletron-project-v2", JSON.stringify(project));
+      localStorage.setItem(tabletronCacheKey(linkedSuiteEventId), JSON.stringify(project));
       void sharedSave.save().then((revision) => {
         if (revision) { setSavedAt(new Date()); setNotice("PROJECT SAVED ON SERVER"); }
         else if (!linkedSuiteEventId) setNotice("KEPT ON THIS COMPUTER · OPEN AN EVENT FILE TO SHARE IT");
@@ -1010,7 +1048,7 @@ export default function Home() {
     try {
       const restored = normalizeProject(JSON.parse(await file.text()));
       setProject(restored);
-      localStorage.setItem("tabletron-project-v2", JSON.stringify(restored));
+      localStorage.setItem(tabletronCacheKey(linkedSuiteEventId), JSON.stringify(restored));
       setSavedAt(new Date());
       setSelected(null);
       setNotice("PROJECT BACKUP RESTORED");
@@ -3156,7 +3194,7 @@ export default function Home() {
                   rel="noreferrer"
                   onClick={() => {
                     localStorage.setItem(
-                      "tabletron-project-v2",
+                      tabletronCacheKey(linkedSuiteEventId),
                       JSON.stringify(project),
                     );
                     // Only the browser copy is written here, so do not call

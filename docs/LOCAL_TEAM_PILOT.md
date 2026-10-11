@@ -49,7 +49,7 @@ workarounds before calling this pilot complete. Keep the paper binder available.
 ## Developer Checks
 
 `npm run verify` enforces zero-warning lint, Workers-aware typecheck, build and
-138 tests. Isolated browser/storage checks cover
+144 tests. Isolated browser/storage checks cover
 stale saves, competing writers, transactional rollback, refresh recovery, retry,
 template initialization, sketches, hallways, department reports and restore.
 
@@ -76,5 +76,8 @@ the normal daily-use ports. No fixture contents or private backups are committed
 
 `scripts/verify-backup-consistency.mjs` uses the same isolated-server safety
 variables and checks concurrent applet writes against exported projections.
+`scripts/verify-tabletron-selection.mjs` verifies that Tabletron and Scheduluotron
+do not reopen unrelated event caches, retain standalone work and explicit event
+plans across refresh, and handle a meal handoff using the target event's bundle.
 For release/recovery gates and the next work queue, use
 `docs/PROFESSIONAL_READINESS_PLAN.md`.

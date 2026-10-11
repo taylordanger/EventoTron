@@ -381,8 +381,7 @@ export default function Home() {
           const startupDay = startupDayRef.current;
           const todayEvent = firstEventOnDate(restoredEvents, startupDay.key);
           setEvents(restoredEvents);
-          const nextSelectedId = todayEvent?.id
-            ?? (restored.selectedId && restoredEvents.some((event) => event.id === restored.selectedId) ? restored.selectedId : "");
+          const nextSelectedId = todayEvent?.id ?? "";
           const restoredOpenIds = Array.isArray(restored.openIds)
             ? restored.openIds.filter((id) => restoredEvents.some((event) => event.id === id))
             : [];
@@ -460,7 +459,7 @@ export default function Home() {
           return todayEvent?.id
             ?? (current && restoredEventIds.has(current)
             ? current
-            : restored.selectedId && restoredEventIds.has(restored.selectedId) ? restored.selectedId : "");
+            : "");
         });
         setOpenIds((current) => {
           const currentOpenIds = current.filter((id) => restoredEventIds.has(id));

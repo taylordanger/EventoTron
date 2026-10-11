@@ -1,6 +1,7 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { useSearchParams } from "next/navigation";
 import { OperationsTicker } from "../OperationsTicker";
 import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
 import { templateTasks, type PlanningTask } from "../template-planning";
@@ -10,6 +11,7 @@ import { printReport, saveReportPdf } from "../print-mode";
 import { loadSuiteSettings, type OperationsTemplate } from "../suite-settings";
 import { formatRegularTime } from "../time-format";
 import { useEventLiveStatus } from "../use-event-live-status";
+import { venueDateKey } from "../venue-date";
 import { useEffect, useMemo, useState } from "react";
 
 import { saveStatusHint, saveStatusTone } from "../save-status";
@@ -77,7 +79,7 @@ const reportDate = (value: string) => {
 };
 
 function initialPlan(): SchedulePlan {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = venueDateKey();
   const blocks: ScheduleBlock[] = [
     {
       id: uid(),
@@ -210,11 +212,19 @@ function currentEventBriefBlocks(context: EventoEventContext) {
 }
 
 export default function Scheduluotron() {
+  const params = useSearchParams();
+  const eventId = params.get("event") ?? "";
+  return <ScheduleEditor key={eventId || "standalone"} requestedEventId={eventId} />;
+}
+
+function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
   const [plan, setPlan] = useState<SchedulePlan>(() => initialPlan());
   const [notice, setNotice] = useState("");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
   const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const storageKey = `eventotron-scheduluotron-v1:${requestedEventId ? `event:${encodeURIComponent(requestedEventId)}` : "standalone"}`;
   const sharedSave = useGuardedSave<SchedulePlan>(activeEvent ? `/api/event-app-state?eventId=${encodeURIComponent(activeEvent.id)}&app=scheduluotron` : null, plan, serverRevision, !!activeEvent, setPlan, serverRevision !== null);
   const appletSaveStatus = loadFailed ? "NOT ON SERVER" : sharedSave.status;
   const [timezone, setTimezone] = useState("America/Los_Angeles");
@@ -226,7 +236,8 @@ export default function Scheduluotron() {
   const span = dayEnd - dayStart;
 
   useEffect(() => {
-    const raw = localStorage.getItem("eventotron-scheduluotron-v1");
+    if (requestedEventId) return;
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return;
     const timer = window.setTimeout(() => {
       try {
@@ -235,16 +246,19 @@ export default function Scheduluotron() {
       } catch {}
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [requestedEventId, storageKey]);
 
   useEffect(() => {
+    let cancelled = false;
     const timer = window.setTimeout(async () => {
-      const eventId = new URLSearchParams(window.location.search).get("event");
+      const eventId = requestedEventId;
       const settings = await loadSuiteSettings();
+      if (cancelled) return;
       setTimezone(settings.timezone);
       const owners = settings.staff.length ? settings.staff : ["Ops lead"];
       setPlan((current) => ({
         ...current,
+        date: !eventId && !localStorage.getItem(storageKey) ? venueDateKey(new Date(), settings.timezone) : current.date,
         venue: !eventId && (!current.venue || current.venue === "Lincoln City Cultural Center")
           ? settings.venueName || current.venue
           : current.venue,
@@ -256,20 +270,24 @@ export default function Scheduluotron() {
               : block.owner,
         })),
       }));
+      if (!eventId) setLoaded(true);
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [requestedEventId, storageKey]);
 
   useEffect(() => {
+    let cancelled = false;
     const timer = window.setTimeout(async () => {
-      const eventId = new URLSearchParams(window.location.search).get("event");
+      const eventId = requestedEventId;
       if (!eventId) return;
       let bundle;
       try { bundle = await readSuiteEventBundle<unknown, unknown, SchedulePlan>(eventId); }
-      catch { setLoadFailed(true); return; }
+      catch { if (!cancelled) setLoadFailed(true); return; }
+      if (cancelled) return;
       const context = bundle?.event;
-      if (!context) return;
+      if (!context) { setLoadFailed(true); return; }
       const settings = await loadSuiteSettings();
+      if (cancelled) return;
       const template = settings.operationsTemplates.find((item) => item.id === context.operationsTemplateId);
       const owners = settings.staff.length ? settings.staff : ["Ops lead"];
       const saved = bundle!.applets.scheduluotron;
@@ -289,17 +307,18 @@ export default function Scheduluotron() {
         checklist: saved ? saved.checklist ?? [] : templateTasks(template),
       }));
       setActiveEvent(context);
+      setLoaded(true);
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [requestedEventId]);
 
   useEffect(() => {
-    if (!activeEvent) return;
+    if (!loaded || loadFailed) return;
     const timer = window.setTimeout(() => {
-      localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
+      localStorage.setItem(storageKey, JSON.stringify(plan));
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [activeEvent, plan]);
+  }, [loaded, loadFailed, storageKey, plan]);
 
   useEffect(() => {
     if (!notice) return;
@@ -369,7 +388,8 @@ export default function Scheduluotron() {
   }
 
   function save() {
-    localStorage.setItem("eventotron-scheduluotron-v1", JSON.stringify(plan));
+    if (!loaded || loadFailed) { setNotice("PLAN COULD NOT BE LOADED · SAVE NOT CONFIRMED"); return; }
+    localStorage.setItem(storageKey, JSON.stringify(plan));
     // The toast used to fire here, before the save resolved, so a failed save
     // still announced success. It now reports what actually happened.
     void sharedSave.save()

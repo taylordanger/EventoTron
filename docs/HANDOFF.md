@@ -123,6 +123,26 @@ from team deployment readiness.
 
 ## Recent work, newest first
 
+### Stale Event Selection Fix (2026-10-10)
+
+- Calendar startup selects today's event or no event; it no longer falls back
+  to a browser's old selected event when today has no saved event file.
+- Tabletron and Scheduluotron use separate standalone and per-event caches.
+  Opening either tool without an event no longer opens the last linked event's
+  browser snapshot. Old global cache files are retained, not deleted. Tabletron
+  migrates verified standalone legacy projects; Scheduluotron's unscoped legacy
+  cache is retained but not auto-opened because it contains no event identity.
+- Explicit event query parameters remain on refresh; changing the event remounts
+  the editor instead of reusing a mount-only initializer for the previous event.
+- Tabletron meal handoffs load the target event's authoritative bundle and
+  revision rather than relying on a global cache; the merged meal is saved using
+  that revision. Unrelated standalone plans remain intact.
+- New standalone schedules use the venue's timezone for today's date instead
+  of rolling to tomorrow during Pacific-time evenings at UTC midnight.
+- Verification: strict lint, typecheck, build and 144 tests pass. The isolated
+  browser check is `scripts/verify-tabletron-selection.mjs`; it uses the same
+  isolated QA variables as the workflow checks and writes only test fixtures.
+
 ### Professional Readiness Baseline (2026-10-10)
 
 - Documented a six-phase readiness plan with named ownership roles, acceptance
