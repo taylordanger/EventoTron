@@ -1,6 +1,8 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { WorkspaceButton, WorkspaceFiles } from "../WorkspaceControls";
+import { Save, Download, Printer, FileDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { OperationsTicker } from "../OperationsTicker";
 import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
@@ -220,9 +222,10 @@ export default function Scheduluotron() {
 function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
   const [plan, setPlan] = useState<SchedulePlan>(() => initialPlan());
   const [notice, setNotice] = useState("");
+  const [localPlanProblem, setLocalPlanProblem] = useState("");
+  const [scheduleView, setScheduleView] = useState<"timeline" | "list">("timeline");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
   const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
-  const [localPlanProblem, setLocalPlanProblem] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const storageKey = `eventotron-scheduluotron-v1:${requestedEventId ? `event:${encodeURIComponent(requestedEventId)}` : "standalone"}`;
@@ -434,15 +437,17 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
             onChange={(e) => setPlan((p) => ({ ...p, eventName: e.target.value }))}
           />
         </div>
-        <button onClick={save}>SAVE</button>
+        <div className="workspace-actions">
+        <WorkspaceButton icon={Save} onClick={save}>SAVE</WorkspaceButton>
         <button className="save-state" data-tone={saveStatusTone(appletSaveStatus)} title={saveStatusHint(appletSaveStatus)} disabled>{appletSaveStatus}</button>
-        <button onClick={exportSchedule}>EXPORT</button>
-        <button className="primary" onClick={() => printReport(`${plan.eventName} Scheduluotron Day Sheet`)}>
+        <WorkspaceFiles><WorkspaceButton icon={Download} onClick={exportSchedule}>EXPORT</WorkspaceButton></WorkspaceFiles>
+        <WorkspaceButton icon={Printer} className="primary" onClick={() => printReport(`${plan.eventName} Scheduluotron Day Sheet`)}>
           PRINT DAY SHEET
-        </button>
-        <button onClick={() => saveReportPdf(`${plan.eventName} Scheduluotron Day Sheet`)}>
+        </WorkspaceButton>
+        <WorkspaceButton icon={FileDown} onClick={() => saveReportPdf(`${plan.eventName} Scheduluotron Day Sheet`)}>
           SAVE PDF
-        </button>
+        </WorkspaceButton>
+        </div>
       </header>
 
       <section className="sched-workspace">
@@ -520,7 +525,11 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
               <b>{checkpoints}</b>
             </div>
           </div>
-          <div className="timeline">
+          <div className="schedule-view-switch" role="group" aria-label="Schedule view">
+            <button aria-pressed={scheduleView === "timeline"} onClick={() => setScheduleView("timeline")}>Timeline</button>
+            <button aria-pressed={scheduleView === "list"} onClick={() => setScheduleView("list")}>Run List</button>
+          </div>
+          {scheduleView === "timeline" && <div className="timeline">
             <div className="time-ruler">
               {Array.from({ length: Math.floor(span / 60) + 1 }, (_, index) => {
                 const minutes = dayStart + index * 60;
@@ -540,22 +549,19 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
                     className={`schedule-block ${block.kind} ${block.id === active?.id ? "active" : ""} ${conflicts.has(block.id) ? "conflict" : ""} ${block.done ? "done" : ""}`}
                     key={block.id}
                     onClick={() => setPlan((p) => ({ ...p, activeId: block.id }))}
-                    style={{
-                      marginLeft: `${start * 100}%`,
-                      width: `${width * 100}%`,
-                    }}
                   >
                     <small>
                       {formatRegularTime(block.start)} - {formatRegularTime(block.end)}
                     </small>
                     <b>{block.title}</b>
                     <span>{block.owner || "Unassigned"}</span>
+                    <span className="schedule-duration-track" aria-hidden="true"><i style={{ marginLeft: `${start * 100}%`, width: `${width * 100}%` }} /></span>
                   </button>
                 );
               })}
             </div>
-          </div>
-          <div className="run-list">
+          </div>}
+          {scheduleView === "list" && <div className="run-list">
             {blocks.map((block) => (
               <button
                 className={`${block.id === active?.id ? "active" : ""} ${block.done ? "done" : ""}`}
@@ -573,7 +579,7 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
                 <em>{block.done ? "DONE" : conflicts.has(block.id) ? "CONFLICT" : "OPEN"}</em>
               </button>
             ))}
-          </div>
+          </div>}
         </section>
 
         <aside className="sched-panel inspector">

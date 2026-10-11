@@ -1,6 +1,8 @@
 "use client";
 
 import { SuiteChrome } from "../SuiteChrome";
+import { WorkspaceButton, WorkspaceFiles } from "../WorkspaceControls";
+import { Save, Download, Upload, Utensils, Printer } from "lucide-react";
 import { OperationsTicker } from "../OperationsTicker";
 import { useGuardedSave, SaveRecovery } from "../use-guarded-save";
 import { templateFood } from "../template-planning";
@@ -42,9 +44,9 @@ export default function Home(){
   const [selectedIngredient,setSelectedIngredient]=useState("");
   const [quantityDrafts,setQuantityDrafts]=useState<Record<string,string>>({});
   const [notice,setNotice]=useState("");
+  const [localPlanProblem,setLocalPlanProblem]=useState("");
   const [importOpen,setImportOpen]=useState(false);
   const [recipeUrl,setRecipeUrl]=useState("");
-  const [localPlanProblem,setLocalPlanProblem]=useState("");
   const [importing,setImporting]=useState(false);
   const [importError,setImportError]=useState("");
   const [importDraft,setImportDraft]=useState<ImportDraft>({name:"",servings:1,ingredients:"",source:""});
@@ -157,8 +159,14 @@ export default function Home(){
     <SaveRecovery state={sharedSave} />
     <header className="topbar">
       <label className="location"><small>{eventIsLive?"LIVE EVENT":activeEvent?"PLANNING EVENT":"BUYING AREA"}</small><input readOnly={Boolean(activeEvent)} value={activeEvent?.title??plan.location} onChange={e=>setPlan(p=>({...p,location:e.target.value}))}/></label>
-      <div className="maker"><b>S<sup>3</sup></b><span><small>BUILT BY:</small>SHEPPARD SEMICONDUCTOR SYSTEMS</span></div>
-      <button onClick={save}>▣ SAVE</button><button className="save-state" data-tone={saveStatusTone(appletSaveStatus)} title={saveStatusHint(appletSaveStatus)} disabled>{appletSaveStatus}</button><button onClick={exportBackup}>⇩ EXPORT</button><button onClick={()=>importInput.current?.click()}>⇧ IMPORT</button><input ref={importInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Import Foodotron backup" onChange={e=>importBackup(e.target.files?.[0])}/><button onClick={()=>meal?setMealOpen(true):addMeal()}>▦ MEAL PLANNER</button><button className="primary" disabled={!meal} onClick={printMeal}>PRINT SHOPPING PLAN</button>
+      <div className="workspace-actions">
+        <WorkspaceButton icon={Save} onClick={save}>SAVE</WorkspaceButton>
+        <button className="save-state" data-tone={saveStatusTone(appletSaveStatus)} title={saveStatusHint(appletSaveStatus)} disabled>{appletSaveStatus}</button>
+        <WorkspaceFiles><WorkspaceButton icon={Download} onClick={exportBackup}>EXPORT</WorkspaceButton><WorkspaceButton icon={Upload} onClick={()=>importInput.current?.click()}>IMPORT</WorkspaceButton></WorkspaceFiles>
+        <WorkspaceButton icon={Utensils} onClick={()=>meal?setMealOpen(true):addMeal()}>MEAL PLANNER</WorkspaceButton>
+        <WorkspaceButton icon={Printer} className="primary" disabled={!meal} onClick={printMeal}>PRINT SHOPPING PLAN</WorkspaceButton>
+      </div>
+      <input ref={importInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Import Foodotron backup" onChange={e=>importBackup(e.target.files?.[0])}/>
     </header>
 
     <section className="workspace">

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { qaArtifact } from "./qa-artifacts.mjs";
 const { chromium } = await import(process.env.EVENTOTRON_PLAYWRIGHT_MODULE || "playwright");
 const target = new URL(process.env.EVENTOTRON_QA_URL || "http://invalid");
 if (process.env.EVENTOTRON_ISOLATED_QA !== "1" || target.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(target.hostname) || ["", "3000", "3001", "3101"].includes(target.port) || target.pathname !== "/" || target.search || target.hash || target.username || target.password) throw new Error("Use an isolated local QA server, never the daily-use database.");
@@ -49,7 +50,7 @@ try {
         assert.deepEqual(yellowText, [], `${path} must not use unreadable yellow text in light mode`);
       }
       await page.waitForTimeout(100);
-      await page.screenshot({ path: `/private/tmp/eventotron-suite-${path === "/" ? "home" : path.slice(1)}-${background === "#eef3fa" ? "light" : "dark"}.png` });
+      await page.screenshot({ path: qaArtifact(`eventotron-suite-${path === "/" ? "home" : path.slice(1)}-${background === "#eef3fa" ? "light" : "dark"}.png`) });
     }
   }
   await page.goto(target.origin + "/settings");
@@ -59,9 +60,10 @@ try {
     for (const [path] of routes) {
       await page.goto(target.origin + path);
       await page.waitForFunction(() => document.querySelector(".suite-appearance")?.style.getPropertyValue("--ui-scale") === String(20 / 12));
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${path} overflow at ${width}px`);
+      const overflow = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, nodes: [...document.querySelectorAll("body *")].filter(el => { const r = el.getBoundingClientRect(); return r.width && r.right > innerWidth + 1 && getComputedStyle(el).position !== "absolute"; }).slice(0, 10).map(el => ({ name: el.className, width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right })) }));
+      assert.ok(overflow.width <= width + 1, `${path} overflow at ${width}px: ${JSON.stringify(overflow)}`);
       await page.waitForTimeout(100);
-      await page.screenshot({ path: `/private/tmp/eventotron-suite-${path === "/" ? "home" : path.slice(1)}-${width}.png` });
+      await page.screenshot({ path: qaArtifact(`eventotron-suite-${path === "/" ? "home" : path.slice(1)}-${width}.png`) });
     }
   }
   await page.emulateMedia({ media: "print" });

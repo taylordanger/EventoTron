@@ -56,6 +56,7 @@ export function SuiteChrome({ active, eventId }: { active: SuiteArea; eventId?: 
             MASTER REPORT
           </Link>
           <SuiteIdentityBadge />
+          <small className="suite-credit">Built by Sheppard Semiconductor Systems</small>
         </div>
       </details>
       <ClockDisplay />

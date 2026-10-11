@@ -5,6 +5,74 @@ otherwise. Read this before changing anything.
 
 ## The one thing to get right first
 
+### Approved audit fixes and UI release (2026-10-11)
+
+Items 1-6 are committed separately: local-mode cross-site write rejection,
+shared import URL validation on every redirect, retirement of cross-origin
+Tabletron transfers, visible operational failures with draft recovery, removal
+of the unused unsigned ChatGPT-header auth helper, and formatting-only import
+routes. `.openai/hosting.json` remains in use and unchanged. The accepted DNS
+rebinding limitation is documented in `docs/IMPORT_URL_SECURITY.md`; no egress
+controls were added. Failure-injection checks are documented in
+`docs/CLIENT_FAILURE_CHECKS.md`.
+
+The first pushed CI run caught a misplaced schedule storage read in the
+selectively staged item 5 commit. Follow-up `ba6bede` corrects that placement;
+its clean GitHub CI run passed. The working-copy UI had the correct read.
+The owner also approved publishing the pending UI work, Lucide/Playwright and
+tested package updates, and the existing Tabletron project-data extraction.
+Further item 7 splits remain unapproved; do not treat this as permission to
+split other pages or stylesheets.
+
+Release verification: strict lint, typecheck, production build and 190 tests
+pass. All three isolated browser suites pass, with screenshots reviewed at
+desktop/mobile sizes. The always-visible clock and horizontal ticker remain.
+No QA fixtures were written to the daily-use database.
+
+### Work-focused UI pass (2026-10-10)
+
+Main planning tools now share consistent icon-and-text action buttons. Save and
+primary planning/printing commands stay visible; backup/import/export live in
+the keyboard-accessible Files disclosure. Removed the repeated maker badge from
+Foodotron/Tabletron toolbars; credit remains in suite More and printed reports.
+Screen typography uses the suite sans-serif face, clearer form labels, quieter
+selection borders and no decorative grid behind shopping data. The real room
+canvas retains its measurement grid. Room name/dimensions occupy their own
+toolbar line rather than squeezing into a tall narrow button.
+Scheduluotron offers Timeline/Run List views instead of duplicate lists. Timeline
+rows expose full titles, times and owners; a separate duration marker retains
+the time-position signal. Saved schedule data and print sheets are unchanged.
+Clock/date remain visible and Next Up keeps its scrolling/pause behavior.
+Browser acceptance checks cover file-menu bounds, both schedule views, unclipped
+titles and all previously required sections across ten widths with large text.
+Mobile schedule context stacks by field rather than collapsing into letter-wide
+columns; tool names stay compact and room annotation icons form a horizontal
+group. Timeline ruler endpoints remain inside the board.
+Verified locally: strict lint, typecheck, production build and 190 tests pass;
+all three isolated browser suites pass, including 320-1920px layouts at 20px
+text. Reviewed desktop and mobile screenshots. Live backend remains ready and
+shared record counts are unchanged; QA used a disposable database. Publishing
+was approved on 2026-10-11 with the release verification above.
+
+### Engineering risk audit (2026-10-10)
+
+See `docs/ENGINEERING_RISK_AUDIT.md` for the review of the supplied discussion.
+Extracted Tabletron project types/construction/hydration/normalization into
+`app/tabletron/project-data.ts`, with executed behavior tests. Fixed invalid clock
+inputs and inch rounding using acceptance checks that failed before the fixes.
+`npm run verify:browser` starts a fresh disposable D1 server, runs calendar,
+appearance and personal/responsive checks sequentially and shuts it down.
+CI now includes this command and screenshot/log artifacts. Browser readiness
+waits replace clicks before personal data/hydration were ready. Runtime environment
+variants are ignored and tracked-secret guardrails run with the regular tests.
+Patched Next/React/server decoder and compatible Vite/Cloudflare/Wrangler tooling;
+non-breaking transitive updates reduced the dependency audit from 32 affected
+packages (one critical) to 13 (zero critical; nine high/four moderate remain).
+Remaining build/parser/schema-tool fixes require a reviewed compatibility pass,
+not a forced major upgrade/downgrade. See the audit for versions and advisories.
+Recovery, genuine hosted identities and staff acceptance remain beta gates;
+the audit is not a completed production/security certification.
+
 ### Clearer header and restored ticker (2026-10-10)
 
 Suite navigation now occupies a dedicated row of simple text tabs with an active

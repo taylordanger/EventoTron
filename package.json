@@ -18,18 +18,20 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "WRANGLER_LOG_PATH=.wrangler/wrangler.log wrangler types .wrangler/runtime.d.ts --config types/wrangler.jsonc --include-env false && tsc --noEmit --incremental false",
     "verify": "npm run lint -- --max-warnings 0 && npm run typecheck && npm test",
+    "verify:browser": "node scripts/verify-browser.mjs",
     "backup:local": "node scripts/backup-local.mjs",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "jose": "^6.2.8",
-    "next": "16.2.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "lucide-react": "1.55.0",
+    "next": "16.3.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/vite-plugin": "1.63.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
@@ -38,13 +40,14 @@
     "@vitejs/plugin-rsc": "0.5.26",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
-    "react-server-dom-webpack": "19.2.6",
+    "eslint-config-next": "16.3.8",
+    "playwright": "1.62.1",
+    "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
-    "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "vite": "8.3.4",
+    "wrangler": "4.149.0"
   },
   "type": "module"
 }

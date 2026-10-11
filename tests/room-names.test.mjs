@@ -51,7 +51,7 @@ test("rooms a booking names are added to what is already assigned", async () => 
   // spread into a second room never picked it up — and an event imported
   // before room matching worked stayed stuck on whatever it first guessed.
   const { readFile } = await import("node:fs/promises");
-  const source = await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/tabletron/project-data.ts", import.meta.url), "utf8");
 
   assert.match(source, /const priorAssignments =/, "existing assignments are not kept separately");
   assert.match(source, /const unassigned = activeRooms\.filter\(/, "rooms the booking names are not added");

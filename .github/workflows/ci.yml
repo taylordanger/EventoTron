@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Reject critical dependency advisories
+        run: npm audit --audit-level=critical
+
       - name: Lint
         run: npm run lint -- --max-warnings 0
 
@@ -33,3 +36,19 @@ jobs:
 
       - name: Build and test
         run: npm test
+
+      - name: Install browser test runtime
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser acceptance checks against disposable database
+        run: npm run verify:browser
+
+      - name: Preserve browser screenshots and QA logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: browser-acceptance-evidence
+          path: |
+            /tmp/eventotron-browser-*/*.png
+            /tmp/eventotron-browser-*/wrangler.log
+          if-no-files-found: ignore

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { qaArtifact } from "./qa-artifacts.mjs";
 const { chromium } = await import(process.env.EVENTOTRON_PLAYWRIGHT_MODULE || "playwright");
 const target = new URL(process.env.EVENTOTRON_QA_URL || "http://invalid");
 if (process.env.EVENTOTRON_ISOLATED_QA !== "1" || target.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(target.hostname) || ["", "3000", "3001", "3101"].includes(target.port) || target.pathname !== "/" || target.search || target.hash || target.username || target.password) throw new Error("Use an isolated local QA server, never the daily-use database.");
@@ -44,11 +45,13 @@ try {
   await page.getByText("Saved to My Workspace.", { exact: true }).waitFor();
   const note = (await page.request.get(`${target.origin}/api/personal`).then(res => res.json())).items.find(item => item.title === "Personal QA note"); assert.ok(note.pinned); created.push(note.id);
   await page.reload();
+  await page.waitForFunction(() => !document.querySelector(".personal-actions button").disabled);
   await page.getByRole("button", { name: "My Notes", exact: true }).click();
   await page.getByRole("button", { name: "Open note Personal QA note", exact: true }).click();
   assert.equal(await page.getByLabel("Personal note", { exact: true }).inputValue(), "Only my workspace should contain this note.");
   const second = await context.newPage();
   await second.goto(`${target.origin}/personal`);
+  await second.waitForFunction(() => !document.querySelector(".personal-actions button").disabled);
   await second.getByRole("button", { name: "My Notes", exact: true }).click();
   await second.getByRole("button", { name: "Open note Personal QA note", exact: true }).click();
   await second.getByLabel("Personal note", { exact: true }).fill("Saved from second tab.");
@@ -93,6 +96,26 @@ try {
       assert.ok(overflow.document <= width + 1, `${path} ${width}px page overflow: ${JSON.stringify(overflow)}`);
       for (const label of ["Calendar", "My Workspace", "Tabletron", "Foodotron", "Scheduluotron", "Settings", "Support"]) assert.ok(await page.getByRole("navigation", { name: "EventoTron tools", exact: true }).getByRole("link", { name: label, exact: true }).isVisible(), `navigation ${label} at ${width}`);
       assert.ok(await page.locator(".suite-chrome > .suite-clock").isVisible(), `always-visible clock on ${path} at ${width}`);
+      if (width <= 600) assert.ok(await page.locator(".eventotron-logo").evaluate(el => el.getBoundingClientRect().height <= 45), `compact single-line tool name on ${path} at ${width}`);
+      if (["/foodotron", "/tabletron", "/scheduluotron"].includes(path)) {
+        await page.locator(".workspace-files summary").click();
+        const menu = await page.locator(".workspace-files-menu").boundingBox();
+        assert.ok(menu.x >= 0 && menu.x + menu.width <= width + 1, `file controls within ${path} at ${width}`);
+        assert.ok(await page.locator(".workspace-files-menu button").first().isVisible());
+        await page.locator(".workspace-files summary").click();
+        assert.equal(await page.locator(".topbar .maker, .topbar [aria-label='Built by Sheppard Semiconductor Systems']").count(), 0, "repeated branding must not crowd work controls");
+      }
+      if (path === "/scheduluotron") {
+        assert.ok(await page.locator(".sched-toolbar > div:first-child").evaluate(el => el.getBoundingClientRect().width >= 100), `schedule heading has readable width at ${width}`);
+        assert.ok(await page.locator(".schedule-block b").evaluateAll(elements => elements.every(el => el.scrollHeight <= el.clientHeight + 1 && getComputedStyle(el).textOverflow !== "ellipsis")), `full schedule titles at ${width}`);
+        assert.equal(await page.locator(".schedule-duration-track").count(), await page.locator(".schedule-block").count(), "readable rows retain duration markers");
+        const count = await page.locator(".schedule-block").count();
+        await page.getByRole("group", { name: "Schedule view", exact: true }).getByRole("button", { name: "Run List", exact: true }).click();
+        assert.equal(await page.locator(".run-list > button").count(), count);
+        assert.equal(await page.locator(".timeline").count(), 0, "schedule views do not duplicate every item on screen");
+        await page.getByRole("group", { name: "Schedule view", exact: true }).getByRole("button", { name: "Timeline", exact: true }).click();
+      }
+      if (path === "/foodotron") assert.equal(await page.locator(".planner").evaluate(el => getComputedStyle(el).backgroundImage), "none", "shopping data should not sit over decorative grid lines");
       if (path === "/tabletron") {
         const canvas = await page.locator(".room-canvas").boundingBox(); const stage = await page.locator(".canvas-stage").boundingBox();
         assert.ok(canvas.width > 100 && canvas.height > 100 && canvas.width <= stage.width && canvas.height <= stage.height, `room canvas framed at ${width}`);
@@ -101,14 +124,15 @@ try {
           return elements.every(el => { const rect = el.getBoundingClientRect(); return rect.left >= room.left - 1 && rect.right <= room.right + 1 && rect.top >= room.top - 1 && rect.bottom <= room.bottom + 1; });
         });
         assert.ok(chairs, `default layout chairs must scale inside the room at ${width}`);
-        if ([1440, 820, 320].includes(width)) await page.locator(".canvas-stage").screenshot({ path: `/private/tmp/eventotron-adaptive-canvas-${width}.png` });
+        if ([1440, 820, 320].includes(width)) await page.locator(".canvas-stage").screenshot({ path: qaArtifact(`eventotron-adaptive-canvas-${width}.png`) });
       }
-      if ([1440, 820, 390, 320].includes(width)) await page.screenshot({ path: `/private/tmp/eventotron-adaptive-${path === "/" ? "home" : path.slice(1)}-${width}.png`, fullPage: width <= 390 });
+      if ([1440, 820, 390, 320].includes(width)) await page.screenshot({ path: qaArtifact(`eventotron-adaptive-${path === "/" ? "home" : path.slice(1)}-${width}.png`), fullPage: width <= 390 });
     }
   }
   for (const width of [1024, 390, 320]) {
     await page.setViewportSize({ width, height: 650 });
     await page.goto(`${target.origin}/foodotron`);
+    await page.waitForFunction(() => document.querySelector(".suite-identity-badge"));
     await page.getByRole("button", { name: "MEAL PLANNER", exact: false }).click();
     await page.locator(".meal-modal").waitFor();
     assert.ok(await page.locator(".meal-modal").evaluate(el => el.scrollWidth <= el.clientWidth + 1), `meal planner must fit at ${width}`);
@@ -118,10 +142,12 @@ try {
     await page.getByRole("button", { name: "CLOSE", exact: true }).click();
     await page.getByRole("button", { name: "Close meal planner", exact: true }).click();
     await page.goto(`${target.origin}/tabletron`);
+    await page.waitForFunction(() => document.querySelector(".suite-identity-badge"));
     await page.getByRole("button", { name: "AUTO LAYOUT", exact: false }).click();
     await page.locator(".modal-backdrop .modal").waitFor();
     assert.ok(await page.locator(".modal-backdrop .modal").evaluate(el => el.scrollWidth <= el.clientWidth + 1), `room layout dialog must fit at ${width}`);
     await page.goto(`${target.origin}/personal`);
+    await page.waitForFunction(() => !document.querySelector(".personal-actions button").disabled);
     await page.getByRole("button", { name: "My Notes", exact: true }).click();
     await page.getByRole("button", { name: "Open note Personal QA note", exact: true }).click();
     await page.getByLabel("Personal note", { exact: true }).waitFor();
@@ -136,13 +162,13 @@ try {
     await page.locator(".report-builder").waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `master report must fit at ${width}`);
     assert.equal(await page.locator(".support-launcher").evaluate(el => getComputedStyle(el).position), "static", "feedback control must not cover report content");
-    await page.screenshot({ path: `/private/tmp/eventotron-adaptive-master-report-${width}.png` });
+    await page.screenshot({ path: qaArtifact(`eventotron-adaptive-master-report-${width}.png`) });
   }
   assert.deepEqual(errors, []);
   console.log("PASS: personal calendar/notes CRUD and persistence, pinned notes, two-tab conflict recovery, private export/shared-backup separation, honest local identity; all tools and inspectors available at ten window widths with large text.");
   await context.close();
 } catch (error) {
-  if (debugPage && !debugPage.isClosed()) { console.log(await debugPage.locator("body").innerText()); await debugPage.screenshot({ path: "/private/tmp/eventotron-personal-responsive-failure.png", fullPage: true }); }
+  if (debugPage && !debugPage.isClosed()) { console.log(await debugPage.locator("body").innerText()); await debugPage.screenshot({ path: qaArtifact("eventotron-personal-responsive-failure.png"), fullPage: true }); }
   throw error;
 } finally {
   for (const id of created) {

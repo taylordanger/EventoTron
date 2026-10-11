@@ -19,11 +19,58 @@
   .suite-appearance .eventotron-ribbon-row > :not(.suite-chrome) { margin: 0; width: auto; min-width: 0; min-height: 36px; }
   .suite-appearance .eventotron-ribbon-row > .save-state-action { justify-self: start; }
   .suite-appearance :is(.suite-identity-badge, .suite-clock) { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame, .foodotron-applet, .tabletron-applet, .scheduluotron-app) { font-family: var(--font-geist-sans), Arial, sans-serif; }
+  .suite-appearance :is(button, input, select, textarea, summary) { font-family: inherit; letter-spacing: 0; }
+  .suite-appearance :is(.foodotron-applet, .tabletron-applet, .scheduluotron-app) button { box-shadow: none; border-radius: 4px; }
+  .suite-appearance .workspace-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+  .suite-appearance :is(.foodotron-applet .topbar, .tabletron-applet .topbar, .sched-topbar) { display: flex; align-items: center; gap: 16px; padding: 12px 16px; }
+  .suite-appearance :is(.foodotron-applet .location, .tabletron-applet .project-name, .sched-title) { flex: 1 1 260px; min-width: 0; }
+  .suite-appearance :is(.foodotron-applet .location, .tabletron-applet .project-name, .sched-title) input { width: 100%; font-size: calc(14px * var(--ui-scale, 1)); font-weight: 600; }
+  .suite-appearance :is(.workspace-command, .workspace-files summary) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; min-height: 36px; font-size: calc(10px * var(--ui-scale, 1)); line-height: 1.4; font-weight: 500; }
+  .suite-appearance .workspace-command svg { flex: 0 0 16px; }
+  .suite-appearance .workspace-command span { min-width: 0; overflow-wrap: anywhere; }
+  .suite-appearance .workspace-files { position: relative; }
+  .suite-appearance .workspace-files summary { cursor: pointer; border: 1px solid var(--ui-border); border-radius: 4px; }
+  .suite-appearance .workspace-files-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 45; width: 180px; max-width: calc(100vw - 24px); padding: 6px; display: grid; gap: 4px; border: 1px solid var(--ui-border); background: var(--ui-surface); box-shadow: 0 6px 20px #0003; }
+  .suite-appearance .workspace-files-menu button { width: 100%; justify-content: flex-start; }
+  .suite-appearance .suite-credit { line-height: 1.5; font-size: calc(9px * var(--ui-scale, 1)); }
+  .suite-appearance :is(.panel-heading, .sched-heading) { font-weight: 600; font-size: calc(11px * var(--ui-scale, 1)); padding-bottom: 10px; }
+  .suite-appearance :is(.field > span, .sched-panel label > span, .sched-title > small, .project-name > small, .location > small, .room-toolbar small, .planner-toolbar small) { font-size: calc(9px * var(--ui-scale, 1)); line-height: 1.4; font-weight: 500; }
+  .suite-appearance :is(.foodotron-applet .field, .tabletron-applet .field, .sched-panel label) :is(input, select, textarea) { font-size: calc(11px * var(--ui-scale, 1)); line-height: 1.4; border-radius: 3px; }
+  .suite-appearance :is(.foodotron-applet .recipe-card, .tabletron-applet .room-list > button, .tabletron-applet .event-list > button, .run-list > button) { box-shadow: none; border-radius: 3px; }
+  .suite-appearance :is(.foodotron-applet .recipe-card, .tabletron-applet .room-list > button, .tabletron-applet .event-list > button, .run-list > button).active { border-left: 3px solid var(--ui-accent); background: var(--ui-input); }
+  .suite-appearance :is(.foodotron-applet .recipe-card, .tabletron-applet .room-list > button, .tabletron-applet .event-list > button, .run-list > button) b { font-size: calc(11px * var(--ui-scale, 1)); font-weight: 600; }
+  .suite-appearance .foodotron-applet .planner { background-image: none; }
+  .suite-appearance .foodotron-applet .planner-toolbar { gap: 12px; }
+  .suite-appearance .foodotron-applet .planner-toolbar > div:first-child { flex: 1 1 200px; }
+  .suite-appearance .tabletron-applet .room-toolbar { display: flex; align-items: end; gap: 8px; }
+  .suite-appearance .tabletron-applet .room-toolbar > div:first-child { flex: 1 1 100%; display: flex; align-items: center; gap: 10px; }
+  .suite-appearance .tabletron-applet .room-toolbar > div:first-child > button { width: auto; text-align: left; font-size: calc(11px * var(--ui-scale, 1)); }
+  .suite-appearance .tabletron-applet .room-toolbar > div:nth-child(2) { flex: 1 1 160px; }
+  .suite-appearance .tabletron-applet .room-toolbar .sketch-tools { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .suite-appearance .tabletron-applet .sketch-tools button { width: 34px; height: 36px; display: grid; place-items: center; padding: 0; }
+  .suite-appearance .scheduluotron-app .timeline-lanes { min-width: 0; }
+  .suite-appearance .scheduluotron-app .time-ruler { min-width: 0; }
+  .suite-appearance .scheduluotron-app .time-ruler span { white-space: nowrap; }
+  .suite-appearance .scheduluotron-app .time-ruler span:first-child { transform: none; }
+  .suite-appearance .scheduluotron-app .time-ruler span:last-child { transform: translateX(-100%); }
+  .suite-appearance .scheduluotron-app .schedule-block { width: 100%; margin-left: 0; min-height: 92px; padding: 12px; overflow: visible; }
+  .suite-appearance .scheduluotron-app .schedule-block b { font-size: calc(12px * var(--ui-scale, 1)); white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; }
+  .suite-appearance .scheduluotron-app .schedule-block :is(small, span) { font-size: calc(9px * var(--ui-scale, 1)); }
+  .suite-appearance .scheduluotron-app .schedule-duration-track { display: block; width: 100%; height: 5px; margin-top: 6px; background: var(--ui-border); }
+  .suite-appearance .scheduluotron-app .schedule-duration-track i { display: block; height: 5px; background: var(--ui-accent); }
+  .suite-appearance .schedule-view-switch { display: flex; gap: 4px; padding: 10px 16px; border-bottom: 1px solid var(--ui-border); }
+  .suite-appearance .schedule-view-switch button { font-size: calc(11px * var(--ui-scale, 1)); padding: 8px 12px; }
+  .suite-appearance :is(button, summary, input, select, textarea):focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+  .suite-appearance .month-tab { clip-path: none; border-radius: 3px; box-shadow: none; }
   .suite-appearance :is(.foodotron-applet .workspace, .tabletron-applet .workspace, .sched-workspace) { grid-template-columns: minmax(210px, 0.8fr) minmax(0, 2.2fr) minmax(280px, 1fr); align-items: start; min-width: 0; }
   .suite-appearance :is(.foodotron-applet .panel, .tabletron-applet .rooms, .tabletron-applet .inspector, .sched-panel) { display: block; min-width: 0; height: auto; max-height: none; overflow: visible; }
   .suite-appearance :is(.foodotron-applet .planner, .tabletron-applet .drafting-bay, .sched-board) { height: auto; min-width: 0; min-height: 0; grid-template-rows: auto auto auto; }
   .suite-appearance :is(.foodotron-applet .ingredient-table, .run-list, .scheduluotron-app .timeline) { min-width: 0; height: auto; max-height: none; }
   .suite-appearance :is(.foodotron-applet .statusbar, .tabletron-applet .statusbar, .sched-status) { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); height: auto; }
+  .suite-appearance :is(.foodotron-applet .statusbar, .tabletron-applet .statusbar, .sched-status) > div { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding: 12px; }
+  .suite-appearance :is(.foodotron-applet .statusbar, .tabletron-applet .statusbar, .sched-status) > div > b { font-size: calc(18px * var(--ui-scale, 1)); overflow-wrap: anywhere; max-width: 100%; }
+  .suite-appearance :is(.foodotron-applet .statusbar, .tabletron-applet .statusbar, .sched-status) > div > :is(small, span) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
   .suite-appearance :is(.foodotron-applet .statusbar .basket, .tabletron-applet .statusbar .warning) { display: flex; flex-direction: column; min-width: 0; }
   .suite-appearance :is(.foodotron-applet .maker, .tabletron-applet .topbar > div[aria-label="Built by Sheppard Semiconductor Systems"]) { display: flex !important; flex-wrap: wrap; max-width: 100%; }
   .suite-appearance :is(.field, .qty-grid, .offer, .package-offer, .sched-panel label, .room-toolbar > div, .planner-toolbar > div, .sched-toolbar > div, .settings-field, .settings-user-email) { min-width: 0; }
@@ -90,6 +137,8 @@
 }
 
 @media screen and (max-width:899px) {
+  .suite-appearance .sched-toolbar > div { flex: 1 1 160px; }
+  .suite-appearance .sched-toolbar > div:first-child { flex: 1 1 100%; }
   .suite-appearance :is(.foodotron-applet .workspace, .tabletron-applet .workspace, .sched-workspace, .eventotron-workbench) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
   .suite-appearance :is(.foodotron-applet .recipes, .tabletron-applet .rooms, .sched-panel) { max-height: none; border-right: 0; border-bottom: 1px solid var(--ui-border); }
   .suite-appearance .eventotron-workbench > .calendar-panel { grid-column: 1; grid-row: 2; }
@@ -109,6 +158,8 @@
 @media screen and (max-width:600px) {
   .suite-appearance :is(.suite-chrome, .topbar, .sched-topbar) { padding: 10px; }
   .suite-appearance .suite-chrome { grid-template-columns: minmax(0, 1fr) auto; }
+  .suite-appearance .suite-chrome .eventotron-logo { font-size: 18px; }
+  .suite-appearance .workspace-files { order: 5; flex-basis: 100%; }
   .suite-appearance .suite-more { grid-column: 2; }
   .suite-appearance .suite-chrome > .suite-clock { grid-column: 1 / -1; grid-row: 2; }
   .suite-appearance .folder-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-row: 3; }

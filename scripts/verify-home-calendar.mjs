@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { qaArtifact } from "./qa-artifacts.mjs";
 const { chromium } = await import(process.env.EVENTOTRON_PLAYWRIGHT_MODULE || "playwright");
 const target = new URL(process.env.EVENTOTRON_QA_URL || "http://invalid");
 if (process.env.EVENTOTRON_ISOLATED_QA !== "1" || target.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(target.hostname) || ["", "3000", "3001", "3101"].includes(target.port) || target.pathname !== "/" || target.search || target.hash || target.username || target.password) throw new Error("Use an isolated local QA server, never the daily-use database.");
@@ -30,7 +31,7 @@ try {
     await page.goto(target.origin);
     await page.waitForFunction(() => document.querySelectorAll(".calendar-event").length === 26).catch(async error => {
       console.log(await page.locator("body").innerText());
-      await page.screenshot({ path: "/private/tmp/eventotron-home-calendar-failure.png" });
+      await page.screenshot({ path: qaArtifact("eventotron-home-calendar-failure.png") });
       throw error;
     });
     assert.equal(await page.locator(".vertical-file").count(), 0, "server open files and today's event must not repopulate the rail");
@@ -51,8 +52,8 @@ try {
       };
     });
     assert.deepEqual(layout, { overflow: false, gridOverflow: false, clipped: false, overlaps: false }, `layout at ${width}px`);
-    await page.screenshot({ path: `/private/tmp/eventotron-home-calendar-${width}.png` });
-    await page.locator(".eventotron-ribbon-row").screenshot({ path: `/private/tmp/eventotron-header-${width}.png` });
+    await page.screenshot({ path: qaArtifact(`eventotron-home-calendar-${width}.png`) });
+    await page.locator(".eventotron-ribbon-row").screenshot({ path: qaArtifact(`eventotron-header-${width}.png`) });
     assert.ok(await page.locator(".suite-chrome > .suite-clock").isVisible(), "clock stays visible with More closed");
     assert.ok(!(await page.getByRole("link", { name: "MASTER REPORT", exact: true }).isVisible()), "secondary tools are tucked away");
     await page.locator(".suite-more summary").click();
@@ -126,7 +127,7 @@ try {
     assert.equal(await page.locator(".month-grid .calendar-event").count(), 26);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `appearance must not overflow at ${width}px`);
     assert.ok(await page.locator(".month-grid .calendar-event").evaluateAll(buttons => buttons.every(button => button.scrollHeight <= button.clientHeight + 1)), "large text must not clip");
-    await page.screenshot({ path: `/private/tmp/eventotron-calendar-display-${width}.png` });
+    await page.screenshot({ path: qaArtifact(`eventotron-calendar-display-${width}.png`) });
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${target.origin}/settings`);
@@ -138,7 +139,7 @@ try {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(100);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "display settings fit the screen");
-    await page.screenshot({ path: `/private/tmp/eventotron-calendar-settings-${width}.png` });
+    await page.screenshot({ path: qaArtifact(`eventotron-calendar-settings-${width}.png`) });
   }
   const fresh = await browser.newPage();
   await fresh.goto(target.origin);

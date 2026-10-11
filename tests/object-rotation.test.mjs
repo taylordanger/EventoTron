@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
  * is mostly things turned to run lengthwise.
  */
 
-const page = () => readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8");
+const page = async () => (await readFile(new URL("../app/tabletron/project-data.ts", import.meta.url), "utf8")) + (await readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8"));
 
 test("placed furniture carries a rotation", async () => {
   const source = await page();

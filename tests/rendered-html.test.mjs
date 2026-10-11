@@ -148,7 +148,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/master-report/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/foodotron/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8"),
+    Promise.all([readFile(new URL("../app/tabletron/project-data.ts", import.meta.url), "utf8"), readFile(new URL("../app/tabletron/page.tsx", import.meta.url), "utf8")]).then(parts => parts.join("\n")),
     readFile(new URL("../app/scheduluotron/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/print-mode.ts", import.meta.url), "utf8"),
