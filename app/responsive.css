@@ -1,0 +1,142 @@
+/* Screen layouts must preserve tools and records; paper layouts stay independent. */
+@media screen {
+  .suite-appearance :is(.suite-frame, .eventotron-desktop, .foodotron-applet.app-shell, .tabletron-applet.app-shell, .scheduluotron-app) { height: auto; min-height: 100dvh; overflow: visible; grid-template-rows: auto auto auto; }
+  .suite-appearance :is(.support-frame, .personal-frame) { grid-template-rows: auto auto; }
+  .suite-appearance :is(.suite-chrome, .eventotron-ribbon-row, .topbar, .sched-topbar, .header-actions, .room-toolbar, .planner-toolbar, .sched-toolbar, .settings-card-heading, .settings-page-header, .support-heading, .support-filters) { min-width: 0; height: auto; flex-wrap: wrap; gap: 10px; }
+  .suite-appearance .eventotron-logo { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .suite-appearance .suite-chrome { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; padding: 12px 16px 0; gap: 12px; }
+  .suite-appearance .suite-chrome > .suite-clock { grid-column: 2; grid-row: 1; margin: 0; }
+  .suite-appearance .suite-chrome .eventotron-logo { font-size: calc(18px * var(--ui-scale, 1)); }
+  .suite-appearance .folder-tabs { display: flex; flex-wrap: wrap; grid-column: 1 / -1; grid-row: 2; width: auto; overflow: visible; padding: 0; gap: 0; border-top: 1px solid var(--ui-border); }
+  .suite-appearance .folder-tab { flex: 0 1 auto; min-width: 0; height: auto; min-height: 42px; padding: 10px 16px; white-space: normal; text-align: center; clip-path: none; border: 0; border-bottom: 3px solid transparent; background: transparent; box-shadow: none; }
+  .suite-appearance .folder-tab.active { border-bottom-color: var(--ui-accent); background: var(--ui-surface); color: var(--ui-text); }
+  .suite-appearance .suite-more { position: relative; grid-column: 3; grid-row: 1; align-self: center; }
+  .suite-appearance .suite-more summary { cursor: pointer; padding: 10px 12px; font-weight: 700; }
+  .suite-appearance .suite-more-panel { position: absolute; z-index: 50; right: 0; top: 100%; width: min(280px, calc(100vw - 32px)); display: grid; gap: 12px; padding: 16px; background: var(--ui-surface); border: 1px solid var(--ui-border); box-shadow: 0 8px 24px #0004; }
+  .suite-appearance .suite-more-panel > * { margin: 0; width: 100%; }
+  .suite-appearance .eventotron-ribbon-row { grid-template-columns: minmax(0, 1fr) auto auto; padding: 0 12px 10px; gap: 8px; align-items: center; }
+  .suite-appearance .eventotron-ribbon-row > .suite-chrome { grid-column: 1 / -1; }
+  .suite-appearance .eventotron-ribbon-row > :not(.suite-chrome) { margin: 0; width: auto; min-width: 0; min-height: 36px; }
+  .suite-appearance .eventotron-ribbon-row > .save-state-action { justify-self: start; }
+  .suite-appearance :is(.suite-identity-badge, .suite-clock) { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  .suite-appearance :is(.foodotron-applet .workspace, .tabletron-applet .workspace, .sched-workspace) { grid-template-columns: minmax(210px, 0.8fr) minmax(0, 2.2fr) minmax(280px, 1fr); align-items: start; min-width: 0; }
+  .suite-appearance :is(.foodotron-applet .panel, .tabletron-applet .rooms, .tabletron-applet .inspector, .sched-panel) { display: block; min-width: 0; height: auto; max-height: none; overflow: visible; }
+  .suite-appearance :is(.foodotron-applet .planner, .tabletron-applet .drafting-bay, .sched-board) { height: auto; min-width: 0; min-height: 0; grid-template-rows: auto auto auto; }
+  .suite-appearance :is(.foodotron-applet .ingredient-table, .run-list, .scheduluotron-app .timeline) { min-width: 0; height: auto; max-height: none; }
+  .suite-appearance :is(.foodotron-applet .statusbar, .tabletron-applet .statusbar, .sched-status) { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); height: auto; }
+  .suite-appearance :is(.foodotron-applet .statusbar .basket, .tabletron-applet .statusbar .warning) { display: flex; flex-direction: column; min-width: 0; }
+  .suite-appearance :is(.foodotron-applet .maker, .tabletron-applet .topbar > div[aria-label="Built by Sheppard Semiconductor Systems"]) { display: flex !important; flex-wrap: wrap; max-width: 100%; }
+  .suite-appearance :is(.field, .qty-grid, .offer, .package-offer, .sched-panel label, .room-toolbar > div, .planner-toolbar > div, .sched-toolbar > div, .settings-field, .settings-user-email) { min-width: 0; }
+  .suite-appearance :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+  .suite-appearance :is(.header-actions, .foodotron-applet .location, .tabletron-applet .project-name) { min-width: 0; flex-wrap: wrap; }
+  .suite-appearance :is(.foodotron-applet .recipe-card b, .foodotron-applet .recipe-card small, .foodotron-applet .ingredient-row span, .tabletron-applet .event-list b, .tabletron-applet .room-list b, .sched-toolbar b, .run-list b, .run-list small, .settings-user-email, .activity-actor b, .support-ticket-row strong) { white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; }
+  .suite-appearance .foodotron-applet .ingredient-table { overflow: visible; }
+  .suite-appearance .foodotron-applet :is(.table-head, .ingredient-row) { min-width: 0; grid-template-columns: minmax(0, 1.4fr) repeat(5, minmax(0, 1fr)); }
+  .suite-appearance .foodotron-applet .offer.package-offer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance .foodotron-applet .offer.package-offer > input, .suite-appearance .foodotron-applet .product-link-field { grid-column: 1 / -1; }
+  .suite-appearance .foodotron-applet .offer.package-offer > input:first-child { grid-column: 1; grid-row: 1; }
+  .suite-appearance .foodotron-applet .offer.package-offer > button[aria-label="Remove offer"] { grid-column: 2; grid-row: 1; }
+  .suite-appearance .foodotron-applet .offer.package-offer .yield-field { grid-column: auto; }
+  .suite-appearance .foodotron-applet .offer.package-offer > button { justify-self: end; }
+  .suite-appearance .foodotron-applet .product-link-field :is(em, small > span) { white-space: normal; flex-wrap: wrap; overflow-wrap: anywhere; }
+  .suite-appearance .tabletron-applet .canvas-stage { height: clamp(350px, calc(100dvh - 270px), 720px); min-width: 0; padding: 30px 36px; }
+  .suite-appearance .tabletron-applet .room-canvas { min-width: 0; box-shadow: 0 0 0 4px var(--ui-border); }
+  .suite-appearance :is(.modal-backdrop, .import-overlay, .settings-backdrop, .backup-review-backdrop) { overflow: auto; align-items: start; padding: 16px; }
+  .suite-appearance :is(.modal, .import-panel, .import-modal, .meal-modal, .settings-panel, .backup-review-panel, .support-dialog) { max-width: 100%; max-height: calc(100dvh - 32px); overflow: auto; margin-block: auto; }
+  .suite-appearance :is(.modal-actions, .meal-actions, .report-actions, .report-builder-controls) { display: flex; flex-wrap: wrap; gap: 8px; }
+  .suite-appearance :is(.meal-settings, .meal-recipe-pick, .meal-summary, .import-review) { min-width: 0; }
+  .suite-appearance .settings-applet, .suite-appearance .support-workspace { overflow: visible; min-width: 0; }
+  .suite-appearance .settings-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance :is(.settings-card, .support-inbox, .support-detail) { min-width: 0; }
+  .suite-appearance .settings-page-header { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .suite-appearance .settings-page-header > div:first-child { grid-column: 1 / -1; }
+  .suite-appearance .live-operations-ticker { min-height: 42px; height: auto; grid-template-columns: 110px minmax(0, 1fr) auto; overflow: hidden; }
+  .suite-appearance :is(.live-ticker-open, .live-ticker-viewport) { min-width: 0; width: 100%; overflow: hidden; }
+  .suite-appearance .live-ticker-track { width: max-content; animation: live-ticker-roll 24s linear infinite; }
+  .suite-appearance .live-ticker-message { min-width: max(640px, 70vw); height: auto; min-height: 42px; padding: 10px 64px 10px 18px; flex-wrap: nowrap; white-space: nowrap; }
+  .suite-appearance .live-ticker-open:is(:hover, :focus-visible) .live-ticker-track { animation-play-state: paused; }
+  .suite-appearance .live-ticker-counter { flex-wrap: wrap; max-width: 180px; }
+  .suite-appearance .live-ticker-counter small { display: block; white-space: normal; overflow-wrap: anywhere; }
+  .suite-appearance .event-info-sheet { min-width: 0; height: auto; max-height: none; overflow: visible; }
+  .suite-appearance:has(.master-report-page) .support-launcher { position: static; display: inline-flex; margin: 12px; max-width: calc(100% - 24px); }
+}
+
+@media screen and (max-width:1399px) {
+  .suite-appearance :is(.foodotron-applet .workspace, .tabletron-applet .workspace, .sched-workspace) { grid-template-columns: minmax(220px, 0.8fr) minmax(0, 2fr); }
+  .suite-appearance :is(.foodotron-applet .inspector, .tabletron-applet .inspector, .sched-panel.inspector) { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--ui-border); }
+  .suite-appearance .foodotron-applet .offer.package-offer { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media screen and (max-width:1100px) {
+  .suite-appearance .settings-layout { grid-template-columns: minmax(0, 1fr); }
+  .suite-appearance .settings-calendar-card { grid-row: auto; }
+  .suite-appearance .foodotron-applet .table-head { display: none; }
+  .suite-appearance .foodotron-applet .ingredient-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:first-child { grid-column: 1 / -1; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:not(:first-child)::before { display: block; margin-bottom: 4px; font-size: 11px; font-weight: normal; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:nth-child(2)::before { content: "BASE QTY"; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:nth-child(3)::before { content: "SCALED NEED"; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:nth-child(4)::before { content: "BEST SOURCE"; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:nth-child(5)::before { content: "BUY"; }
+  .suite-appearance .foodotron-applet .ingredient-row > span:nth-child(6)::before { content: "COST"; }
+  .suite-appearance .scheduluotron-app .time-ruler { display: none; }
+  .suite-appearance .scheduluotron-app .timeline-lanes { min-width: 0; }
+  .suite-appearance .scheduluotron-app .schedule-block { width: 100% !important; margin-left: 0 !important; overflow: visible; }
+  .suite-appearance .scheduluotron-app .schedule-block b { white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+  .suite-appearance .eventotron-workbench { grid-template-columns: minmax(220px, 0.8fr) minmax(0, 2fr); grid-template-rows: auto auto; }
+  .suite-appearance .event-info-sheet { grid-column: 1 / -1; grid-row: 2; }
+  .suite-appearance .event-stack { grid-row: 1; }
+  .suite-appearance .eventotron-workbench > .calendar-panel { grid-column: 2; grid-row: 1; }
+}
+
+@media screen and (max-width:899px) {
+  .suite-appearance :is(.foodotron-applet .workspace, .tabletron-applet .workspace, .sched-workspace, .eventotron-workbench) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  .suite-appearance :is(.foodotron-applet .recipes, .tabletron-applet .rooms, .sched-panel) { max-height: none; border-right: 0; border-bottom: 1px solid var(--ui-border); }
+  .suite-appearance .eventotron-workbench > .calendar-panel { grid-column: 1; grid-row: 2; }
+  .suite-appearance .event-info-sheet { grid-column: 1; grid-row: 3; }
+  .suite-appearance .event-stack { display: flex; flex-wrap: wrap; overflow: visible; grid-row: 1; }
+  .suite-appearance .vertical-file { flex: 1 1 160px; height: auto; }
+  .suite-appearance .vertical-file b { writing-mode: initial; white-space: normal; overflow-wrap: anywhere; }
+  .suite-appearance :is(.run-list button, .support-ticket-row) { min-width: 0; }
+  .suite-appearance .tabletron-applet .builder { grid-template-columns: minmax(0, 1fr); }
+  .suite-appearance .tabletron-applet .room-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+  .suite-appearance .tabletron-applet .modal-grid { grid-template-columns: minmax(0, 1fr); }
+  .suite-appearance .tabletron-applet .ops-food-head, .suite-appearance .tabletron-applet .ops-food-row { min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance .tabletron-applet .setup-timing { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance :is(.report-head, .report-row) { min-width: 0; overflow-wrap: anywhere; }
+}
+
+@media screen and (max-width:600px) {
+  .suite-appearance :is(.suite-chrome, .topbar, .sched-topbar) { padding: 10px; }
+  .suite-appearance .suite-chrome { grid-template-columns: minmax(0, 1fr) auto; }
+  .suite-appearance .suite-more { grid-column: 2; }
+  .suite-appearance .suite-chrome > .suite-clock { grid-column: 1 / -1; grid-row: 2; }
+  .suite-appearance .folder-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-row: 3; }
+  .suite-appearance .folder-tab { padding: 8px; font-size: calc(10px * var(--ui-scale, 1)); }
+  .suite-appearance .eventotron-ribbon-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .suite-appearance .eventotron-ribbon-row > .save-state-action { grid-column: 1 / -1; justify-self: start; }
+  .suite-appearance .live-operations-ticker { grid-template-columns: 90px minmax(0, 1fr); }
+  .suite-appearance .live-ticker-counter { grid-column: 1 / -1; max-width: none; padding: 6px 12px; border-top: 1px solid var(--ui-border); justify-content: space-between; }
+  .suite-appearance .foodotron-applet .offer.package-offer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance .foodotron-applet .location { flex: 1 1 100%; width: 100%; }
+  .suite-appearance .tabletron-applet .canvas-stage { height: 390px; padding: 30px; }
+  .suite-appearance :is(.settings-two-up, .settings-user-row, .operations-template-topline, .operations-template-list, .launch-readiness-list, .backup-review-summary, .sheet-grid, .tabletron-applet .client-block) { grid-template-columns: minmax(0, 1fr); }
+  .suite-appearance .run-list button { grid-template-columns: 70px minmax(0, 1fr); }
+  .suite-appearance .run-list em { grid-column: 2; text-align: left; }
+  .suite-appearance .foodotron-applet .meal-report { padding: 16px; width: 100%; }
+  .suite-appearance .foodotron-applet .meal-report header { flex-wrap: wrap; }
+  .suite-appearance .foodotron-applet :is(.meal-settings, .meal-recipe-pick, .import-review) { grid-template-columns: minmax(0, 1fr); }
+  .suite-appearance .foodotron-applet .meal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance .foodotron-applet .link-row { flex-wrap: wrap; }
+  .suite-appearance .foodotron-applet .meal-recipe-pick label span { min-width: 0; overflow-wrap: anywhere; }
+  .suite-appearance .foodotron-applet :is(.report-head, .report-row) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance .foodotron-applet .report-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .suite-appearance .master-report-page { padding: 12px; }
+  .suite-appearance .master-report-header h1 { font-size: 26px; overflow-wrap: anywhere; }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .suite-appearance .live-ticker-track { animation: none; }
+  .suite-appearance .live-ticker-viewport { overflow-x: auto; }
+  .suite-appearance .live-ticker-message + .live-ticker-message { display: none; }
+}

@@ -53,6 +53,8 @@ test("server-renders the EventoTron calendar and permanent suite navigation", as
   assert.match(html, /Foodotron/);
   assert.match(html, /Scheduluotron/);
   assert.match(html, /Settings/);
+  assert.equal((html.match(/href="\/settings(?:\?[^" ]*)?"/g) ?? []).length, 1, "there is one canonical Settings navigation link");
+  assert.doesNotMatch(html, /<button[^>]*>SETTINGS<\/button>/);
   assert.match(html, /MASTER REPORT/);
   assert.match(html, /OPS FEED/);
   assert.doesNotMatch(html, /Your site is taking shape|Starter Project/);
@@ -199,7 +201,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarRoute, /googleCalendarFeedUrl/);
   assert.match(calendarRoute, /function importSummaryForSource/);
   assert.match(calendarRoute, /importHistory/);
-  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0008_beta_support"/);
+  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0009_personal_workspace"/);
   for (const table of ["eventAudit", "rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
   }
@@ -294,8 +296,8 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(homePage, /operationsTemplateId/);
   assert.match(homePage, /applyOperationsTemplate/);
   assert.match(homePage, /operationsTemplatePatch/);
-  assert.match(homePage, /importGoogleCalendarLink/);
-  assert.match(homePage, /Paste Google Calendar link/);
+  assert.match(settingsPage, /importGoogleCalendarLink/);
+  assert.match(settingsPage, /Paste Google Calendar link/);
   assert.match(homePage, /START FROM/);
   assert.match(homePage, /Operations Template/);
   assert.match(homePage, /convertCalendarEvent/);

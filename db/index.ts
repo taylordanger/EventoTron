@@ -3,7 +3,7 @@ import * as schema from "./schema";
 
 let schemaReady: Promise<void> | null = null;
 
-export const EXPECTED_SCHEMA_MIGRATION = "0008_beta_support";
+export const EXPECTED_SCHEMA_MIGRATION = "0009_personal_workspace";
 
 async function getD1() {
   const { env } = await import("cloudflare:workers");
@@ -21,6 +21,8 @@ export async function ensureSuiteSchema() {
       db.prepare(
         "CREATE TABLE IF NOT EXISTS suite_schema_migrations (id text PRIMARY KEY NOT NULL, applied_at text NOT NULL)",
       ),
+      db.prepare("CREATE TABLE IF NOT EXISTS personal_items (owner text NOT NULL, id text NOT NULL, kind text NOT NULL, title text NOT NULL, date text DEFAULT '' NOT NULL, start text DEFAULT '' NOT NULL, end text DEFAULT '' NOT NULL, location text DEFAULT '' NOT NULL, details text DEFAULT '' NOT NULL, pinned integer DEFAULT false NOT NULL, created_at text NOT NULL, updated_at text NOT NULL, PRIMARY KEY (owner, id))"),
+      db.prepare("CREATE INDEX IF NOT EXISTS idx_personal_items_owner_date ON personal_items (owner, date)"),
       db.prepare("CREATE TABLE IF NOT EXISTS support_tickets (number integer PRIMARY KEY AUTOINCREMENT NOT NULL, id text NOT NULL, title text NOT NULL, app text NOT NULL, impact text NOT NULL, status text DEFAULT 'new' NOT NULL, reporter text NOT NULL, assignee text DEFAULT '' NOT NULL, payload text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL)"),
       db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS support_tickets_id_unique ON support_tickets (id)"),
       db.prepare("CREATE INDEX IF NOT EXISTS idx_support_tickets_reporter_created ON support_tickets (reporter, created_at)"),
@@ -167,7 +169,7 @@ export async function ensureSuiteSchema() {
         "CREATE INDEX IF NOT EXISTS idx_meal_transfers_status_created_at ON meal_transfers (status, created_at)",
       ),
       db.prepare(
-        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('0004_calendar_sync_records', datetime('now')), ('0005_event_audit_history', datetime('now')), ('0006_access_and_oauth', datetime('now')), ('0007_guarded_writes', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
+        `INSERT OR IGNORE INTO suite_schema_migrations (id, applied_at) VALUES ('0000_suite_meal_transfers', datetime('now')), ('0001_suite_production_tables', datetime('now')), ('0002_suite_applet_states', datetime('now')), ('0003_suite_integrity_indexes', datetime('now')), ('0004_calendar_sync_records', datetime('now')), ('0005_event_audit_history', datetime('now')), ('0006_access_and_oauth', datetime('now')), ('0007_guarded_writes', datetime('now')), ('0008_beta_support', datetime('now')), ('${EXPECTED_SCHEMA_MIGRATION}', datetime('now'))`,
       ),
     ]).then(() => undefined),
   );

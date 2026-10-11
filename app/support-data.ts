@@ -1,4 +1,4 @@
-export const SUPPORT_APPS = ["calendar", "tabletron", "foodotron", "scheduluotron", "settings", "master-report", "support", "system"] as const;
+export const SUPPORT_APPS = ["calendar", "personal", "tabletron", "foodotron", "scheduluotron", "settings", "master-report", "support", "system"] as const;
 export const TICKET_STATUSES = ["new", "investigating", "needs-information", "fixed", "verified"] as const;
 export const TICKET_IMPACTS = ["cosmetic", "blocked", "possible-lost-work"] as const;
 export const DIAGNOSTIC_CODES = ["browser-crash", "promise-rejection", "request-failed", "network-failed", "save-conflict", "save-failed", "calendar-sync-failed", "restore-failed", "transfer-failed", "slow-request", "server-exception", "runtime-start", "runtime-stop", "runtime-restart", "backup-failed"] as const;
@@ -21,9 +21,9 @@ export function appFromPath(path: string): SupportApp {
 export function safeRoute(path: string) {
   const clean = path.split(/[?#]/)[0];
   if (clean === "/") return "/";
-  if (/^\/(tabletron|foodotron|scheduluotron|settings|master-report|support)$/.test(clean)) return clean;
+  if (/^\/(personal|tabletron|foodotron|scheduluotron|settings|master-report|support)$/.test(clean)) return clean;
   if (/^\/tabletron\/import\/[^/]+$/.test(clean)) return "/tabletron/import/:id";
-  if (/^\/api\/(events|settings|health|event-app-state|event-bundle|event-records|event-history|calendar-sources|workspace-backup|meal-transfers|tabletron-transfers|import-product|import-recipe|session|users|local-runtime|support-tickets|diagnostics)$/.test(clean)) return clean;
+  if (/^\/api\/(personal|events|settings|health|event-app-state|event-bundle|event-records|event-history|calendar-sources|workspace-backup|meal-transfers|tabletron-transfers|import-product|import-recipe|session|users|local-runtime|support-tickets|diagnostics)$/.test(clean)) return clean;
   if (/^\/api\/tabletron-transfers\/[^/]+(?:\/complete)?$/.test(clean)) return clean.endsWith("/complete") ? "/api/tabletron-transfers/:id/complete" : "/api/tabletron-transfers/:id";
   if (/^\/api\/calendar-oauth\/(google|microsoft)\/(start|callback)$/.test(clean)) return clean;
   if (/^\/api\/calendar-oauth\/accounts(?:\/[^/]+)?$/.test(clean)) return clean === "/api/calendar-oauth/accounts" ? clean : "/api/calendar-oauth/accounts/:id";

@@ -104,7 +104,7 @@
 
 .eventotron-ribbon-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 230px) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 230px) auto auto;
   align-items: stretch;
   gap: 7px;
   padding-right: 12px;

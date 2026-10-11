@@ -1,0 +1,51 @@
+.suite-appearance .personal-frame { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; overflow: visible; }
+.personal-workspace { padding: 20px; min-width: 0; color: var(--ui-text); }
+.personal-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.personal-heading h1 { margin: 0; font-size: 26px; }
+.personal-heading p { margin: 6px 0; overflow-wrap: anywhere; }
+.personal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.personal-workspace button, .personal-workspace input, .personal-workspace textarea { font: inherit; font-size: calc(12px * var(--ui-scale, 1)); }
+.personal-workspace button { border: 1px solid var(--ui-border); background: var(--ui-surface); color: var(--ui-text); padding: 8px 12px; border-radius: 3px; cursor: pointer; }
+.personal-workspace button:disabled { cursor: default; opacity: 0.6; }
+.personal-workspace button:focus-visible, .personal-workspace :is(input, textarea):focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.personal-local-warning { border-left: 3px solid var(--ui-warning); padding: 12px; background: var(--ui-surface); line-height: 1.5; }
+.personal-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border-bottom: 1px solid var(--ui-border); padding: 12px 0; margin-bottom: 16px; }
+.personal-tabs span { margin-left: auto; font-size: 11px; }
+.personal-body { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 20px; }
+.personal-body.with-editor { grid-template-columns: minmax(0, 1fr) minmax(300px, 350px); }
+.personal-calendar { grid-column: auto; grid-row: auto; min-width: 0; border: 1px solid var(--ui-border); }
+.personal-calendar-period { padding: 12px; margin: 0; font-size: 18px; background: var(--ui-surface); }
+.personal-calendar .calendar-display-toolbar { position: static; }
+.personal-calendar .month-grid { min-width: 0; grid-template-rows: none; grid-auto-rows: auto; }
+.personal-calendar .weekday { position: static; }
+.personal-calendar .personal-day-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.personal-calendar .calendar-day-label { display: inline; font-size: max(11px, calc(var(--cal-size) - 1px)); }
+.personal-calendar .calendar-event { width: 100%; border-left-color: var(--cal-accent); text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.personal-calendar .calendar-event b { display: block; }
+.personal-calendar .day-events { display: flex; flex-direction: column; }
+.personal-workspace .personal-today { width: auto; font-size: 12px; }
+.personal-editor { min-width: 0; padding: 16px; background: var(--ui-surface); border-left: 1px solid var(--ui-border); scroll-margin-top: 12px; }
+.personal-editor header { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.personal-editor h2 { font-size: 18px; margin: 5px 0; }
+.personal-editor fieldset { border: 0; padding: 0; min-width: 0; }
+.personal-editor label, .personal-search { display: flex; flex-direction: column; gap: 6px; font-size: calc(12px * var(--ui-scale, 1)); margin-bottom: 12px; }
+.personal-workspace :is(input:not([type="checkbox"]), textarea) { width: 100%; min-width: 0; max-width: 100%; padding: 9px; color: var(--ui-text); background: var(--ui-input); border: 1px solid var(--ui-border); }
+.personal-editor textarea { resize: vertical; min-height: 180px; line-height: 1.5; }
+.personal-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.personal-editor .personal-pin-field { flex-direction: row; align-items: center; }
+.personal-editor footer { display: flex; flex-wrap: wrap; gap: 6px; }
+.personal-editor .personal-delete, .personal-error { color: var(--ui-danger); }
+.personal-error, .personal-notice { padding: 12px; background: var(--ui-surface); overflow-wrap: anywhere; }
+.personal-notice { color: var(--ui-success); }
+.personal-save-status { font-size: 12px; }
+.personal-notes { min-width: 0; }
+.personal-search { max-width: 520px; }
+.personal-note-list { display: grid; gap: 0; }
+.personal-note-list button { border: 0; border-bottom: 1px solid var(--ui-border); border-radius: 0; text-align: left; padding: 16px; overflow-wrap: anywhere; }
+.personal-note-list strong, .personal-note-list small { display: block; }
+.personal-note-list small { margin-top: 8px; font-size: 11px; }
+.personal-pin { color: var(--ui-success); }
+.personal-empty { padding: 20px 0; }
+@media(max-width:1100px) { .personal-body.with-editor { grid-template-columns: minmax(0, 1fr); } .personal-editor { border-left: 0; border-top: 1px solid var(--ui-border); } }
+@media(max-width:780px) { .personal-workspace { padding: 12px; } .personal-calendar .calendar-view-month { grid-template-columns: minmax(0, 1fr); } }
+@media print { .personal-frame .suite-chrome, .personal-actions, .personal-tabs, .personal-editor, .personal-search, .personal-local-warning { display: none; } .personal-workspace { color: black; } }

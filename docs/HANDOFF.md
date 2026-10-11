@@ -5,6 +5,88 @@ otherwise. Read this before changing anything.
 
 ## The one thing to get right first
 
+### Clearer header and restored ticker (2026-10-10)
+
+Suite navigation now occupies a dedicated row of simple text tabs with an active
+underline, rather than expanding folder-shaped buttons alongside unrelated tools.
+The More disclosure groups Master Report, bug reporting and account identity.
+The live local clock and date remain directly visible in the header, including
+at small window sizes; they must never be tucked into a menu.
+Calendar save status, template choice and New Event occupy a
+separate action row. All routes remain visible; small windows use two-column tabs.
+The Next Up ticker scrolls horizontally again, pauses on hover or keyboard focus,
+and offers manual horizontal scrolling for reduced-motion preferences.
+Browser regression checks cover the menu, animated movement and pause behavior.
+
+### One Settings entry (2026-10-10)
+
+Settings now has one entry: the permanent suite navigation tab to `/settings`.
+The older home quick-settings button and its duplicated popup were removed;
+display, calendar connections, workspace and report settings remain on the full
+Settings page. Home calendar auto-sync and its rail resize controls are retained.
+
+### Personal Workspace and adaptive layouts (2026-10-10)
+
+The permanent navigation now includes My Workspace (`/personal`). Personal
+appointments have their own Month/Week/Day/Agenda calendar, date/time/location
+and notes. My Notes supports editing, title search and pinning. Personal calendar
+startup and Today bring the current venue day's entries into view, including on
+stacked phone layouts. Explicit saves persist to D1; browser refresh does not
+lose saved work. Unsaved edits trigger
+leave/discard prompts. Failed saves keep the editor draft; revision conflicts
+block overwrite and offer a draft download and explicit reload of the latest
+saved version. Personal export includes only this person's saved items.
+
+`/api/personal` derives ownership from the authenticated identity on every read,
+create, edit, delete and export. There is no admin ownership bypass or client
+owner parameter. Composite `(owner, id)` keys prevent ID guessing across users.
+Every mutation is atomic and revision checked; creates are safe to retry. Lists
+omit note bodies, item fields and request sizes are bounded, and each owner is
+limited to 2,000 items. Personal contents never enter team events, event audit,
+reports, shared workspace backup/export or browser storage. Generic diagnostics
+record operation metadata without item titles or bodies.
+
+IMPORTANT: local mode remains one unauthenticated desktop operator, not multiple
+private accounts. Actor headers are NOT profiles; all local requests map to
+`local:operator`. A prominent warning explains that other people using that same
+local app can open its workspace. Hosted personal workspaces use individually
+verified work-account identities. Deploying the existing sign-in setup is still
+required for coworker privacy. Database administrators/device owners can access
+the underlying database; this is application-level privacy, not encryption.
+Private content is deliberately excluded from shared JSON backup/restore;
+personal exports and full database backups are the recovery mechanisms.
+
+Schema `0009_personal_workspace` adds only `personal_items`, with runtime boot
+DDL, generated migration/snapshot and the schema health marker in agreement.
+Owner isolation, validation, retry behavior and stale edit/delete rejection
+are tested against SQLite using the actual storage SQL.
+
+Screen-only `app/responsive.css` replaces fixed viewport clipping and hidden
+inspector breakpoints. Wide screens retain three columns; medium screens move
+inspectors below the two main columns; narrow screens stack all sections.
+Recipe/room libraries, inspectors and summary metrics remain available at every
+size. Navigation and toolbars wrap, names wrap instead of truncating, Foodotron
+rows become labeled two-column records, and narrower schedule timelines become
+full-width time-labeled blocks. The Tabletron canvas scales within a bounded
+stage; forms and dialogs use available width/height and document scrolling.
+Round-table chair positions and sizes now use percentages rather than a fixed
+47px radius, so room resizing and furniture thumbnails preserve their geometry.
+The operations ticker uses wrapping text rather than a clipped marquee.
+Print media retain their independent report layouts.
+
+Regression rehearsal: `scripts/verify-personal-responsive.mjs` requires an
+isolated local QA server, permits writes only to its personal endpoint and cleans
+up its created records. It exercises saved appointments/notes, pinning, reload,
+two-tab conflict recovery, export separation and all main screens at ten window
+widths (320-1920px), short desktop windows and maximum text size. Never target
+the daily-use database with it.
+
+Verified: strict lint/typecheck/build and 171 tests pass. The isolated browser
+rehearsal also checks meal planner/shopping report, room auto-layout dialog,
+note editors and master-report preview at narrow widths. The daily-use app is
+healthy with its existing 40 shared events and 3,980 imported calendar records;
+no QA fixtures were written there.
+
 ### Main calendar follow-up (2026-10-10)
 
 Home still starts on the current month/day, but no longer automatically selects
@@ -22,8 +104,8 @@ Regression rehearsal: `scripts/verify-home-calendar.mjs` (isolated QA only).
 
 ### Personal suite appearance and calendar display (2026-10-10)
 
-Display & Appearance appears in both the home Settings dialog and the Settings
-page. Month, Week, Day and Agenda share the same event/feed records, with
+Display & Appearance appears on the full Settings page. Month, Week, Day and
+Agenda share the same event/feed records, with
 explicit date navigation and no busy-day cutoff. Week view includes adjacent
 months and follows the workspace's Sunday/Monday setting. Agenda and Day show
 room/location details; all views sort using the existing event-time parser.

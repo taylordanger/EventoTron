@@ -64,6 +64,13 @@
       "when": 1791683377164,
       "tag": "0008_beta_support",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791690065790,
+      "tag": "0009_personal_workspace",
+      "breakpoints": true
     }
   ]
 }

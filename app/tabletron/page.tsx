@@ -586,7 +586,11 @@ function TableGraphic({
           className="chair"
           key={i}
           style={{
-            transform: `translate(-50%,-50%) rotate(${i * 60}deg) translateY(-47px) rotate(90deg)`,
+            left: `${50 + Math.sin(i * Math.PI / 3) * 47}%`,
+            top: `${50 - Math.cos(i * Math.PI / 3) * 47}%`,
+            width: "17%",
+            height: "11%",
+            transform: `translate(-50%,-50%) rotate(${i * 60 + 90}deg)`,
           }}
         />
       ))}

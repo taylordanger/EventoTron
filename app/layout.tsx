@@ -5,6 +5,8 @@ import "./calendar-display.css";
 import "./reports.css";
 import "./support.css";
 import "./suite-appearance.css";
+import "./personal.css";
+import "./responsive.css";
 import { BetaSupport } from "./BetaSupport";
 import { SuiteAppearance } from "./SuiteAppearance";
 

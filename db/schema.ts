@@ -1,5 +1,20 @@
-import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+
+export const personalItems = sqliteTable("personal_items", {
+  owner: text("owner").notNull(),
+  id: text("id").notNull(),
+  kind: text("kind").notNull(),
+  title: text("title").notNull(),
+  date: text("date").notNull().default(""),
+  start: text("start").notNull().default(""),
+  end: text("end").notNull().default(""),
+  location: text("location").notNull().default(""),
+  details: text("details").notNull().default(""),
+  pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, table => [primaryKey({ columns: [table.owner, table.id] }), index("idx_personal_items_owner_date").on(table.owner, table.date)]);
 
 export const suiteWriteGuards = sqliteTable("suite_write_guards", {
   token: text("token").primaryKey(),
