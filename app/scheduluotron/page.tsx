@@ -240,6 +240,8 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
     if (requestedEventId) return;
     const timer = window.setTimeout(() => {
       try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
         const parsed = JSON.parse(raw) as SchedulePlan;
         if (!parsed || !Array.isArray(parsed.blocks) || typeof parsed.dayStart !== "string" || typeof parsed.dayEnd !== "string" || !parsed.blocks.every(block => block && typeof block.start === "string" && typeof block.end === "string")) throw new Error("Invalid schedule plan");
         setPlan(parsed);
@@ -247,8 +249,6 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
         setLoadFailed(true);
         setLocalPlanProblem("SAVED SCHEDULE COULD NOT BE READ. THE SAVED COPY HAS NOT BEEN REPLACED.");
       }
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return;
     }, 0);
     return () => window.clearTimeout(timer);
   }, [requestedEventId, storageKey]);
