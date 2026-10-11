@@ -1,4 +1,5 @@
 import { isLocalRequest, runtimeEnv, type LocalModeEnv } from "../_lib/auth";
+import { isLocalWriteAllowed } from "../_lib/role";
 
 const CONTROL_PORT = 3101;
 const CONTROL_BASE = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -45,6 +46,13 @@ export async function POST(request: Request) {
   if (!(await localMode(request))) {
     return Response.json(
       { error: "EventoTron can only be quit from a local desktop session." },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  if (!isLocalWriteAllowed(request)) {
+    return Response.json(
+      { error: "Reload EventoTron and try again from its own window." },
       { status: 403, headers: { "Cache-Control": "no-store" } },
     );
   }

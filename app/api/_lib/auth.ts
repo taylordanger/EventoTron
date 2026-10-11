@@ -1,6 +1,6 @@
 import { verifyAccessJwt, type AccessEnv } from "./access-jwt.ts";
 import { AuthError } from "./errors.ts";
-import { isLocalRequest, roleSatisfies, type LocalModeEnv, type SuiteRole } from "./role.ts";
+import { isLocalRequest, isLocalWriteAllowed, roleSatisfies, type LocalModeEnv, type SuiteRole } from "./role.ts";
 import { loadOrProvisionUser, type ProvisionEnv } from "./users.ts";
 import { recordDiagnostic } from "./diagnostics";
 import { appFromPath, diagnosticMetadata, requestDiagnosticCode, safeErrorDetails } from "../../support-data";
@@ -44,6 +44,9 @@ export async function resolveIdentity(request: Request): Promise<Identity> {
   // from the request alone. See isLocalRequest for why that distinction matters.
   const env = await runtimeEnv();
   if (isLocalRequest(request, env as LocalModeEnv)) {
+    if (!isLocalWriteAllowed(request)) {
+      throw new AuthError(403, "Reload EventoTron and try again from its own window.");
+    }
     return { email: localActor(request), role: "admin", source: "local" };
   }
 

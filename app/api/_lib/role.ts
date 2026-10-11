@@ -27,3 +27,12 @@ export function isLocalRequest(request: Request, env: LocalModeEnv | undefined):
   const hostname = new URL(request.url).hostname.toLowerCase();
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
 }
+
+/** Browser writes must come from this exact origin; headerless local CLIs remain supported. */
+export function isLocalWriteAllowed(request: Request): boolean {
+  if (["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase())) return true;
+  const origin = request.headers.get("origin");
+  if (origin !== null && origin !== new URL(request.url).origin) return false;
+  const site = request.headers.get("sec-fetch-site");
+  return site === null || site === "same-origin";
+}
