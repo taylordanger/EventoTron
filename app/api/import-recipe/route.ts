@@ -1,11 +1,7 @@
 import { withRole } from "../_lib/auth";
+import { isPublicImportUrl } from "../_lib/import-url";
 
 type JsonValue=Record<string,unknown>|unknown[]|string|number|boolean|null;
-
-function isBlockedHost(hostname:string){
-  const host=hostname.toLowerCase().replace(/^\[|\]$/g,"");
-  return host==="localhost"||host.endsWith(".local")||host==="0.0.0.0"||host==="::1"||host.startsWith("127.")||host.startsWith("10.")||host.startsWith("192.168.")||/^172\.(1[6-9]|2\d|3[01])\./.test(host)||host.startsWith("169.254.");
-}
 
 function findRecipe(value:JsonValue):Record<string,unknown>|null{
   if(Array.isArray(value)){for(const item of value){if(item&&typeof item==="object"){const found=findRecipe(item as JsonValue);if(found)return found}}return null}
@@ -23,11 +19,11 @@ export const POST=withRole("staff", async (request:Request)=>{
   try{
     const body=await request.json() as {url?:string};
     let target=new URL(String(body.url??""));
-    if(!["http:","https:"].includes(target.protocol)||isBlockedHost(target.hostname))return Response.json({error:"Please enter a public recipe link."},{status:400});
+    if(!isPublicImportUrl(target))return Response.json({error:"Please enter a public recipe link."},{status:400});
     let response:Response|null=null;
     for(let redirects=0;redirects<4;redirects++){
       response=await fetch(target.toString(),{redirect:"manual",headers:{"User-Agent":"Foodotron Recipe Importer/1.0","Accept":"text/html,application/xhtml+xml"}});
-      if(response.status>=300&&response.status<400){const location=response.headers.get("location");if(!location)break;target=new URL(location,target);if(!["http:","https:"].includes(target.protocol)||isBlockedHost(target.hostname))return Response.json({error:"The recipe link redirected to an unsupported address."},{status:400});continue}
+      if(response.status>=300&&response.status<400){const location=response.headers.get("location");if(!location)break;target=new URL(location,target);if(!isPublicImportUrl(target))return Response.json({error:"The recipe link redirected to an unsupported address."},{status:400});continue}
       break;
     }
     if(!response?.ok)return Response.json({error:"That website would not provide the recipe. Paste the ingredient text instead."},{status:422});
