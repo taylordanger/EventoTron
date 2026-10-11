@@ -14,6 +14,7 @@ export function downloadDraft(value: unknown, name: string) {
 export function useGuardedSave<T>(endpoint: string | null, payload: T, revision: string | null | undefined, enabled: boolean, onReload: (value: T) => void, skipInitialSave = false) {
   const [status, setStatus] = useState("READY");
   const [problem, setProblem] = useState("");
+  const [storageProblem, setStorageProblem] = useState("");
   const [recovered, setRecovered] = useState<Draft<T> | null>(null);
   const [reloading, setReloading] = useState(false);
   const [initialized, setInitialized] = useState<string | null>(null);
@@ -54,7 +55,8 @@ export function useGuardedSave<T>(endpoint: string | null, payload: T, revision:
     const snapshot = latest.current;
     const serialized = JSON.stringify(snapshot);
     const draft = { payload: snapshot, revision: writer.current.revision, savedAt: new Date().toISOString() };
-    try { sessionStorage.setItem(key, JSON.stringify(draft)); } catch {}
+    try { sessionStorage.setItem(key, JSON.stringify(draft)); setStorageProblem(""); }
+    catch { setStorageProblem("Draft storage is unavailable. Download your draft before closing or reloading."); }
     setStatus("SAVING");
     try {
       const savingWriter = writer.current;
@@ -63,7 +65,9 @@ export function useGuardedSave<T>(endpoint: string | null, payload: T, revision:
       acknowledged.current = serialized;
       if (!mounted.current) return savedRevision;
       if (JSON.stringify(latest.current) === serialized) {
-        sessionStorage.removeItem(key); setStatus("SAVED"); setProblem("");
+        try { sessionStorage.removeItem(key); setStorageProblem(""); }
+        catch { setStorageProblem("Saved on the server, but this tab's recovery storage could not be cleared."); }
+        setStatus("SAVED"); setProblem("");
       }
       return savedRevision;
     } catch (error) {
@@ -78,8 +82,13 @@ export function useGuardedSave<T>(endpoint: string | null, payload: T, revision:
   useEffect(() => {
     if (!enabled || !endpoint || recoveryPending.current || recovered || reloading || !writer.current) return;
     if (JSON.stringify(payload) === acknowledged.current) return;
-    try { sessionStorage.setItem(key, JSON.stringify({ payload, revision: writer.current.revision, savedAt: new Date().toISOString() })); } catch {}
-    const working = window.setTimeout(() => setStatus("SAVING"), 0);
+    let storageFailed = false;
+    try { sessionStorage.setItem(key, JSON.stringify({ payload, revision: writer.current.revision, savedAt: new Date().toISOString() })); }
+    catch { storageFailed = true; }
+    const working = window.setTimeout(() => {
+      setStatus("SAVING");
+      setStorageProblem(storageFailed ? "Draft storage is unavailable. Download your draft before closing or reloading." : "");
+    }, 0);
     const timer = window.setTimeout(() => void save(), 500);
     return () => { window.clearTimeout(working); window.clearTimeout(timer); };
   }, [payload, enabled, endpoint, recovered, reloading, save, key, initialized]);
@@ -114,7 +123,7 @@ export function useGuardedSave<T>(endpoint: string | null, payload: T, revision:
     writer.current = createRevisionWriter(endpoint, recovered.revision);
     onReload(recovered.payload); recoveryPending.current = false; setRecovered(null); setProblem("");
   }
-  return { status, save, problem, recovered: !!recovered, reloading, reload, restoreDraft,
+  return { status, save, problem: [problem, storageProblem].filter(Boolean).join(" "), recovered: !!recovered, reloading, reload, restoreDraft,
     download: () => downloadDraft(recovered ?? { payload: latest.current, revision: writer.current?.revision }, "eventotron") };
 }
 

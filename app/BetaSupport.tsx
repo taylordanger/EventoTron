@@ -18,25 +18,40 @@ export function BetaSupport() {
   const [attachmentPending, setAttachmentPending] = useState(false);
   const upload = useRef(0);
   const [problem, setProblem] = useState("");
+  const [storageProblem, setStorageProblem] = useState("");
+  const draftRecoveryFailed = useRef(false);
   const [receipt, setReceipt] = useState<{ id: string; number: number } | null>(null);
   const [existing, setExisting] = useState<{ id: string; number: number } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => installDiagnostics(), []);
   useEffect(() => { if (open) dialog.current?.showModal(); else dialog.current?.close(); }, [open]);
-  useEffect(() => { if (draft) { try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {} } }, [draft]);
+  useEffect(() => {
+    if (!draft || draftRecoveryFailed.current) return;
+    const timer = window.setTimeout(() => {
+      try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); setStorageProblem(""); }
+      catch { setStorageProblem("This report cannot be kept in this tab's storage. Download the report before closing or reloading."); }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [draft]);
   const start = useCallback(() => {
     let saved: TicketDraft | null = null;
+    let recoveryProblem = "";
+    draftRecoveryFailed.current = false;
     try {
       const parsed = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? "null");
       if (parsed && typeof parsed.title === "string" && typeof parsed.description === "string") {
         const checked = validateTicket({ ...parsed, title: parsed.title || "Draft", description: parsed.description || "Draft" });
-        if (checked) saved = { ...checked, title: parsed.title, description: parsed.description };
-      }
-    } catch {}
+        if (!checked) throw new Error("Invalid report draft");
+        saved = { ...checked, title: parsed.title, description: parsed.description };
+      } else if (parsed !== null) throw new Error("Invalid report draft");
+    } catch {
+      draftRecoveryFailed.current = true;
+      recoveryProblem = "The previous report draft could not be read. It has not been overwritten. Download this report before closing or reloading.";
+    }
     upload.current++; setAttachmentPending(false);
     setDraft(saved ?? { id: crypto.randomUUID(), title: "", description: "", expected: "", steps: "", impact: "blocked", app: appFromPath(location.pathname), release: RELEASE, browser: browserLabel(navigator.userAgent), references: supportContext().flatMap(entry => entry.reference ? [entry.reference] : []) });
-    setReceipt(null); setExisting(null); setProblem(""); setOpen(true);
+    setReceipt(null); setExisting(null); setStorageProblem(""); setProblem(recoveryProblem); setOpen(true);
   }, []);
   useEffect(() => {
     const onReport = (event: Event) => { trigger.current = (event as CustomEvent<HTMLButtonElement>).detail; start(); };
@@ -95,7 +110,7 @@ export function BetaSupport() {
           {draft.screenshot && <div className="support-attachment"><Image src={draft.screenshot} unoptimized width={1400} height={900} style={{ width: "auto", height: "auto" }} alt="Screenshot selected for this report" /><button type="button" onClick={() => update({ screenshot: undefined })}>Remove screenshot</button></div>}
           <small className="support-release">Release {draft.release} · {draft.references.length} error references</small>
         </fieldset>
-        {problem && <p role="alert" className="support-error">{problem}</p>}
+        {(problem || storageProblem) && <p role="alert" className="support-error">{[problem, storageProblem].filter(Boolean).join(" ")}</p>}
         {existing && <Link className="support-attachment-download" href={`/support?ticket=${existing.id}`} onClick={() => { download(); sessionStorage.removeItem(DRAFT_KEY); setDraft(null); close(); }}>Keep draft &amp; open {ticketNumber(existing.number)}</Link>}
         <footer><button type="button" onClick={download}>Download report</button><button type="submit" disabled={pending || attachmentPending}>{pending ? "Submitting…" : attachmentPending ? "Preparing screenshot…" : "Submit report"}</button></footer>
       </form>}

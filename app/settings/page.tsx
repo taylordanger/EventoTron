@@ -336,15 +336,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!loaded || !backendChecked || !isEffectiveAdmin) return;
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
       const params = new URLSearchParams(window.location.search);
       const connected = params.get("oauthConnected");
       const error = params.get("oauthError");
       const accountId = params.get("accountId");
       if (!connected && !error) return;
       if (connected) {
+        if (accountId && !await addSourceForOAuthAccount(accountId)) return;
         setOauthNotice(`${connected === "microsoft" ? "Microsoft" : "Google"} Calendar connected.`);
-        if (accountId) void addSourceForOAuthAccount(accountId);
         void loadOAuthAccounts();
       } else if (error) {
         setOauthNotice(`Calendar connection failed (${error}). Check that OAuth credentials are configured.`);
@@ -435,18 +435,19 @@ export default function SettingsPage() {
   async function loadOAuthAccounts() {
     try {
       const response = await fetch("/api/calendar-oauth/accounts", { cache: "no-store" });
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("Calendar accounts could not be loaded");
       const result = await response.json() as { accounts?: OAuthAccountSummary[] };
       setOauthAccounts(Array.isArray(result.accounts) ? result.accounts : []);
-    } catch {}
+    } catch { setOauthNotice("Calendar accounts could not be loaded. Reload EventoTron to try again."); }
   }
 
   async function addSourceForOAuthAccount(accountId: string) {
     try {
       const response = await fetch("/api/calendar-oauth/accounts", { cache: "no-store" });
+      if (!response.ok) throw new Error("Calendar account could not be loaded");
       const result = await response.json().catch(() => ({})) as { accounts?: OAuthAccountSummary[] };
       const account = result.accounts?.find((item) => item.id === accountId);
-      if (!account) return;
+      if (!account) throw new Error("Connected calendar account was not found");
       setSettings((current) => current.calendarSources.some((source) => source.oauthAccountId === accountId) ? current : ({
         ...current,
         calendarSources: [
@@ -463,7 +464,11 @@ export default function SettingsPage() {
           },
         ],
       }));
-    } catch {}
+      return true;
+    } catch {
+      setOauthNotice("The calendar account connected, but its calendar source could not be added. Reload EventoTron to try again.");
+      return false;
+    }
   }
 
   async function disconnectOAuthAccount(id: string) {
@@ -659,8 +664,7 @@ export default function SettingsPage() {
         lastError: "",
         eventCount: result.events?.length ?? 0,
       });
-      await loadCalendarImportHistory();
-      setStatus(`CALENDAR ${result.events?.length ?? 0} EVENTS`);
+      if (await loadCalendarImportHistory()) setStatus(`CALENDAR ${result.events?.length ?? 0} EVENTS`);
     } catch (error) {
       updateCalendarSource(source.id, { lastError: error instanceof Error ? error.message : "Calendar sync failed" });
       setStatus("CALENDAR ERROR");
@@ -672,14 +676,15 @@ export default function SettingsPage() {
   async function loadCalendarImportHistory() {
     try {
       const response = await fetch("/api/calendar-sources", { cache: "no-store" });
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("Calendar history could not be refreshed");
       const data = await response.json() as {
         sources?: SuiteSettings["calendarSources"];
         importHistory?: CalendarImportSummary[];
       };
       if (data.sources?.length) update({ calendarSources: data.sources });
       setCalendarImportHistory(data.importHistory ?? []);
-    } catch {}
+      return true;
+    } catch { setStatus("CALENDAR HISTORY NOT REFRESHED"); return false; }
   }
 
   function exportSettings() {

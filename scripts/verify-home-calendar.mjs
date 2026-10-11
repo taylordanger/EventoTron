@@ -69,7 +69,7 @@ try {
     await page.locator(".live-ticker-open").hover();
     assert.equal(await track.evaluate(el => getComputedStyle(el).animationPlayState), "paused");
     await page.mouse.move(0, 0);
-    await page.getByRole("button", { name: "Open Today's explicit event", exact: true }).click();
+    await page.locator(".month-grid").getByRole("button", { name: "Open Today's explicit event", exact: true }).click();
     assert.equal(await page.locator(".vertical-file").count(), 1);
     await page.reload();
     await page.waitForFunction(() => document.querySelectorAll(".calendar-event").length === 26);

@@ -88,6 +88,7 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
   const [fetchedTimezone, setFetchedTimezone] = useState(defaultSuiteSettings.timezone);
   const [tickerNow, setTickerNow] = useState(() => new Date());
   const [tickerIndex, setTickerIndex] = useState(0);
+  const [fetchFailed, setFetchFailed] = useState(false);
 
   useEffect(() => {
     if (sources) return;
@@ -105,7 +106,7 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
           }),
           loadSuiteSettings(),
         ]);
-        if (!eventResponse.ok || !calendarResponse.ok) return;
+        if (!eventResponse.ok || !calendarResponse.ok) throw new Error("Operations feed load failed");
         const eventPayload = await eventResponse.json() as { events?: StoredEvent[] };
         const calendarPayload = await calendarResponse.json() as {
           sources?: CalendarSourceRecord[];
@@ -143,7 +144,8 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
             })),
         ]);
         setFetchedTimezone(settings.timezone);
-      } catch {}
+        setFetchFailed(false);
+      } catch { if (!cancelled) setFetchFailed(true); }
     };
     // Repeatedly polling a hidden tab only costs money — left open overnight
     // the old loop billed as much as a full working day. Skip the *repeat*
@@ -220,7 +222,7 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
       <div className="live-ticker-state">
         <span aria-hidden="true" />
         <strong>
-          {liveTickerItem?.status === "live"
+          {!sources && fetchFailed ? "FEED ERROR" : liveTickerItem?.status === "live"
             ? "LIVE NOW"
             : liveTickerItem?.status === "today"
               ? "TODAY"
@@ -247,7 +249,7 @@ export function OperationsTicker({ active, sources, timezone, onOpenEvent }: Ope
           {tickerContents}
         </Link>
       ) : (
-        <div className="live-ticker-empty">No active or upcoming events found in the connected schedule.</div>
+        <div className="live-ticker-empty">{!sources && fetchFailed ? "The operations feed could not be refreshed. Reload EventoTron to try again." : "No active or upcoming events found in the connected schedule."}</div>
       )}
       <div className="live-ticker-counter">
         <small>{activeTimezone.replaceAll("_", " ")}</small>

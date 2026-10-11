@@ -222,6 +222,7 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
   const [notice, setNotice] = useState("");
   const [activeEvent, setActiveEvent] = useState<EventoEventContext | null>(null);
   const [serverRevision, setServerRevision] = useState<string | null | undefined>(undefined);
+  const [localPlanProblem, setLocalPlanProblem] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const storageKey = `eventotron-scheduluotron-v1:${requestedEventId ? `event:${encodeURIComponent(requestedEventId)}` : "standalone"}`;
@@ -237,13 +238,17 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
 
   useEffect(() => {
     if (requestedEventId) return;
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return;
     const timer = window.setTimeout(() => {
       try {
         const parsed = JSON.parse(raw) as SchedulePlan;
-        if (Array.isArray(parsed.blocks)) setPlan(parsed);
-      } catch {}
+        if (!parsed || !Array.isArray(parsed.blocks) || typeof parsed.dayStart !== "string" || typeof parsed.dayEnd !== "string" || !parsed.blocks.every(block => block && typeof block.start === "string" && typeof block.end === "string")) throw new Error("Invalid schedule plan");
+        setPlan(parsed);
+      } catch {
+        setLoadFailed(true);
+        setLocalPlanProblem("SAVED SCHEDULE COULD NOT BE READ. THE SAVED COPY HAS NOT BEEN REPLACED.");
+      }
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
     }, 0);
     return () => window.clearTimeout(timer);
   }, [requestedEventId, storageKey]);
@@ -707,7 +712,7 @@ function ScheduleEditor({ requestedEventId }: { requestedEventId: string }) {
         <footer className="sched-print-footer">Prepared by Sheppard Semiconductor Systems for setup, staffing, and event-day coordination. Confirm final times, access details, and crew assignments before use.</footer>
         {!!plan.checklist?.length && <section className="sched-print-section planning-checklist"><h2>Event checklist</h2>{plan.checklist.map(task => <p key={task.id}>{task.done ? "[x]" : "[ ]"} {task.title}</p>)}</section>}
       </article>
-      {notice && <div className="sched-toast">{notice}</div>}
+      {(notice || localPlanProblem) && <div className="sched-toast">{notice || localPlanProblem}</div>}
     </main></div>
   );
 }
