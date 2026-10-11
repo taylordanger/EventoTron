@@ -1,0 +1,103 @@
+.suite-appearance { display: contents; }
+
+@media screen {
+  .suite-appearance :is(.eventotron-desktop, .suite-frame, .foodotron-applet, .tabletron-applet, .scheduluotron-app) {
+    --p: var(--ui-accent);
+    --pb: var(--ui-link);
+    --pd: var(--ui-border);
+    --black: var(--ui-background);
+    --panel: var(--ui-surface);
+    --line: var(--ui-border);
+    --amber: var(--ui-warning);
+    --red: var(--ui-danger);
+    color: var(--ui-text);
+    letter-spacing: 0;
+  }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame, .foodotron-applet.app-shell, .tabletron-applet.app-shell, .scheduluotron-app) {
+    background-color: var(--ui-background);
+    background-image: var(--ui-wallpaper);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+  .suite-appearance .suite-frame { grid-template-rows: minmax(70px, auto) 42px minmax(0, 1fr); }
+  .suite-appearance .support-frame { grid-template-rows: minmax(70px, auto) minmax(0, 1fr); }
+  .suite-appearance :is(.foodotron-applet.app-shell, .tabletron-applet.app-shell, .scheduluotron-app) {
+    grid-template-rows: minmax(66px, auto) minmax(0, 1fr) minmax(76px, auto);
+  }
+  .suite-appearance :is(.settings-applet, .support-workspace, .foodotron-applet .ingredient-table, .tabletron-applet .drafting-bay, .scheduluotron-app .sched-board) {
+    background: transparent;
+  }
+  .suite-appearance :is(.eventotron-ribbon-row, .suite-chrome, .foodotron-applet .topbar, .tabletron-applet .topbar, .sched-topbar, .room-toolbar, .planner-toolbar, .sched-toolbar) {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 54px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    box-shadow: none;
+  }
+  .suite-appearance :is(.suite-chrome, .foodotron-applet .brand, .tabletron-applet .brand, .sched-title) { text-shadow: none; }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame) * { scrollbar-color: var(--ui-border) var(--ui-background); }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame) *::-webkit-scrollbar-track { background: var(--ui-background); }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame) *::-webkit-scrollbar-thumb { background: var(--ui-border); }
+  .suite-appearance :is(.foodotron-applet, .tabletron-applet, .scheduluotron-app, .settings-applet, .event-info-sheet, .support-workspace, .support-dialog) :is(input:not([type="color"]):not([type="checkbox"]):not([type="range"]), select, textarea) {
+    background-color: var(--ui-input);
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+  }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame) :is(button.primary, .primary, button[aria-pressed="true"]) {
+    background: var(--ui-accent);
+    color: var(--ui-accent-text);
+    border-color: var(--ui-accent);
+  }
+  .suite-appearance :is(.suite-tab.active, .folder-tab.active, .active-event-tab, .vertical-file.active) {
+    background: var(--ui-accent);
+    color: var(--ui-accent-text);
+    text-shadow: none;
+    box-shadow: none;
+  }
+  .suite-appearance :is(.suite-tab.active, .folder-tab.active, .active-event-tab, .vertical-file.active) :is(b, small, strong, span, em) { color: var(--ui-accent-text); }
+  .suite-appearance .tabletron-applet .drafting-bay { grid-template-rows: minmax(55px, auto) minmax(0, 1fr) minmax(28px, auto); }
+  .suite-appearance .tabletron-applet .furniture-card { height: auto; min-height: 64px; }
+  .suite-appearance .tabletron-applet :is(.room-canvas, .preview-board) {
+    background-color: var(--ui-input);
+    background-image: linear-gradient(var(--ui-border) 1px, transparent 1px), linear-gradient(90deg, var(--ui-border) 1px, transparent 1px);
+    background-size: 28px 28px;
+    border-color: var(--ui-border);
+  }
+  .suite-appearance .calendar-theme-options button[aria-pressed="true"] { background: var(--ui-surface); color: var(--ui-text); outline-color: var(--ui-accent); }
+  .suite-appearance .display-reset { background: var(--ui-surface); color: var(--ui-text); }
+  .suite-appearance :is(.toast, .support-launcher) { background: var(--ui-accent); color: var(--ui-accent-text); }
+  .suite-appearance .shared-save-recovery,
+  .suite-appearance .shared-save-recovery :is(strong, button) { background: var(--ui-surface); color: var(--ui-text); }
+  .suite-appearance :is(.tabletron-applet .inspector, .foodotron-applet .inspector, .scheduluotron-app .inspector) { min-height: 0; overflow: auto; }
+  .suite-appearance :is(.support-status, .support-severity) { color: var(--ui-text); }
+  .suite-appearance .master-report-link { background: var(--ui-surface); color: var(--ui-text); border-color: var(--ui-border); font-size: calc(8px * var(--ui-scale, 1)); }
+  .suite-appearance .master-report-link:hover { background: var(--ui-input); box-shadow: none; }
+  .suite-appearance .save-state { background: var(--ui-surface) !important; color: var(--ui-success) !important; border-color: var(--ui-success) !important; box-shadow: none; }
+  .suite-appearance :is(.save-state, .save-state-action)[data-tone="working"] { background: var(--ui-surface) !important; color: var(--ui-text) !important; border-color: var(--ui-border) !important; }
+  .suite-appearance :is(.save-state, .save-state-action)[data-tone="warning"] { background: var(--ui-surface) !important; color: var(--ui-danger) !important; border-color: var(--ui-danger) !important; }
+  .suite-appearance[data-appearance-mode="light"] :is(.calendar-event.note, .legend-dot.note) { border-color: var(--ui-warning); }
+  .suite-appearance[data-appearance-mode="light"] :is(.warning, .unpriced-warning, .diagnostic-error, .unit-mismatch, .support-severity) { color: var(--ui-warning); border-color: var(--ui-warning); background: var(--ui-surface); }
+  .suite-appearance[data-appearance-mode="light"] :is(.danger, .delete, .display-error, .support-error) { color: var(--ui-danger); border-color: var(--ui-danger); background: var(--ui-surface); }
+  .suite-appearance[data-appearance-mode="light"] :is(.live-operations-ticker.next .live-ticker-state, .live-operations-ticker.next .live-ticker-message b, .vertical-file.note, .vertical-file.prep, .alpha-readiness-item.attention b, .backup-status-banner.stale b, .tabletron-applet .room-sketch-map, .tabletron-applet .sketch-tools button[aria-pressed="true"]) { color: var(--ui-warning); }
+  .suite-appearance[data-appearance-mode="light"] :is(.vertical-file.note, .vertical-file.prep, .schedule-block.staff, .schedule-block.service, .health-migration-required, .health-unavailable, .alpha-readiness-item.attention, .tabletron-applet .ops-store.unpriced, .tabletron-applet .sketch-tools button[aria-pressed="true"]) { border-color: var(--ui-warning); box-shadow: none; }
+  .suite-appearance[data-appearance-mode="light"] :is(.unit-mismatch span, .settings-user-status.revoked) { color: var(--ui-warning); }
+  .suite-appearance[data-appearance-mode="light"] :is(.tabletron-applet .ops-store.unpriced h3, .foodotron-applet .unresolved-report h2) { background: var(--ui-surface); color: var(--ui-warning); }
+  .suite-appearance[data-appearance-mode="light"] .tabletron-applet .setup-layout-warning { background: var(--ui-surface); color: var(--ui-warning); }
+  .suite-appearance :is(.modal-backdrop, .import-overlay, .settings-backdrop) { background: rgba(0, 0, 0, 0.65); }
+  .suite-appearance .support-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+  .suite-appearance :is(.support-dialog, .support-detail) button[type="submit"] { background: var(--ui-accent); color: var(--ui-accent-text); }
+}
+
+@media screen and (max-width:780px) {
+  .suite-appearance .suite-frame,
+  .suite-appearance .support-frame { height: auto; min-height: 100vh; grid-template-rows: auto auto auto; overflow: visible; }
+  .suite-appearance .support-frame { grid-template-rows: auto auto; }
+  .suite-appearance :is(.foodotron-applet.app-shell, .tabletron-applet.app-shell, .scheduluotron-app) { grid-template-rows: auto auto auto; }
+  .suite-appearance :is(.eventotron-desktop, .suite-frame, .foodotron-applet.app-shell, .tabletron-applet.app-shell, .scheduluotron-app) { background-attachment: scroll; }
+}
+
+@media print {
+  .suite-appearance { --ui-background: #ffffff !important; --ui-surface: #ffffff !important; --ui-input: #ffffff !important; --ui-text: #000000 !important; --ui-link: #000000 !important; --ui-border: #888888 !important; --ui-scale: 1 !important; --ui-wallpaper: none !important; --ui-glow: transparent !important; }
+}

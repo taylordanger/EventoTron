@@ -5,6 +5,66 @@ otherwise. Read this before changing anything.
 
 ## The one thing to get right first
 
+### Main calendar follow-up (2026-10-10)
+
+Home still starts on the current month/day, but no longer automatically selects
+today's first event or adds it to Open Event Files. The rail restores only this
+browser's saved open files; it does not fall back to the server's old open-file
+list. Opening a calendar event is an explicit action; closing it stays closed
+when returning home. Existing previously opened files are not deleted.
+
+The calendar now grows with its contents and uses page scrolling, with seven
+fluid-width columns on desktop and stacked days on phones. Busy days have no
+event limit, clipping or internal day scroll. TODAY returns to the current day.
+Startup uses the venue date instead of the server's UTC date, and scrolls to
+the beginning of today's entries rather than the middle of a tall busy day.
+Regression rehearsal: `scripts/verify-home-calendar.mjs` (isolated QA only).
+
+### Personal suite appearance and calendar display (2026-10-10)
+
+Display & Appearance appears in both the home Settings dialog and the Settings
+page. Month, Week, Day and Agenda share the same event/feed records, with
+explicit date navigation and no busy-day cutoff. Week view includes adjacent
+months and follows the workspace's Sunday/Monday setting. Agenda and Day show
+room/location details; all views sort using the existing event-time parser.
+
+Appearance includes Classic, Light, Graphite and High contrast presets, custom
+background/accent colors, 10-20px event text and three spacing levels. Foreground
+colors are computed for contrast. Wallpaper is an optional user-selected
+JPG/PNG/WebP, resized and bounded locally, with shading, removal and a preview.
+No remote wallpaper fetches or uploads are used. Preferences are personal to
+this browser (`eventotron-calendar-display-v1`), not shared settings or backup
+data; staff can change them without changing the team's workspace. Reset Display
+affects only these preferences and never events. The previous shared defaultView
+and showWeekends fields remain backward-readable but their nonfunctional home
+controls were replaced; all seven days remain available.
+
+Appearance is suite-wide, not calendar-only: `SuiteAppearance` provides shared
+palette, wallpaper and text-scale tokens to every route and the bug-report
+dialog. Existing neutral UI colors and font sizes now use tokens with their
+original values as fallbacks. Main navigation, forms, sidebars and room-drafting
+backgrounds respond immediately; furniture colors and event/category colors
+remain meaningful. Report/paper styles are excluded from screen tokenization,
+and print resets the appearance variables and text scale.
+
+Light mode uses dark rust warnings and dark red errors, not bright yellow text
+or borders. Calendar notes, status indicators, room-sketch controls and save
+badges follow this palette. Yellow imported-calendar markers are rendered dark
+rust on light backgrounds without changing the saved source color; other source
+colors remain intact. Foodotron action symbols render in a single color.
+
+Verification includes strict lint and typecheck; isolated Chrome
+checks cover all views, cross-year weeks, 20px spacious layouts at 1440/1024/390px,
+wallpaper upload/reload/removal/rejection, display reset, browser-profile
+isolation and sticky navigation. No real events or shared settings are changed
+by the appearance rehearsal.
+Suite appearance rehearsal: `scripts/verify-suite-appearance.mjs`, covering all
+six screens in light/dark modes, wallpaper, large text, responsive widths,
+absence of yellow light-mode text and print resets. `npm run verify`: 164 tests.
+
+Design reference: https://www.eleken.co/blog-posts/calendar-ui (grid/agenda
+switching, readable density and clear date navigation; no third-party assets).
+
 **Work in the base checkout — `/Users/darkstar/Operations_root/EventoTron`, on
 `main`.** It is what the desktop app actually runs, and where every commit
 lives.

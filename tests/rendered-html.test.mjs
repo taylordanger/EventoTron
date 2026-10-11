@@ -300,7 +300,7 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(homePage, /Operations Template/);
   assert.match(homePage, /convertCalendarEvent/);
   assert.match(homePage, /calendarEventId/);
-  assert.match(homePage, /\+ EVENT FILE/);
+  assert.match(homePage, /<em>\{event\.sourceName\}<\/em>/);
   assert.match(eventsRoute, /calendarSourceName/);
   assert.match(eventsRoute, /eventColumns/);
   assert.match(eventsRoute, /event_revision_conflict/);

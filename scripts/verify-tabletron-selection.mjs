@@ -46,6 +46,9 @@ try {
   const fresh = { ...pat, id: `today-qa-${suffix}`, title: "Today's QA event", date: today };
   await api("/api/events", "PATCH", { event: fresh, expectedUpdatedAt: null });
   await page.goto(`${base}/`);
+  await page.waitForTimeout(1200);
+  assert.equal(await page.locator('.folder-tabs a[href^="/tabletron"]').getAttribute("href"), "/tabletron", "today's events must not automatically become active files");
+  await page.getByRole("button", { name: "Open Today's QA event", exact: true }).click();
   await page.waitForFunction(id => document.querySelector('.folder-tabs a[href^="/tabletron"]')?.getAttribute("href") === `/tabletron?event=${id}`, fresh.id);
   await page.locator('.folder-tabs a').filter({ hasText: "Tabletron" }).click();
   await page.waitForFunction(() => document.querySelector(".project-name input")?.value === "Today's QA event");

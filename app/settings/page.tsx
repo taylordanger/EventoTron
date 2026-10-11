@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SuiteChrome } from "../SuiteChrome";
+import { CalendarDisplaySettings } from "../CalendarDisplaySettings";
 import { OperationsTicker } from "../OperationsTicker";
 import type { SuiteRole, SuiteUser, SuiteUserStatus } from "../api/_lib/users";
 import type { OAuthAccountSummary } from "../api/_lib/calendar-oauth-accounts";
@@ -859,6 +860,7 @@ export default function SettingsPage() {
         </header>
 
         <section className="settings-layout">
+          <CalendarDisplaySettings />
           <section className="settings-card settings-alpha-card">
             <div className="settings-card-heading"><span>00</span><h3>Private Alpha</h3><button onClick={() => void runAlphaCheck()}>RUN CHECK</button></div>
             <div className="alpha-overview">

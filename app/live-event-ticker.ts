@@ -52,7 +52,7 @@ function dateStart(date: string) {
   return Date.UTC(year, month - 1, day) / 60_000;
 }
 
-function eventWindow(date: string, eventTime: string): EventWindow | null {
+export function eventWindow(date: string, eventTime: string): EventWindow | null {
   const dayStart = dateStart(date);
   if (dayStart === null) return null;
   const value = eventTime.trim();

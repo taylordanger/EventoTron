@@ -5,7 +5,7 @@ import { SuiteChrome } from "./SuiteChrome";
 import { OperationsTicker } from "./OperationsTicker";
 import { EVENT_STORE_KEY } from "./event-context";
 import { eventFingerprint, mergeConcurrentEvent } from "./event-concurrency";
-import { type LiveTickerEvent, type LiveTickerItem } from "./live-event-ticker";
+import { eventWindow, type LiveTickerEvent, type LiveTickerItem } from "./live-event-ticker";
 import { formatRegularTime } from "./time-format";
 import { useEventLiveStatus } from "./use-event-live-status";
 import {
@@ -21,6 +21,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { saveStatusHint, saveStatusTone } from "./save-status";
 import { calendarConfiguration } from "./calendar-source-state";
 import { useGuardedSave, SaveRecovery } from "./use-guarded-save";
+import { venueDateKey } from "./venue-date";
+import { CalendarDisplaySettings } from "./CalendarDisplaySettings";
+import { calendarDates, calendarDisplayStyle, calendarSourceColor, calendarViews, dateKey } from "./calendar-display";
+import { useCalendarDisplay } from "./use-calendar-display";
 type EventKind = "meeting" | "rental" | "concert" | "camp" | "prep" | "note";
 
 type EventoEvent = {
@@ -189,20 +193,16 @@ const monthNames = [
 ];
 const monthShortNames = monthNames.map((month) => month.slice(0, 3).toUpperCase());
 
-function localDayParts(date = new Date()) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const day = date.getDate();
+function localDayParts(date = new Date(), timezone = defaultSuiteSettings.timezone) {
+  const key = venueDateKey(date, timezone);
+  const [year, monthNumber, day] = key.split("-").map(Number);
+  const month = monthNumber - 1;
   return {
     year,
     month,
     day,
-    key: `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    key,
   };
-}
-
-function firstEventOnDate(events: EventoEvent[], date: string) {
-  return events.find((event) => event.date === date);
 }
 
 function eventSeed(
@@ -278,6 +278,9 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [calendarYear, setCalendarYear] = useState(initialDay.year);
   const [calendarMonth, setCalendarMonth] = useState(initialDay.month);
+  const [calendarDay, setCalendarDay] = useState(initialDay.day);
+  const { display: calendarDisplay, update: updateCalendarDisplay } = useCalendarDisplay();
+  const [displayError, setDisplayError] = useState("");
   const [infoExpanded, setInfoExpanded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<EventoSettings>(defaultSettings);
@@ -379,16 +382,12 @@ export default function Home() {
             requestedItems: event.requestedItems ?? "6 FT ROUND TABLES, CHAIRS",
           }));
           const startupDay = startupDayRef.current;
-          const todayEvent = firstEventOnDate(restoredEvents, startupDay.key);
           setEvents(restoredEvents);
-          const nextSelectedId = todayEvent?.id ?? "";
           const restoredOpenIds = Array.isArray(restored.openIds)
             ? restored.openIds.filter((id) => restoredEvents.some((event) => event.id === id))
             : [];
-          setSelectedId(nextSelectedId);
-          setOpenIds(nextSelectedId
-            ? [nextSelectedId, ...restoredOpenIds.filter((id) => id !== nextSelectedId)].slice(0, 8)
-            : restoredOpenIds);
+          setSelectedId("");
+          setOpenIds(restoredOpenIds);
           setCalendarYear(startupDay.year);
           setCalendarMonth(startupDay.month);
         }
@@ -454,22 +453,12 @@ export default function Home() {
         setEvents(restoredEvents);
         const restoredEventIds = new Set(restoredEvents.map((event) => event.id));
         const startupDay = startupDayRef.current;
-        const todayEvent = firstEventOnDate(restoredEvents, startupDay.key);
         setSelectedId((current) => {
-          return todayEvent?.id
-            ?? (current && restoredEventIds.has(current)
+          return (current && restoredEventIds.has(current)
             ? current
             : "");
         });
-        setOpenIds((current) => {
-          const currentOpenIds = current.filter((id) => restoredEventIds.has(id));
-          const restoredOpenIds = currentOpenIds.length
-            ? currentOpenIds
-            : restored.openIds?.filter((id) => restoredEventIds.has(id)) ?? [];
-          return todayEvent
-            ? [todayEvent.id, ...restoredOpenIds.filter((id) => id !== todayEvent.id)].slice(0, 8)
-            : restoredOpenIds;
-        });
+        setOpenIds((current) => current.filter((id) => restoredEventIds.has(id)));
         setCalendarYear(startupDay.year);
         setCalendarMonth(startupDay.month);
         setEventSaveStatus(restoredEvents.length ? "DATABASE READY" : "NO EVENT FILES");
@@ -557,13 +546,8 @@ export default function Home() {
   }, [settingsLoaded]);
 
   const days = useMemo(() => {
-    const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
-    const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-    const cells: (number | null)[] = Array.from({ length: firstDay }, () => null);
-    for (let day = 1; day <= monthLength; day++) cells.push(day);
-    while (cells.length % 7) cells.push(null);
-    return cells;
-  }, [calendarYear, calendarMonth]);
+    return calendarDates(calendarYear, calendarMonth, calendarDay, calendarDisplay.view, settings.weekStartsOn);
+  }, [calendarYear, calendarMonth, calendarDay, calendarDisplay.view, settings.weekStartsOn]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -571,11 +555,11 @@ export default function Home() {
       document.querySelector(".month-tab.active")?.scrollIntoView({ block: "nearest", inline: "center" });
       const today = startupDayRef.current;
       if (calendarYear === today.year && calendarMonth === today.month) {
-        document.querySelector(".day-cell.today")?.scrollIntoView({ block: "center", inline: "nearest" });
+        (document.querySelector(".day-cell.today") ?? document.querySelector(".calendar-panel"))?.scrollIntoView({ block: "start", inline: "nearest" });
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [calendarFeedEvents.length, calendarMonth, calendarYear, events.length, loaded]);
+  }, [calendarFeedEvents.length, calendarMonth, calendarYear, calendarDay, calendarDisplay.view, events.length, loaded]);
 
   const visibleCalendarSources = useMemo(
     () => settings.calendarSources.filter((source) => source.enabled),
@@ -719,23 +703,25 @@ export default function Home() {
   const today = startupDayRef.current;
 
   const eventsByDay = useMemo(() => {
-    const map = new Map<number, Array<EventoEvent | ImportedCalendarEvent>>();
-    const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-`;
-    events.filter((event) => event.date.startsWith(prefix)).forEach((event) => {
-      const day = Number(event.date.slice(-2));
-      map.set(day, [...(map.get(day) ?? []), event]);
+    const map = new Map<string, Array<EventoEvent | ImportedCalendarEvent>>();
+    const visibleDates = new Set(days.filter((date): date is string => Boolean(date)));
+    events.filter((event) => visibleDates.has(event.date)).forEach((event) => {
+      map.set(event.date, [...(map.get(event.date) ?? []), event]);
     });
     const visibleSources = new Set(visibleCalendarSources.map((source) => source.id));
     calendarFeedEvents.filter((event) =>
       visibleSources.has(event.sourceId)
-      && event.date.startsWith(prefix)
+      && visibleDates.has(event.date)
       && !linkedCalendarEventIds.has(event.id)
     ).forEach((event) => {
-      const day = Number(event.date.slice(-2));
-      map.set(day, [...(map.get(day) ?? []), event]);
+      map.set(event.date, [...(map.get(event.date) ?? []), event]);
+    });
+    for (const items of map.values()) items.sort((a, b) => {
+      const start = (event: EventoEvent | ImportedCalendarEvent) => eventWindow(event.date, event.eventTime)?.startsAt ?? Number.MAX_SAFE_INTEGER;
+      return start(a) - start(b) || a.title.localeCompare(b.title);
     });
     return map;
-  }, [events, calendarFeedEvents, calendarYear, calendarMonth, linkedCalendarEventIds, visibleCalendarSources]);
+  }, [events, calendarFeedEvents, days, linkedCalendarEventIds, visibleCalendarSources]);
 
   async function save() {
     if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return; }
@@ -1046,7 +1032,7 @@ export default function Home() {
     window.addEventListener("pointerup", stop);
   }
 
-  function addEvent(day?: number, templateId = newEventTemplateId) {
+  function addEvent(day?: number, templateId = newEventTemplateId, exactDate?: string) {
     if (!eventBackendChecked) { setEventSaveStatus("NOT ON SERVER"); return; }
     const monthLength = new Date(calendarYear, calendarMonth + 1, 0).getDate();
     const template = settings.operationsTemplates.find((item) => item.id === templateId);
@@ -1054,7 +1040,7 @@ export default function Home() {
       ...eventSeed(
       `event_${uid()}`,
       template?.name ?? "New Event",
-      `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(Math.min(day ?? 1, monthLength)).padStart(2, "0")}`,
+      exactDate ?? `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(Math.min(day ?? 1, monthLength)).padStart(2, "0")}`,
       template ? templateKind(template) : "rental",
       "9:00 AM-12:00 PM",
       "Margaret's Room",
@@ -1076,6 +1062,24 @@ export default function Home() {
   const currentMonthLabel = monthNames[calendarMonth];
   const setMonth = (month: number) => setCalendarMonth(Math.max(0, Math.min(11, month)));
   const shiftYear = (amount: number) => setCalendarYear((year) => Math.max(1900, Math.min(2200, year + amount)));
+  function selectCalendarDate(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+    const [year, month, day] = value.split("-").map(Number);
+    if (year < 1900 || year > 2200) return;
+    setCalendarYear(year); setCalendarMonth(month - 1); setCalendarDay(day);
+  }
+  function shiftCalendarPeriod(direction: number) {
+    const focused = new Date(Date.UTC(calendarYear, calendarMonth, Math.min(calendarDay, new Date(Date.UTC(calendarYear, calendarMonth + 1, 0)).getUTCDate())));
+    if (calendarDisplay.view === "month" || calendarDisplay.view === "agenda") {
+      focused.setUTCDate(1); focused.setUTCMonth(focused.getUTCMonth() + direction);
+    } else focused.setUTCDate(focused.getUTCDate() + direction * (calendarDisplay.view === "week" ? 7 : 1));
+    selectCalendarDate(dateKey(focused));
+  }
+  const focusDate = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(Math.min(calendarDay, new Date(Date.UTC(calendarYear, calendarMonth + 1, 0)).getUTCDate())).padStart(2, "0")}`;
+  const calendarRangeLabel = calendarDisplay.view === "day"
+    ? new Date(`${focusDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+    : calendarDisplay.view === "week" ? `${days[0]} - ${days[6]}` : `${currentMonthLabel} ${calendarYear}`;
+  const weekdays = settings.weekStartsOn === "monday" ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   function openTickerEvent(item: LiveTickerItem) {
     if (item.external) {
@@ -1102,7 +1106,7 @@ export default function Home() {
             ))}
           </select>
         </label>
-        <button className="primary" onClick={() => addEvent(new Date().getDate())}>
+        <button className="primary" onClick={() => addEvent(localDayParts(new Date(), settings.timezone).day)}>
           NEW EVENT
         </button>
         <button onClick={() => setSettingsOpen(true)}>SETTINGS</button>
@@ -1182,11 +1186,11 @@ export default function Home() {
           }}
         />
 
-        <section className="calendar-panel">
+        <section className="calendar-panel calendar-custom" data-view={calendarDisplay.view} style={calendarDisplayStyle(calendarDisplay) as CSSProperties}>
           <div className="calendar-title">
             <div>
               <small>EVENTOTRON MAIN CALENDAR</small>
-              <h1>{currentMonthLabel} {calendarYear} All Staff Schedule</h1>
+              <h1>{calendarRangeLabel} All Staff Schedule</h1>
             </div>
             <div className="calendar-legend">
               {Object.entries(labels).map(([kind, label]) => (
@@ -1196,6 +1200,19 @@ export default function Home() {
               ))}
             </div>
           </div>
+          <div className="calendar-display-toolbar">
+            <div className="calendar-view-switch" role="group" aria-label="Calendar view">
+              {calendarViews.map(view => <button key={view} type="button" aria-pressed={calendarDisplay.view === view} onClick={() => {
+                try { updateCalendarDisplay({ view }); setDisplayError(""); } catch { setDisplayError("Calendar view could not be saved in this browser."); }
+              }}>{view}</button>)}
+            </div>
+            <div className="calendar-date-navigation">
+              <button type="button" aria-label="Previous calendar period" title="Previous period" onClick={() => shiftCalendarPeriod(-1)}>‹</button>
+              <label><span className="sr-only">Calendar date</span><input type="date" aria-label="Calendar date" min="1900-01-01" max="2200-12-31" value={focusDate} onChange={event => selectCalendarDate(event.target.value)} /></label>
+              <button type="button" aria-label="Next calendar period" title="Next period" onClick={() => shiftCalendarPeriod(1)}>›</button>
+            </div>
+          </div>
+          {displayError && <p role="alert">{displayError}</p>}
           <div className="calendar-sync-diagnostics">
             <span><b>{visibleExternalEventCount}</b> calendar entries ready to open</span>
             <span><b>{totalSyncedExternalEventCount}</b> synced external records</span>
@@ -1203,6 +1220,13 @@ export default function Home() {
             {calendarErrorCount ? <span className="diagnostic-error"><b>{calendarErrorCount}</b> calendar error{calendarErrorCount === 1 ? "" : "s"}</span> : null}
           </div>
           <div className="calendar-month-tabs" role="tablist" aria-label="Calendar months">
+            <button className="year-step calendar-today" onClick={() => {
+              const currentDay = localDayParts(new Date(), settings.timezone);
+              setCalendarYear(currentDay.year);
+              setCalendarMonth(currentDay.month);
+              setCalendarDay(currentDay.day);
+              window.requestAnimationFrame(() => document.querySelector(".day-cell.today")?.scrollIntoView({ block: "start", inline: "nearest" }));
+            }}>TODAY</button>
             <button className="year-step" aria-label="Previous year" onClick={() => shiftYear(-1)}>‹</button>
             <label className="calendar-year-input">
               <small>YEAR</small>
@@ -1230,38 +1254,41 @@ export default function Home() {
               ))}
             </div>
           </div>
-          <div className="month-grid">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          <div className={`month-grid calendar-view-${calendarDisplay.view}`}>
+            {(calendarDisplay.view === "month" || calendarDisplay.view === "week" ? weekdays : []).map((day) => (
               <div className="weekday" key={day}>
                 {day}
               </div>
             ))}
-            {days.map((day, index) => (
-              <div className={`day-cell ${day ? "" : "blank"} ${day === today.day && calendarMonth === today.month && calendarYear === today.year ? "today" : ""}`} key={`${day}-${index}`}>
-                {day && (
+            {days.map((date, index) => (
+              <div className={`day-cell ${date ? "" : "blank"} ${date === today.key ? "today" : ""}`} key={`${date}-${index}`}>
+                {date && (
                   <>
-                    <button className="day-number" onClick={() => addEvent(day)}>
-                      {day}
+                    <span className="calendar-day-label">{new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
+                    <button className="day-number" aria-label={`Create event on ${date}`} onClick={() => addEvent(undefined, newEventTemplateId, date)}>
+                      {Number(date.slice(-2))}
                     </button>
                     <div className="day-events">
-                      {(eventsByDay.get(day) ?? []).map((event) => {
+                      {(eventsByDay.get(date) ?? []).map((event) => {
                         const imported = "sourceId" in event;
                         return (
                           <button
                             className={`calendar-event ${imported ? "external" : event.kind} ${!imported && event.id === selected.id ? "active" : ""}`}
                             key={`${imported ? event.sourceId : "event"}-${event.id}`}
                             onClick={() => { if (imported) void convertCalendarEvent(event); else openEvent(event); }}
-                            style={imported ? { borderColor: event.color, color: event.color } : undefined}
+                            style={imported ? { borderColor: calendarSourceColor(event.color, calendarDisplay.background) } : undefined}
                             title={imported ? `Open as an editable event file from ${event.sourceName}${event.location ? ` · ${event.location}` : ""}` : undefined}
                             aria-label={imported ? `Open ${event.title} as an editable event file` : `Open ${event.title}`}
                           >
                             <b>{event.title}</b>
                             <small>{formatRegularTime(event.eventTime)}</small>
-                            {imported ? <em>+ EVENT FILE</em> : null}
+                            {calendarDisplay.view === "agenda" || calendarDisplay.view === "day" ? <span className="calendar-event-location">{imported ? event.location : event.space}</span> : null}
+                            {imported ? <em>{event.sourceName}</em> : null}
                           </button>
                         );
                       })}
                     </div>
+                    {(calendarDisplay.view === "day" || calendarDisplay.view === "agenda") && !(eventsByDay.get(date)?.length) ? <p className="calendar-empty-day">No events</p> : null}
                   </>
                 )}
               </div>
@@ -1538,6 +1565,7 @@ export default function Home() {
             </header>
 
             <div className="settings-layout">
+              <CalendarDisplaySettings />
               <section className="settings-card">
                 <div className="settings-card-heading"><span>01</span><h3>Workspace</h3></div>
                 <label className="settings-field wide">
@@ -1565,19 +1593,11 @@ export default function Home() {
                 </div>
                 <div className="settings-two-up">
                   <label className="settings-field">
-                    <span>Default calendar view</span>
-                    <select value={settings.defaultView} onChange={(event) => updateSettings({ defaultView: event.target.value as EventoSettings["defaultView"] })}>
-                      <option value="month">Month</option>
-                      <option value="week">Week</option>
-                    </select>
-                  </label>
-                  <label className="settings-field">
                     <span>Event rail width</span>
                     <input type="range" min="280" max="620" step="10" value={railWidth} onChange={(event) => setRailWidth(Number(event.target.value))} />
                     <output>{railWidth}px</output>
                   </label>
                 </div>
-                <label className="settings-check"><input type="checkbox" checked={settings.showWeekends} onChange={(event) => updateSettings({ showWeekends: event.target.checked })} /><span>Show weekends on the calendar</span></label>
                 <label className="settings-check"><input type="checkbox" checked={settings.autoSave} onChange={(event) => updateSettings({ autoSave: event.target.checked })} /><span>Save event edits automatically on this device</span></label>
               </section>
 
