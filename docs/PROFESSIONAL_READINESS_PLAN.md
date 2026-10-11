@@ -133,6 +133,11 @@ are met, and the operations lead authorizes EventoTron as the primary system.
 
 ## Next Work Queue
 
+Beta support is now implemented locally; see `docs/BETA_SUPPORT.md`. Before a
+coworker beta, rehearse real staff/admin permissions and a real report/fix/retest
+cycle, assign a triage owner/substitute, and confirm shared server access. Local
+test counts do not demonstrate those operational gates.
+
 1. Verify the engineering baseline and backup utility; record results.
 2. Implement atomic/reviewed restore and backup-health tracking before scheduling.
 3. Select backup destination/owners, then enable and test scheduled off-device copies.

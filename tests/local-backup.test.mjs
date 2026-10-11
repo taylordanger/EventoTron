@@ -20,6 +20,13 @@ test("backup validation rejects incomplete, fallback, mismatched and duplicate e
   assert.throws(() => validateLocalBackup(duplicate));
 });
 
+test("version 3 backups require ticket coverage while old version 2 backups remain valid", () => {
+  const backup = { ...fixture(), version: 3 };
+  assert.throws(() => validateLocalBackup(backup));
+  backup.data.supportTickets = []; backup.counts.supportTickets = 0;
+  assert.equal(validateLocalBackup(backup).supportTickets, 0);
+});
+
 test("backup origins cannot send private data requests to remote servers or redirects", () => {
   assert.equal(localBackupUrl("http://127.0.0.1:3022"), "http://127.0.0.1:3022");
   for (const value of ["https://example.com", "http://127.0.0.1.evil.test", "http://user:pass@localhost", "http://localhost/api", "http://localhost/?token=x"]) assert.throws(() => localBackupUrl(value));

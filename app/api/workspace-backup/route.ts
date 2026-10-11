@@ -1,5 +1,6 @@
 import { getDb } from "@/db";
 import { withRole } from "../_lib/auth";
+import { validSupportBackupRow } from "../../support-data";
 import {
   foodotronMeals,
   mealTransfers,
@@ -14,6 +15,7 @@ import {
   suiteRooms,
   suiteScheduleItems,
   suiteSettings,
+  supportTickets,
   suiteShoppingItems,
   tabletronEvents,
 } from "@/db/schema";
@@ -22,9 +24,10 @@ import { projectAppletState } from "../event-app-state/projections";
 import { readLocalEvents, writeLocalEvents } from "../events/local-store";
 import { readLocalSettings, writeLocalSettings } from "../settings/local-store";
 
-const BACKUP_VERSION = 2 as const;
+const BACKUP_VERSION = 3 as const;
 
 type BackupData = {
+  supportTickets?: Array<typeof supportTickets.$inferSelect>;
   settings?: Array<typeof suiteSettings.$inferSelect>;
   events?: Array<typeof suiteEvents.$inferSelect>;
   eventAudit?: Array<typeof suiteEventAudit.$inferSelect>;
@@ -44,7 +47,7 @@ type BackupData = {
 
 type WorkspaceBackup = {
   format: "eventotron-workspace-backup";
-  version: 1 | typeof BACKUP_VERSION;
+  version: 1 | 2 | typeof BACKUP_VERSION;
   exportedAt: string;
   source?: string;
   counts?: Record<string, number>;
@@ -52,6 +55,7 @@ type WorkspaceBackup = {
 };
 
 const backupKeys = [
+  "supportTickets",
   "settings",
   "events",
   "eventAudit",
@@ -105,7 +109,7 @@ function validateBackup(value: unknown): WorkspaceBackup | null {
   const backup = value as Partial<WorkspaceBackup>;
   if (
     backup.format !== "eventotron-workspace-backup" ||
-    (backup.version !== 1 && backup.version !== BACKUP_VERSION) ||
+    (backup.version !== 1 && backup.version !== 2 && backup.version !== BACKUP_VERSION) ||
     !backup.data ||
     typeof backup.data !== "object" ||
     Array.isArray(backup.data)
@@ -119,10 +123,11 @@ function validateBackup(value: unknown): WorkspaceBackup | null {
       return null;
     }
   }
+  if (backup.data.supportTickets?.some(row => !validSupportBackupRow(row))) return null;
   return backup as WorkspaceBackup;
 }
 
-export const GET = withRole("staff", async () => {
+export const GET = withRole("admin", async () => {
   try {
     const db = await getDb();
     // One D1 batch reads snapshots and derived records together.
@@ -142,6 +147,7 @@ export const GET = withRole("staff", async () => {
       calendarSources,
       calendarEvents,
       transfers,
+      tickets,
     ] = await db.batch([
       db.select().from(suiteSettings),
       db.select().from(suiteEvents),
@@ -158,6 +164,7 @@ export const GET = withRole("staff", async () => {
       db.select().from(suiteCalendarSources),
       db.select().from(suiteCalendarEvents),
       db.select().from(mealTransfers),
+      db.select().from(supportTickets),
     ]);
     return backupResponse(
       {
@@ -176,6 +183,7 @@ export const GET = withRole("staff", async () => {
         calendarSources,
         calendarEvents,
         mealTransfers: transfers,
+        supportTickets: tickets,
       },
       "database",
     );
@@ -222,6 +230,9 @@ export const GET = withRole("staff", async () => {
 async function restoreDatabase(backup: WorkspaceBackup) {
   const db = await getDb();
   const upserts: Array<Promise<unknown>> = [];
+  for (const row of backup.data.supportTickets ?? []) {
+    upserts.push(db.insert(supportTickets).values(row).onConflictDoUpdate({ target: supportTickets.id, set: row }));
+  }
 
   for (const row of backup.data.settings ?? []) {
     upserts.push(db.insert(suiteSettings).values(row).onConflictDoUpdate({ target: suiteSettings.id, set: row }));

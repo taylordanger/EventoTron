@@ -1,5 +1,7 @@
 import { asc, count } from "drizzle-orm";
 import { EXPECTED_SCHEMA_MIGRATION, getDb } from "@/db";
+import { RELEASE } from "../../release";
+import { recordDiagnostic } from "../_lib/diagnostics";
 import {
   foodotronMeals,
   mealTransfers,
@@ -57,7 +59,7 @@ export async function GET() {
       status: schemaReady ? "ready" : "migration-required",
       service: "eventotron",
       scope: "backend",
-      version: "0.1.0",
+      version: RELEASE,
       checkedAt: new Date().toISOString(),
       latencyMs: Date.now() - startedAt,
       database: "connected",
@@ -87,11 +89,12 @@ export async function GET() {
       headers: { "Cache-Control": "no-store" },
     });
   } catch {
+    const logged = await recordDiagnostic({ code: "request-failed", app: "system", route: "/api/health", release: RELEASE, status: 503, durationMs: Date.now() - startedAt }, "system").catch(() => null);
     return Response.json(
       {
         status: "unavailable",
         service: "eventotron",
-        version: "0.1.0",
+        version: RELEASE,
         checkedAt: new Date().toISOString(),
         latencyMs: Date.now() - startedAt,
         database: "unavailable",
@@ -102,7 +105,7 @@ export async function GET() {
         },
         records: null,
       },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
+      { status: 503, headers: { "Cache-Control": "no-store", ...(logged ? { "x-eventotron-error-ref": logged.id } : {}) } },
     );
   }
 }

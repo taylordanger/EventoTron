@@ -2,15 +2,16 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRuntimeLog } from "./support-runtime.mjs";
 
 export const BACKUP_KEYS = ["settings", "events", "eventAudit", "appletStates", "rooms", "roomLayouts", "layoutItems", "foodotronMeals", "recipes", "shoppingItems", "tabletronEvents", "scheduleItems", "calendarSources", "calendarEvents", "mealTransfers"];
 
 export function validateLocalBackup(backup) {
-  if (backup?.format !== "eventotron-workspace-backup" || backup.version !== 2 || backup.source !== "database" || !Number.isFinite(Date.parse(backup.exportedAt))) {
-    throw new Error("Expected a version 2 database backup; no backup was accepted.");
+  if (backup?.format !== "eventotron-workspace-backup" || ![2, 3].includes(backup.version) || backup.source !== "database" || !Number.isFinite(Date.parse(backup.exportedAt))) {
+    throw new Error("Expected a version 2 or 3 database backup; no backup was accepted.");
   }
   const counts = {};
-  for (const key of BACKUP_KEYS) {
+  for (const key of [...BACKUP_KEYS, ...(backup.version === 3 ? ["supportTickets"] : [])]) {
     const rows = backup.data?.[key];
     if (!Array.isArray(rows) || rows.some((row) => !row || typeof row.id !== "string" || !row.id.trim()) || new Set(rows.map((row) => row.id)).size !== rows.length) {
       throw new Error(`Invalid or duplicate records in ${key}.`);
@@ -76,5 +77,8 @@ async function main() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+  main().catch(async (error) => {
+    await createRuntimeLog(fileURLToPath(new URL("../.wrangler/support-runtime.ndjson", import.meta.url))).write({ code: "backup-failed" });
+    console.error(error.message); process.exitCode = 1;
+  });
 }

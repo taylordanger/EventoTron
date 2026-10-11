@@ -3,6 +3,7 @@ import net from "node:net";
 import { spawn } from "node:child_process";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRuntimeLog, captureRuntimeOutput } from "./support-runtime.mjs";
 
 /** Restart policy for the local backend. See launchWrangler below. */
 export const RESTART_DELAY_MS = 1500;
@@ -34,6 +35,7 @@ export async function findAvailablePort(startPort, attempts = 20, checkPort = is
 
 async function start() {
   const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+  const log = createRuntimeLog(fileURLToPath(new URL("../.wrangler/support-runtime.ndjson", import.meta.url)));
   const productionWorker = new URL("../dist/server/index.js", import.meta.url);
   const workerConfig = new URL("../dist/server/wrangler.json", import.meta.url);
   try {
@@ -88,11 +90,15 @@ async function start() {
     child = spawn(process.execPath, wranglerArgs, {
       cwd: projectRoot,
       env: { ...process.env, PATH: pathWithNode, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
-      stdio: "inherit",
+      stdio: ["inherit", "pipe", "pipe"],
     });
+    captureRuntimeOutput(child.stdout, process.stdout, log);
+    captureRuntimeOutput(child.stderr, process.stderr, log);
+    void log.write({ code: "runtime-start" });
 
     child.once("exit", (code, signal) => {
       if (stopping) {
+        void log.write({ code: "runtime-stop", exitCode: code });
         process.exitCode = code ?? (signal ? 1 : 0);
         return;
       }
@@ -104,6 +110,7 @@ async function start() {
       // A crash loop means something is actually broken; restarting forever
       // would only bury the reason.
       if (restarts.length > MAX_RESTARTS) {
+        void log.write({ code: "runtime-crash-loop", exitCode: code, attempt: restarts.length });
         console.error(
           `EventoTron stopped ${restarts.length} times in under ${Math.round(RESTART_WINDOW_MS / 1000)}s and will not restart again.`,
         );
@@ -115,6 +122,7 @@ async function start() {
       console.log(
         `EventoTron stopped unexpectedly (${signal ?? `exit ${code}`}). Restarting in ${RESTART_DELAY_MS}ms — attempt ${restarts.length} of ${MAX_RESTARTS}.`,
       );
+      void log.write({ code: "runtime-restart", exitCode: code, attempt: restarts.length });
       setTimeout(launchWrangler, RESTART_DELAY_MS);
     });
   }

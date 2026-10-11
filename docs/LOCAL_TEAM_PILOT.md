@@ -49,7 +49,7 @@ workarounds before calling this pilot complete. Keep the paper binder available.
 ## Developer Checks
 
 `npm run verify` enforces zero-warning lint, Workers-aware typecheck, build and
-144 tests. Isolated browser/storage checks cover
+158 tests. Isolated browser/storage checks cover
 stale saves, competing writers, transactional rollback, refresh recovery, retry,
 template initialization, sketches, hallways, department reports and restore.
 
@@ -79,5 +79,9 @@ variables and checks concurrent applet writes against exported projections.
 `scripts/verify-tabletron-selection.mjs` verifies that Tabletron and Scheduluotron
 do not reopen unrelated event caches, retain standalone work and explicit event
 plans across refresh, and handle a meal handoff using the target event's bundle.
+`scripts/verify-beta-support.mjs` checks ticket/report/diagnostic workflows using
+the same isolation settings. See `docs/BETA_SUPPORT.md` for privacy and beta
+triage. Workspace exports now require admin and include support tickets in
+version 3; do not share these files with staff as general diagnostic bundles.
 For release/recovery gates and the next work queue, use
 `docs/PROFESSIONAL_READINESS_PLAN.md`.

@@ -6,6 +6,35 @@ export const suiteWriteGuards = sqliteTable("suite_write_guards", {
   accepted: integer("accepted").notNull(),
 }, (table) => [check("accepted_guard", sql`${table.accepted} = 1`)]);
 
+export const supportTickets = sqliteTable("support_tickets", {
+  number: integer("number").primaryKey({ autoIncrement: true }),
+  id: text("id").notNull().unique(),
+  title: text("title").notNull(),
+  app: text("app").$type<import("../app/support-data").SupportApp>().notNull(),
+  impact: text("impact").$type<import("../app/support-data").TicketImpact>().notNull(),
+  status: text("status").$type<import("../app/support-data").TicketStatus>().notNull().default("new"),
+  reporter: text("reporter").notNull(),
+  assignee: text("assignee").notNull().default(""),
+  payload: text("payload", { mode: "json" }).$type<import("../app/support-data").TicketPayload>().notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [index("idx_support_tickets_reporter_created").on(table.reporter, table.createdAt), index("idx_support_tickets_updated").on(table.updatedAt)]);
+
+export const supportDiagnostics = sqliteTable("support_diagnostics", {
+  id: text("id").primaryKey(),
+  actorKey: text("actor_key").notNull(),
+  bucket: text("bucket").notNull(),
+  code: text("code").notNull(),
+  app: text("app").notNull(),
+  severity: text("severity").notNull(),
+  source: text("source").notNull(),
+  release: text("release").notNull(),
+  count: integer("count").notNull().default(1),
+  metadata: text("metadata", { mode: "json" }).$type<import("../app/support-data").DiagnosticInput>().notNull(),
+  firstSeenAt: text("first_seen_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+}, (table) => [index("idx_support_diagnostics_seen").on(table.lastSeenAt), index("idx_support_diagnostics_actor_bucket").on(table.actorKey, table.bucket)]);
+
 export const suiteSchemaMigrations = sqliteTable("suite_schema_migrations", {
   id: text("id").primaryKey(),
   appliedAt: text("applied_at").notNull(),

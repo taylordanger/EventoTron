@@ -850,7 +850,7 @@ export default function SettingsPage() {
             <h1>Settings</h1>
           </div>
           <button className="save-state" data-tone={saveStatusTone(displayedStatus)} title={saveStatusHint(displayedStatus)} disabled>{displayedStatus}</button>
-          <button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button>
+          <button disabled={!isEffectiveAdmin} title="Admin-only workspace backup" onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button>
           <button onClick={() => backupInput.current?.click()}>RESTORE</button>
           <input ref={backupInput} className="backup-input" type="file" accept="application/json,.json" aria-label="Review EventoTron workspace backup before restoring" onChange={(event) => void reviewWorkspaceBackup(event.target.files?.[0])} />
           <button onClick={exportSettings}>EXPORT</button>
@@ -867,7 +867,7 @@ export default function SettingsPage() {
                 <b>{alphaReadyCount} / {alphaReadiness.length} READY</b>
               </div>
               <div className="alpha-actions">
-                <button onClick={exportWorkspaceBackup}>EXPORT CHECKPOINT</button>
+                <button disabled={!isEffectiveAdmin} title="Admin-only workspace backup" onClick={exportWorkspaceBackup}>EXPORT CHECKPOINT</button>
                 <a href="/master-report">MASTER REPORT</a>
               </div>
             </div>
@@ -1058,7 +1058,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="settings-card settings-backup-card">
-            <div className="settings-card-heading"><span>07</span><h3>Backup And Recovery</h3><button onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button></div>
+            <div className="settings-card-heading"><span>07</span><h3>Backup And Recovery</h3><button disabled={!isEffectiveAdmin} title="Admin-only workspace backup" onClick={exportWorkspaceBackup}>EXPORT WORKSPACE</button></div>
             <div className={`backup-status-banner ${backupCheckpoint && backupAgeDays !== null && backupAgeDays <= 7 ? "fresh" : "stale"}`}>
               <small>RECOVERY READINESS</small>
               <b>{backupCheckpoint ? backupAgeDays === 0 ? "BACKED UP TODAY" : backupAgeDays === 1 ? "BACKED UP YESTERDAY" : `${backupAgeDays ?? "UNKNOWN"} DAYS OLD` : "NO BACKUP RECORDED"}</b>

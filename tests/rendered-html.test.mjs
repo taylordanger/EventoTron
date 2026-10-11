@@ -74,6 +74,13 @@ test("server-renders every applet beneath the shared suite origin", async () => 
   }
 });
 
+test("database failure still returns an error reference through the sanitized console fallback", async () => {
+  const response = await request("/api/health");
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get("x-eventotron-error-ref"), /^LOG-[a-f0-9]{24}$/);
+  assert.equal((await response.json()).database, "unavailable");
+});
+
 test("API routes reject incomplete writes before touching storage", async () => {
   const checks = [
     ["/api/events", "PUT", {}, 400, /at least one event/i],
@@ -192,11 +199,11 @@ test("production data contracts keep IDs, migrations, event ownership, and compl
   assert.match(calendarRoute, /googleCalendarFeedUrl/);
   assert.match(calendarRoute, /function importSummaryForSource/);
   assert.match(calendarRoute, /importHistory/);
-  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0007_guarded_writes"/);
+  assert.match(database, /EXPECTED_SCHEMA_MIGRATION = "0008_beta_support"/);
   for (const table of ["eventAudit", "rooms", "roomLayouts", "layoutItems", "recipes", "shoppingItems", "scheduleItems", "calendarSources", "calendarEvents"]) {
     assert.match(backupRoute, new RegExp(`\\b${table}\\b`), `backup should include ${table}`);
   }
-  assert.match(backupRoute, /BACKUP_VERSION = 2/);
+  assert.match(backupRoute, /BACKUP_VERSION = 3/);
   assert.match(backupRoute, /validateBackup/);
   assert.match(backupRoute, /searchParams\.get\("mode"\) === "validate"/);
   assert.match(backupRoute, /function backupPreview/);

@@ -2,6 +2,9 @@ import { verifyAccessJwt, type AccessEnv } from "./access-jwt.ts";
 import { AuthError } from "./errors.ts";
 import { isLocalRequest, roleSatisfies, type LocalModeEnv, type SuiteRole } from "./role.ts";
 import { loadOrProvisionUser, type ProvisionEnv } from "./users.ts";
+import { recordDiagnostic } from "./diagnostics";
+import { appFromPath, diagnosticMetadata, requestDiagnosticCode, safeErrorDetails } from "../../support-data";
+import { RELEASE } from "../../release";
 
 export type { SuiteRole } from "./role.ts";
 export { isLocalRequest, roleSatisfies } from "./role.ts";
@@ -70,17 +73,37 @@ export function withRole<Args extends unknown[]>(
   handler: (request: Request, identity: Identity, ...args: Args) => Promise<Response>,
 ) {
   return async (request: Request, ...args: Args): Promise<Response> => {
+    const startedAt = Date.now();
+    let identity: Identity | undefined;
+    const url = new URL(request.url);
+    const observed = url.pathname !== "/api/diagnostics";
+    async function finish(response: Response, thrown?: unknown) {
+      const durationMs = Date.now() - startedAt;
+      if (request.method === "GET" && response.status === 404 && ["/api/settings", "/api/event-app-state"].includes(url.pathname)) return response;
+      if (!observed || (response.status < 400 && durationMs < 1500)) return response;
+      const code = requestDiagnosticCode(url.pathname, response.status, request.method, !!thrown && !(thrown instanceof AuthError));
+      try {
+        const requestedApp = request.headers.get("x-eventotron-app") ?? url.searchParams.get("app") ?? appFromPath(url.pathname);
+        const metadata = diagnosticMetadata({ code, app: requestedApp, route: url.pathname, release: RELEASE, method: request.method, status: response.status, durationMs, ...safeErrorDetails(thrown) })!;
+        const logged = await recordDiagnostic(metadata, identity?.email ?? "unauthenticated");
+        if (logged && response.status >= 400) {
+          const headers = new Headers(response.headers); headers.set("x-eventotron-error-ref", logged.id);
+          return new Response(response.body, { status: response.status, headers });
+        }
+      } catch { /* Diagnostics must never turn a successful operation into a failure. */ }
+      return response;
+    }
     try {
-      const identity = await requireRole(request, minRole);
-      return await handler(request, identity, ...args);
+      identity = await requireRole(request, minRole);
+      return await finish(await handler(request, identity, ...args));
     } catch (error) {
       if (error instanceof AuthError) {
-        return Response.json(
+        return finish(Response.json(
           { error: error.message },
           { status: error.status, headers: { "Cache-Control": "no-store" } },
-        );
+        ), error);
       }
-      throw error;
+      return finish(Response.json({ error: "EventoTron could not complete this operation." }, { status: 500, headers: { "Cache-Control": "no-store" } }), error);
     }
   };
 }

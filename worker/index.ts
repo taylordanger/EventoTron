@@ -1,6 +1,9 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { recordDiagnostic } from "../app/api/_lib/diagnostics";
+import { diagnosticMetadata, requestDiagnosticCode, safeErrorDetails } from "../app/support-data";
+import { RELEASE } from "../app/release";
 
 interface Env {
   ASSETS: Fetcher;
@@ -40,7 +43,18 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    try {
+      const response = await handler.fetch(request, env, ctx);
+      if (response.status < 500 || response.headers.has("x-eventotron-error-ref")) return response;
+      const metadata = diagnosticMetadata({ code: requestDiagnosticCode(url.pathname, response.status, request.method), app: "system", route: url.pathname, release: RELEASE, status: response.status, method: request.method })!;
+      const logged = await recordDiagnostic(metadata, "system");
+      const headers = new Headers(response.headers); if (logged) headers.set("x-eventotron-error-ref", logged.id);
+      return new Response(response.body, { status: response.status, headers });
+    } catch (error) {
+      const metadata = diagnosticMetadata({ code: "server-exception", app: "system", route: url.pathname, release: RELEASE, status: 500, method: request.method, ...safeErrorDetails(error) })!;
+      const logged = await recordDiagnostic(metadata, "system").catch(() => null);
+      return new Response("EventoTron could not display this page.", { status: 500, headers: { "Cache-Control": "no-store", ...(logged ? { "x-eventotron-error-ref": logged.id } : {}) } });
+    }
   },
 };
 

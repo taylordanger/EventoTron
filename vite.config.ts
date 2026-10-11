@@ -2,6 +2,14 @@ import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
+import { execFileSync } from "node:child_process";
+
+let revision = "local";
+try {
+  revision = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
+  if (execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim()) revision += "-dirty";
+} catch {}
+const release = process.env.EVENTOTRON_RELEASE_ID || `0.1.0+${revision}.${new Date().toISOString().replace(/[^0-9]/g, "")}`;
 
 // A real deployment must point at a real D1 database. The placeholder keeps
 // local development working without an account; `wrangler d1 create` prints the
@@ -50,6 +58,7 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    define: { __EVENTOTRON_RELEASE__: JSON.stringify(release) },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,

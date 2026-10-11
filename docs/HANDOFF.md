@@ -123,6 +123,33 @@ from team deployment readiness.
 
 ## Recent work, newest first
 
+### Beta Support (2026-10-10)
+
+- Added global Report a problem and a Support inbox with numbered receipts,
+  statuses, assignment, visible conversation updates, screenshots and error links.
+  Submission retries use a stable ID; failed submissions retain the tab draft
+  and offer a downloadable support file. Ticket updates require revisions.
+- Staff routes enforce report ownership; admins triage all tickets and inspect
+  diagnostics. Local desktop mode remains one implicit admin. Real hosted staff
+  sign-in/permission rehearsal and a coworker reporting trial remain pending.
+- Added allowlisted browser/server diagnostics, per-build release IDs, categorized
+  save/sync/backup/restore/transfer failures, conflicts and slow requests. Raw
+  request bodies, error messages, contacts, tokens and query URLs are excluded.
+  Only safe module locations are retained from stack traces. Errors have LOG
+  references; failures do not depend on diagnostic persistence succeeding.
+- Migration `0008_beta_support` adds ticket and diagnostic tables. Diagnostics
+  aggregate by caller/minute/category, are capped and pruned at 30 days on intake
+  or admin reads. The separate local runtime log captures sanitized structured
+  lines and startup/restart/shutdown, with private bounded rotation. Close/reopen
+  the launcher once to activate its new capture code.
+- Workspace backup version 3 includes tickets/conversations/screenshots, not logs;
+  old versions remain readable. Full exports are now admin-only to protect private
+  support content. Restore is still a non-atomic merge/upsert, not a live rollback.
+- Verification: 158 tests, strict lint/typecheck/build; isolated API/browser
+  privacy, rate cap, idempotent tickets, stale/competing updates, failure fallback,
+  screenshot, mobile/desktop and ticket recovery rehearsals. See BETA_SUPPORT.md
+  and `scripts/verify-beta-support.mjs`. No live test tickets or fixture events.
+
 ### Stale Event Selection Fix (2026-10-10)
 
 - Calendar startup selects today's event or no event; it no longer falls back
