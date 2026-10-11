@@ -4,19 +4,8 @@ import { foodotronMeals, mealTransfers } from "@/db/schema";
 import { withRole } from "../../_lib/auth";
 import { getLocalTransfer } from "../local-store";
 
-function cors(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") ?? "";
-  return origin.startsWith("http://localhost:")
-    ? {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      }
-    : {};
-}
-
-export function OPTIONS(request: Request) {
-  return new Response(null, { headers: cors(request) });
+export function OPTIONS() {
+  return new Response(null, { status: 204 });
 }
 
 export const GET = withRole("staff", async (
@@ -35,7 +24,7 @@ export const GET = withRole("staff", async (
     if (!transfer) {
       return Response.json(
         { error: "Meal transfer was not found." },
-        { status: 404, headers: cors(request) },
+        { status: 404 },
       );
     }
     const meal = await db
@@ -46,7 +35,7 @@ export const GET = withRole("staff", async (
     if (!meal) {
       return Response.json(
         { error: "Foodotron meal was not found." },
-        { status: 404, headers: cors(request) },
+        { status: 404 },
       );
     }
     return Response.json(
@@ -61,7 +50,6 @@ export const GET = withRole("staff", async (
         meal: meal.payload,
         payload: meal.payload,
       },
-      { headers: cors(request) },
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -79,12 +67,11 @@ export const GET = withRole("staff", async (
           meal: local.meal,
           payload: local.meal,
         },
-        { headers: cors(request) },
       );
     }
     return Response.json(
       { error: "Foodotron could not read the transfer.", detail },
-      { status: 500, headers: cors(request) },
+      { status: 500 },
     );
   }
 });

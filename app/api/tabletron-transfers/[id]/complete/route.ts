@@ -11,19 +11,8 @@ type EventPayload = {
   guestCount?: number;
 };
 
-function cors(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") ?? "";
-  return origin.startsWith("http://localhost:")
-    ? {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      }
-    : {};
-}
-
-export function OPTIONS(request: Request) {
-  return new Response(null, { headers: cors(request) });
+export function OPTIONS() {
+  return new Response(null, { status: 204 });
 }
 
 export const POST = withRole("staff", async (
@@ -39,7 +28,7 @@ export const POST = withRole("staff", async (
   if (!event?.id) {
     return Response.json(
       { error: "Completing a transfer requires an event ID." },
-      { status: 400, headers: cors(request) },
+      { status: 400 },
     );
   }
   try {
@@ -52,7 +41,7 @@ export const POST = withRole("staff", async (
     if (!transfer) {
       return Response.json(
         { error: "Meal transfer was not found." },
-        { status: 404, headers: cors(request) },
+        { status: 404 },
       );
     }
 
@@ -101,7 +90,6 @@ export const POST = withRole("staff", async (
         tabletronEventId: event.id,
         eventId: event.id,
       },
-      { headers: cors(request) },
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -118,12 +106,11 @@ export const POST = withRole("staff", async (
           tabletronEventId: local.tabletronEventId,
           eventId: local.tabletronEventId,
         },
-        { headers: cors(request) },
       );
     }
     return Response.json(
       { error: "Foodotron could not complete the transfer.", detail },
-      { status: 500, headers: cors(request) },
+      { status: 500 },
     );
   }
 });

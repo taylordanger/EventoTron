@@ -858,12 +858,6 @@ function TabletronEditor({ requestedEventId }: { requestedEventId: string }) {
           params.get("transfer") ??
           window.location.pathname.match(/\/tabletron\/import\/([^/?#]+)/)?.[1] ??
           "";
-        const source = params.get("source") ?? "";
-        const transferApiBase =
-          /^http:\/\/localhost:\d+$/.test(source) ||
-          /^http:\/\/127\.0\.0\.1:\d+$/.test(source)
-            ? source
-            : "";
         const linkedEventId = requestedEventId;
         let linkedContext: EventoEventContext | null = null;
         if (linkedEventId) {
@@ -875,7 +869,7 @@ function TabletronEditor({ requestedEventId }: { requestedEventId: string }) {
           next = bundle.applets.tabletron ? applySettingsToProject(normalizeProject(bundle.applets.tabletron), suiteSettings) : defaultProject(suiteSettings);
         }
         if (transferId) {
-          const response = await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}`);
+          const response = await fetch(`/api/tabletron-transfers/${encodeURIComponent(transferId)}`);
           const transfer = await response.json() as { error?: string; meal: FoodotronMeal; tabletronEventId?: string; foodotronMealId?: string };
           if (cancelled) return;
           if (!response.ok) throw new Error(transfer.error || "Transfer failed");
@@ -946,7 +940,7 @@ function TabletronEditor({ requestedEventId }: { requestedEventId: string }) {
           }
           if (claimedEvent) {
             setInitialNeedsSave(true);
-            await fetch(`${transferApiBase}/api/tabletron-transfers/${encodeURIComponent(transferId)}/complete`, {
+            await fetch(`/api/tabletron-transfers/${encodeURIComponent(transferId)}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
